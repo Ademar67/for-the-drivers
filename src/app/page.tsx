@@ -38,7 +38,7 @@ const menuItems = [
     title: 'Clientes',
     icon: <Users />,
     href: '/clientes',
-    description: 'Gestiona la información de tus clientes y sus vehículos.',
+    description: 'Gestiona la información de tus clientes.',
   },
   {
     title: 'Seguimientos',
