@@ -59,6 +59,12 @@ const menuItems = [
     description: 'Administra los pedidos de productos de tus clientes.',
   },
   {
+    title: 'Facturas',
+    icon: <Receipt />,
+    href: '/facturas',
+    description: 'Gestiona el cobro de facturas a tus clientes.',
+  },
+  {
     title: 'Productos',
     icon: <ShoppingBag />,
     href: '/productos',
