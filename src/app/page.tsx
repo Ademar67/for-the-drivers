@@ -76,15 +76,15 @@ const menuItems = [
     href: '/mapa-clientes',
     description: 'Visualiza la ubicación de tus clientes en un mapa.',
   },
-];
-
-const aiFeatures = [
-    {
+  {
     title: 'Calculadora de Productos (IA)',
     icon: <Calculator />,
     href: '/calculadora',
     description: 'Obtén recomendaciones de productos basadas en IA.',
   },
+];
+
+const aiFeatures = [
   {
     title: 'Soporte IA',
     icon: <Bot />,
