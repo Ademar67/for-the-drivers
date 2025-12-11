@@ -28,7 +28,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { FeatureCard } from '@/components/feature-card';
 
-const allFeatures = [
+const features = [
   {
     title: 'Clientes',
     icon: <Users />,
@@ -103,7 +103,7 @@ const menuItems = [
         icon: <LayoutDashboard />,
         href: '/',
     },
-    ...allFeatures
+    ...features
 ]
 
 export default function Home() {
@@ -145,7 +145,7 @@ export default function Home() {
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {allFeatures.map((feature) => (
+              {features.map((feature) => (
                 <FeatureCard
                   key={feature.title}
                   title={feature.title}
