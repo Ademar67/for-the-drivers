@@ -146,7 +146,7 @@ export default function Home() {
               Tu centro de operaciones para gestionar ventas y clientes.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {menuItems.filter(item => item.href !== '/').map((feature) => (
                 <FeatureCard
                   key={feature.title}
@@ -159,7 +159,7 @@ export default function Home() {
             </div>
 
              <h2 className="text-3xl font-bold font-headline mt-12 mb-6">Herramientas con IA</h2>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {aiFeatures.map((feature) => (
                     <FeatureCard
                     key={feature.title}
@@ -172,7 +172,7 @@ export default function Home() {
             </div>
 
             <h2 className="text-3xl font-bold font-headline mt-12 mb-6">Guías de Productos</h2>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {guides.map((feature) => (
                     <FeatureCard
                     key={feature.title}
