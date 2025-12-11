@@ -1,0 +1,324 @@
+{
+  "entities": {
+    "Cliente": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Cliente",
+      "type": "object",
+      "description": "Represents a customer of Liqui Moly.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Cliente entity."
+        },
+        "nombre": {
+          "type": "string",
+          "description": "Name of the customer."
+        },
+        "direccion": {
+          "type": "string",
+          "description": "Address of the customer."
+        },
+        "telefono": {
+          "type": "string",
+          "description": "Phone number of the customer."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the customer.",
+          "format": "email"
+        },
+        "nit": {
+          "type": "string",
+          "description": "NIT (Tax ID) of the customer."
+        }
+      },
+      "required": [
+        "id",
+        "nombre"
+      ]
+    },
+    "Seguimiento": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Seguimiento",
+      "type": "object",
+      "description": "Represents a follow-up activity with a customer or prospect.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Seguimiento entity."
+        },
+        "clienteId": {
+          "type": "string",
+          "description": "Reference to Cliente. (Relationship: Cliente 1:N Seguimiento)"
+        },
+        "fecha": {
+          "type": "string",
+          "description": "Date of the follow-up activity.",
+          "format": "date-time"
+        },
+        "descripcion": {
+          "type": "string",
+          "description": "Description of the follow-up activity."
+        },
+        "estado": {
+          "type": "string",
+          "description": "Status of the follow-up activity (e.g., pending, completed)."
+        }
+      },
+      "required": [
+        "id",
+        "clienteId",
+        "fecha"
+      ]
+    },
+    "Pedido": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Pedido",
+      "type": "object",
+      "description": "Represents a customer order.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Pedido entity."
+        },
+        "clienteId": {
+          "type": "string",
+          "description": "Reference to Cliente. (Relationship: Cliente 1:N Pedido)"
+        },
+        "fecha": {
+          "type": "string",
+          "description": "Date of the order.",
+          "format": "date-time"
+        },
+        "total": {
+          "type": "number",
+          "description": "Total amount of the order."
+        },
+        "estado": {
+          "type": "string",
+          "description": "Status of the order (e.g., pending, processed, shipped)."
+        }
+      },
+      "required": [
+        "id",
+        "clienteId",
+        "fecha",
+        "total"
+      ]
+    },
+    "Factura": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Factura",
+      "type": "object",
+      "description": "Represents an invoice for a customer order.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Factura entity."
+        },
+        "pedidoId": {
+          "type": "string",
+          "description": "Reference to Pedido. (Relationship: Pedido 1:1 Factura)"
+        },
+        "fecha": {
+          "type": "string",
+          "description": "Date of the invoice.",
+          "format": "date-time"
+        },
+        "monto": {
+          "type": "number",
+          "description": "Amount of the invoice."
+        },
+        "estado": {
+          "type": "string",
+          "description": "Status of the invoice (e.g., paid, unpaid)."
+        }
+      },
+      "required": [
+        "id",
+        "pedidoId",
+        "fecha",
+        "monto"
+      ]
+    },
+    "Producto": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Producto",
+      "type": "object",
+      "description": "Represents a Liqui Moly product.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Producto entity."
+        },
+        "nombre": {
+          "type": "string",
+          "description": "Name of the product."
+        },
+        "descripcion": {
+          "type": "string",
+          "description": "Description of the product."
+        },
+        "precio": {
+          "type": "number",
+          "description": "Price of the product."
+        },
+        "imagenUrl": {
+          "type": "string",
+          "description": "URL of the product image.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "nombre",
+        "precio"
+      ]
+    },
+    "PedidoProducto": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PedidoProducto",
+      "type": "object",
+      "description": "Represents the many-to-many relation between Pedido and Producto",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the PedidoProducto entity."
+        },
+        "pedidoId": {
+          "type": "string",
+          "description": "Reference to Pedido. (Relationship: Pedido N:N Producto)"
+        },
+        "productoId": {
+          "type": "string",
+          "description": "Reference to Producto. (Relationship: Pedido N:N Producto)"
+        },
+        "cantidad": {
+          "type": "number",
+          "description": "Amount of the product in the order"
+        }
+      },
+      "required": [
+        "id",
+        "pedidoId",
+        "productoId",
+        "cantidad"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/clientes/{clienteId}",
+        "definition": {
+          "entityName": "Cliente",
+          "schema": {
+            "$ref": "#/backend/entities/Cliente"
+          },
+          "description": "Stores customer profiles. Each document contains customer information.",
+          "params": [
+            {
+              "name": "clienteId",
+              "description": "Unique identifier for the customer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/clientes/{clienteId}/seguimientos/{seguimientoId}",
+        "definition": {
+          "entityName": "Seguimiento",
+          "schema": {
+            "$ref": "#/backend/entities/Seguimiento"
+          },
+          "description": "Stores follow-up activities for a specific customer. Includes denormalized 'clienteId' for authorization independence.",
+          "params": [
+            {
+              "name": "clienteId",
+              "description": "Unique identifier for the customer."
+            },
+            {
+              "name": "seguimientoId",
+              "description": "Unique identifier for the follow-up activity."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/clientes/{clienteId}/pedidos/{pedidoId}",
+        "definition": {
+          "entityName": "Pedido",
+          "schema": {
+            "$ref": "#/backend/entities/Pedido"
+          },
+          "description": "Stores orders for a specific customer. Includes denormalized 'clienteId' for authorization independence.",
+          "params": [
+            {
+              "name": "clienteId",
+              "description": "Unique identifier for the customer."
+            },
+            {
+              "name": "pedidoId",
+              "description": "Unique identifier for the order."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/facturas/{facturaId}",
+        "definition": {
+          "entityName": "Factura",
+          "schema": {
+            "$ref": "#/backend/entities/Factura"
+          },
+          "description": "Stores invoices. No explicit ownership, security rules must ensure only authorized users have access. It is global data.",
+          "params": [
+            {
+              "name": "facturaId",
+              "description": "Unique identifier for the invoice."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/productos/{productoId}",
+        "definition": {
+          "entityName": "Producto",
+          "schema": {
+            "$ref": "#/backend/entities/Producto"
+          },
+          "description": "Stores product information. It is global data.",
+          "params": [
+            {
+              "name": "productoId",
+              "description": "Unique identifier for the product."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/pedido_productos/{pedidoProductoId}",
+        "definition": {
+          "entityName": "PedidoProducto",
+          "schema": {
+            "$ref": "#/backend/entities/PedidoProducto"
+          },
+          "description": "Stores the many-to-many relation between Pedido and Producto.",
+          "params": [
+            {
+              "name": "pedidoProductoId",
+              "description": "Unique identifier for the PedidoProducto entity."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the Liqui Moly Sales Hub application, focusing on managing customer information, follow-up activities, orders, invoices, and product catalogs. It follows the principles of Authorization Independence, Structural Segregation, and Access Modeling to ensure security and scalability.\n\n*   **Authorization Independence:**  The structure leverages path-based ownership for private data, specifically for collections directly related to a customer (Seguimientos, Pedidos). This eliminates the need for `get()` calls in security rules, as the `clienteId` within these subcollections confirms ownership. \n*   **Structural Segregation:** Each collection serves a distinct purpose. For instance, `clientes` stores customer profiles, while `productos` stores product information. There is no mixing of different data access requirements within the same collection.\n*   **Access Modeling:**  Path-based ownership (`/clientes/{clienteId}/seguimientos/{seguimientoId}`) establishes clear ownership and avoids relying on complex authorization logic. This approach aligns with the principle of keeping security rules simple and efficient. The relationships between entities (Cliente 1:N Seguimiento, Cliente 1:N Pedido) are implemented using subcollections to ensure data locality and efficient querying.\n*   **QAPs (Rules are not Filters):** The structure supports secure `list` operations.  Listing follow-ups or orders is always scoped to a specific customer, ensuring that users can only access the data they are authorized to see. By structuring data using subcollections (`/clientes/{clienteId}/seguimientos/{seguimientoId}`), it's straightforward to write rules that allow listing only the follow-ups for a specific customer.\n"
+  }
+}

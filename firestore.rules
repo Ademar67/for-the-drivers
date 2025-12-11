@@ -1,0 +1,147 @@
+/**
+ * Core Philosophy:
+ * This ruleset is designed for an internal Sales Hub application where authenticated
+ * users are considered trusted staff members (e.g., salespeople, administrators).
+ * The primary security goal is to grant full data management capabilities to any
+ * authenticated user while completely restricting access for unauthenticated visitors.
+ * The one exception is the product catalog, which is public-read.
+ *
+ * Data Structure:
+ * The data is organized into several top-level collections. Customer-specific data,
+ * such as 'seguimientos' (follow-ups) and 'pedidos' (orders), are logically nested
+ * as subcollections under their respective '/clientes/{clienteId}' document. This
+ * colocation simplifies path-based queries and rules. Global data like 'productos',
+ * 'facturas', and 'pedido_productos' exist at the root level.
+ *
+ * Key Security Decisions:
+ * - Staff-Level Access: Any user who is signed in is granted full CRUD (Create, Read,
+ *   Update, Delete) permissions on business-critical data collections ('clientes',
+ *   'pedidos', 'facturas', etc.). This model assumes all authenticated users are
+ *   trusted employees.
+ * - Public Product Catalog: The '/productos' collection is intentionally public for
+ *   read operations ('get', 'list'), allowing the product catalog to be viewed by
+ *   anyone, including unauthenticated users. Writes to this collection are still
+ *   restricted to authenticated staff.
+ * - Strict Default Deny: Access is implicitly denied for any path not explicitly
+ *   matched. Unauthenticated users are locked out of all data except the public
+ *   product catalog.
+ * - Relational Integrity: For nested documents (e.g., pedidos within a cliente),
+ *   rules enforce that the parent ID in the document data matches the ID in the
+ *   path, ensuring data consistency on creation and preventing reparenting on update.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----------------------------------------------------------------------
+    // Helper Functions
+    // ----------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the document being accessed already exists.
+     * Crucial for protecting against writes to non-existent paths.
+     */
+    function isExistingDoc() {
+      return resource != null;
+    }
+
+    /**
+     * Grants access if the user is authenticated and the document exists.
+     * Used for update and delete operations on internal collections.
+     */
+    function canWriteExistingDocIfSignedIn() {
+      return isSignedIn() && isExistingDoc();
+    }
+
+    // ----------------------------------------------------------------------
+    // Collection Rules
+    // ----------------------------------------------------------------------
+
+    /**
+     * @description Manages customer profiles. Only authenticated staff can access or modify customer data.
+     * @path /clientes/{clienteId}
+     * @allow (get) An authenticated user reads a customer profile at '/clientes/client_123'.
+     * @deny (get) An unauthenticated user attempts to read a customer profile.
+     * @principle Restricts all access to a collection to authenticated users (internal staff).
+     */
+    match /clientes/{clienteId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if canWriteExistingDocIfSignedIn();
+    }
+
+    /**
+     * @description Manages follow-up activities for a specific customer. Access is restricted to authenticated staff.
+     * @path /clientes/{clienteId}/seguimientos/{seguimientoId}
+     * @allow (create) An authenticated user creates a new follow-up for customer 'client_123', ensuring the document data contains 'clienteId: "client_123"'.
+     * @deny (create) An authenticated user tries to create a follow-up under '/clientes/client_123' but with 'clienteId: "client_456"' in the document data.
+     * @principle Enforces path integrity for subcollection documents, ensuring a document's internal ID reference matches its parent path.
+     */
+    match /clientes/{clienteId}/seguimientos/{seguimientoId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.clienteId == clienteId;
+      allow update: if canWriteExistingDocIfSignedIn() && request.resource.data.clienteId == resource.data.clienteId;
+      allow delete: if canWriteExistingDocIfSignedIn();
+    }
+
+    /**
+     * @description Manages orders for a specific customer. Access is restricted to authenticated staff.
+     * @path /clientes/{clienteId}/pedidos/{pedidoId}
+     * @allow (create) An authenticated user creates a new order for customer 'client_123', ensuring the document data contains 'clienteId: "client_123"'.
+     * @deny (update) An authenticated user tries to change the 'clienteId' of an existing order, which is immutable.
+     * @principle Enforces path integrity for subcollection documents, ensuring a document's internal ID reference matches its parent path and is immutable.
+     */
+    match /clientes/{clienteId}/pedidos/{pedidoId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.clienteId == clienteId;
+      allow update: if canWriteExistingDocIfSignedIn() && request.resource.data.clienteId == resource.data.clienteId;
+      allow delete: if canWriteExistingDocIfSignedIn();
+    }
+
+    /**
+     * @description Manages invoices. This is sensitive financial data accessible only by authenticated staff.
+     * @path /facturas/{facturaId}
+     * @allow (list) An authenticated user lists all invoices.
+     * @deny (list) An unauthenticated user attempts to list invoices.
+     * @principle Restricts all access to a collection to authenticated users (internal staff).
+     */
+    match /facturas/{facturaId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if canWriteExistingDocIfSignedIn();
+    }
+
+    /**
+     * @description Manages the public product catalog. Products are readable by anyone, but only manageable by authenticated staff.
+     * @path /productos/{productoId}
+     * @allow (get) Any user, including unauthenticated visitors, can view a product.
+     * @deny (create) An unauthenticated user attempts to add a new product.
+     * @principle Implements a "Public Read, Authenticated Write" pattern for globally shared data.
+     */
+    match /productos/{productoId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if canWriteExistingDocIfSignedIn();
+    }
+
+    /**
+     * @description Manages the join table between orders and products. This internal data is only accessible to authenticated staff.
+     * @path /pedido_productos/{pedidoProductoId}
+     * @allow (get) An authenticated user reads an entry linking an order to a product.
+     * @deny (get) An unauthenticated user attempts to read an entry from this collection.
+     * @principle Restricts all access to a collection to authenticated users (internal staff).
+     */
+    match /pedido_productos/{pedidoProductoId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if canWriteExistingDocIfSignedIn();
+    }
+  }
+}
