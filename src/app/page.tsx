@@ -91,10 +91,7 @@ const aiFeatures = [
     href: '/soporte',
     description: 'Resuelve tus dudas con nuestro asistente virtual inteligente.',
   },
-]
-
-const guides = [
-    {
+  {
     title: 'Guía de Aceites',
     icon: <Droplets />,
     href: '/guia-aceites',
@@ -106,7 +103,9 @@ const guides = [
     href: '/guia-aditivos',
     description: 'Descubre todo sobre los aditivos y sus aplicaciones.',
   },
-]
+];
+
+const guides = [] as const;
 
 export default function Home() {
   return (
@@ -171,18 +170,22 @@ export default function Home() {
                 ))}
             </div>
 
-            <h2 className="text-3xl font-bold font-headline mt-12 mb-6">Guías de Productos</h2>
-             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {guides.map((feature) => (
-                    <FeatureCard
-                    key={feature.title}
-                    title={feature.title}
-                    description={feature.description}
-                    icon={feature.icon}
-                    href={feature.href}
-                    />
-                ))}
-            </div>
+            {guides.length > 0 && (
+              <>
+                <h2 className="text-3xl font-bold font-headline mt-12 mb-6">Guías de Productos</h2>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    {guides.map((feature) => (
+                        <FeatureCard
+                        key={feature.title}
+                        title={feature.title}
+                        description={feature.description}
+                        icon={feature.icon}
+                        href={feature.href}
+                        />
+                    ))}
+                </div>
+              </>
+            )}
           </div>
       </SidebarInset>
     </SidebarProvider>
