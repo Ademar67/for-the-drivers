@@ -82,9 +82,6 @@ const menuItems = [
     href: '/calculadora',
     description: 'Obtén recomendaciones de productos basadas en IA.',
   },
-];
-
-const aiFeatures = [
   {
     title: 'Soporte IA',
     icon: <Bot />,
@@ -104,6 +101,8 @@ const aiFeatures = [
     description: 'Descubre todo sobre los aditivos y sus aplicaciones.',
   },
 ];
+
+const aiFeatures = [] as const;
 
 const guides = [] as const;
 
@@ -157,8 +156,7 @@ export default function Home() {
               ))}
             </div>
 
-             <h2 className="text-3xl font-bold font-headline mt-12 mb-6">Herramientas con IA</h2>
-             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
                 {aiFeatures.map((feature) => (
                     <FeatureCard
                     key={feature.title}
