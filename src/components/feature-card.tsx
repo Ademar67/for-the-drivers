@@ -1,32 +1,55 @@
-import Link from 'next/link';
-import type { ReactNode } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowRight } from 'lucide-react';
+"use client";
 
-type FeatureCardProps = {
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+
+interface FeatureCardProps {
   title: string;
-  description: string;
-  icon: ReactNode;
-  href: string;
-};
+  description?: string;
+  icon?: React.ReactNode;
+  href?: string;
+  className?: string;
+}
 
-export function FeatureCard({ title, description, icon, href }: FeatureCardProps) {
-  return (
-    <Link href={href} className="group">
-      <Card className="h-full transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1 hover:border-primary">
-        <CardHeader className="flex flex-col items-start gap-4">
-          <div className="p-3 rounded-full bg-primary/10 text-primary">
-            {icon}
-          </div>
-          <div className="flex-grow">
-            <CardTitle className="text-xl font-bold font-headline">{title}</CardTitle>
-            <CardDescription className="mt-2">{description}</CardDescription>
-          </div>
-          <div className="w-full flex justify-end mt-2">
-            <ArrowRight className="w-5 h-5 text-muted-foreground transition-transform duration-300 group-hover:translate-x-1 group-hover:text-primary" />
-          </div>
-        </CardHeader>
-      </Card>
+export function FeatureCard({
+  title,
+  description,
+  icon,
+  href,
+  className,
+}: FeatureCardProps) {
+  const Content = () => (
+    <div
+      className={cn(
+        "group rounded-xl border border-sidebar-border p-5 transition-all bg-background hover:bg-sidebar-accent cursor-pointer",
+        "hover:shadow-md hover:border-sidebar-accent",
+        className
+      )}
+    >
+      <div className="flex items-start gap-4">
+        <div className="p-3 rounded-lg bg-sidebar border border-sidebar-border text-sidebar-foreground group-hover:bg-sidebar-accent group-hover:text-sidebar-accent-foreground transition-colors">
+          {icon}
+        </div>
+
+        <div className="flex flex-col">
+          <h3 className="text-lg font-semibold text-foreground">
+            {title}
+          </h3>
+          {description && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {description}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return href ? (
+    <Link href={href} className="block">
+      <Content />
     </Link>
+  ) : (
+    <Content />
   );
 }

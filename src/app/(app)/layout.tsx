@@ -5,7 +5,9 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      {children}
+      <div className="flex min-h-screen w-full">
+        {children}
+      </div>
     </SidebarProvider>
   );
 }

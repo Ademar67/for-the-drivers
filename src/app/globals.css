@@ -8,6 +8,11 @@
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
 
+    /* Borders */
+    --border: 240 6% 90%;
+    --input: 240 5% 85%;
+    --ring: 240 5% 65%;
+
     /* Sidebar */
     --sidebar: 240 5% 96%;
     --sidebar-foreground: 240 5% 20%;
@@ -16,8 +21,13 @@
     --sidebar-accent: 240 5% 90%;
     --sidebar-accent-foreground: 240 5% 20%;
 
-    /* Card / Panel */
+    /* Muted / text */
+    --muted: 240 5% 95%;
     --muted-foreground: 240 4% 46%;
+
+    /* Cards */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
   }
 
   body {
