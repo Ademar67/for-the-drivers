@@ -26,8 +26,6 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 
-import { FeatureCard } from "@/components/feature-card";
-
 export default function DashboardPage() {
 
   // ---------------------------
@@ -156,20 +154,9 @@ export default function DashboardPage() {
           </h1>
 
           <p className="text-muted-foreground mb-8">
-            Tu centro de operaciones para gestionar tus ventas.
+            Tu centro de operaciones para gestionar tus ventas. Desde aquí podrás activar y configurar cada módulo.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {features.map((feature) => (
-              <FeatureCard
-                key={feature.title}
-                title={feature.title}
-                description={feature.description}
-                icon={feature.icon}
-                href={feature.href}
-              />
-            ))}
-          </div>
         </div>
       </SidebarInset>
     </>
