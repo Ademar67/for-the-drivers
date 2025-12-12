@@ -25,6 +25,7 @@ import {
   SidebarMenuButton,
   SidebarInset,
 } from "@/components/ui/sidebar";
+import { FeatureCard } from "@/components/feature-card";
 
 export default function DashboardPage() {
 
@@ -109,7 +110,31 @@ export default function DashboardPage() {
       icon: <LayoutDashboard />,
       href: "/dashboard",
     },
-    ...features,
+    {
+      title: "Clientes",
+      icon: <Users />,
+      href: "/clientes",
+    },
+    {
+      title: "Seguimientos",
+      icon: <ClipboardList />,
+      href: "/seguimientos",
+    },
+    {
+      title: "Pedidos",
+      icon: <Package />,
+      href: "/pedidos",
+    },
+    {
+      title: "Facturas",
+      icon: <Receipt />,
+      href: "/facturas",
+    },
+    {
+      title: "Productos",
+      icon: <ShoppingBag />,
+      href: "/productos",
+    },
   ];
 
   // ---------------------------
@@ -157,6 +182,17 @@ export default function DashboardPage() {
             Tu centro de operaciones para gestionar tus ventas. Desde aquí podrás activar y configurar cada módulo.
           </p>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((feature) => (
+              <FeatureCard
+                key={feature.title}
+                title={feature.title}
+                description={feature.description}
+                icon={feature.icon}
+                href={feature.href}
+              />
+            ))}
+          </div>
         </div>
       </SidebarInset>
     </>
