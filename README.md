@@ -1,3 +1,5 @@
+rm -rf .next
+npm run dev
 
 # Firebase Studio
 

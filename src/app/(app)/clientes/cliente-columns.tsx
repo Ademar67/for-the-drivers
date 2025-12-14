@@ -3,7 +3,6 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Trash2, Edit } from "lucide-react";
-import { deleteDoc, doc } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +24,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { db } from "@/lib/firebase";
 import type { Cliente } from "@/lib/firebase-types";
 
 interface ClienteColumnsProps {
@@ -46,7 +44,7 @@ export const clienteColumns = ({
     header: "Email",
     cell: ({ row }) => {
       const email = row.getValue("email");
-      return email ? <a href={`mailto:${email}`} className="hover:underline">{email as string}</a> : <span className="text-muted-foreground">N/A</span>;
+      return email ? <a href={`mailto:${email as string}`} className="hover:underline">{email as string}</a> : <span className="text-muted-foreground">N/A</span>;
     },
   },
   {
@@ -61,15 +59,6 @@ export const clienteColumns = ({
     id: "actions",
     cell: ({ row }) => {
       const cliente = row.original;
-
-      const handleDelete = async () => {
-        try {
-          await deleteDoc(doc(db, "clientes", cliente.id));
-          onDelete(cliente.id);
-        } catch (error) {
-          console.error("Error deleting document: ", error);
-        }
-      };
 
       return (
         <AlertDialog>
@@ -106,7 +95,7 @@ export const clienteColumns = ({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              <AlertDialogAction onClick={() => onDelete(cliente.id)} className="bg-destructive hover:bg-destructive/90">
                 Sí, eliminar
               </AlertDialogAction>
             </AlertDialogFooter>

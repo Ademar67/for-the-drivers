@@ -5,9 +5,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { doc, setDoc, serverTimestamp, collection } from "firebase/firestore";
 
-import { db } from "@/lib/firebase";
 import {
   Dialog,
   DialogContent,
@@ -37,13 +35,13 @@ const formSchema = z.object({
   nit: z.string().optional(),
 });
 
-type ClienteFormValues = z.infer<typeof formSchema>;
+export type ClienteFormValues = z.infer<typeof formSchema>;
 
 interface ClienteFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cliente?: Cliente | null;
-  onSuccess: () => void;
+  onSuccess: (values: ClienteFormValues) => void;
 }
 
 export function ClienteForm({
@@ -93,24 +91,8 @@ export function ClienteForm({
   }, [cliente, reset, open]);
 
   const onSubmit = async (values: ClienteFormValues) => {
-    try {
-      const docRef = cliente
-        ? doc(db, "clientes", cliente.id)
-        : doc(collection(db, "clientes"));
-
-      const dataToSave = {
-        ...values,
-        id: docRef.id,
-        updatedAt: serverTimestamp(),
-        ...(cliente ? {} : { createdAt: serverTimestamp() }),
-      };
-
-      await setDoc(docRef, dataToSave, { merge: true });
-
-      onSuccess();
-    } catch (error) {
-      console.error("Error saving document: ", error);
-    }
+    // Instead of saving here, we pass the values to the parent component
+    onSuccess(values);
   };
 
   return (
