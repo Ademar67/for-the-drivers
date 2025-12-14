@@ -1,3 +1,4 @@
+
 // This file contains TypeScript types for your Firestore data model.
 // It is generated based on the entities defined in your backend.json file.
 import type { Timestamp } from "firebase/firestore";

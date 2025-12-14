@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from "react";
@@ -6,8 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { doc, setDoc, serverTimestamp, collection } from "firebase/firestore";
 
-import { useFirestore } from "@/firebase";
-import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase";
 import {
   Dialog,
   DialogContent,
@@ -52,8 +52,6 @@ export function ClienteForm({
   cliente,
   onSuccess,
 }: ClienteFormProps) {
-  const db = useFirestore();
-  const { toast } = useToast();
 
   const form = useForm<ClienteFormValues>({
     resolver: zodResolver(formSchema),
@@ -73,22 +71,24 @@ export function ClienteForm({
   } = form;
 
   useEffect(() => {
-    if (cliente) {
-      reset({
-        nombre: cliente.nombre,
-        email: cliente.email || "",
-        telefono: cliente.telefono || "",
-        direccion: cliente.direccion || "",
-        nit: cliente.nit || "",
-      });
-    } else {
-      reset({
-        nombre: "",
-        email: "",
-        telefono: "",
-        direccion: "",
-        nit: "",
-      });
+    if (open) {
+      if (cliente) {
+        reset({
+          nombre: cliente.nombre,
+          email: cliente.email || "",
+          telefono: cliente.telefono || "",
+          direccion: cliente.direccion || "",
+          nit: cliente.nit || "",
+        });
+      } else {
+        reset({
+          nombre: "",
+          email: "",
+          telefono: "",
+          direccion: "",
+          nit: "",
+        });
+      }
     }
   }, [cliente, reset, open]);
 
@@ -107,21 +107,9 @@ export function ClienteForm({
 
       await setDoc(docRef, dataToSave, { merge: true });
 
-      toast({
-        title: "Éxito",
-        description: cliente
-          ? "Cliente actualizado correctamente."
-          : "Cliente creado correctamente.",
-      });
-
       onSuccess();
     } catch (error) {
       console.error("Error saving document: ", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudo guardar el cliente.",
-      });
     }
   };
 

@@ -1,10 +1,11 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Users, PlusCircle } from "lucide-react";
-import { collection, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
 
-import { useFirestore, useCollection } from "@/firebase";
+import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
@@ -15,19 +16,48 @@ import type { Cliente } from "@/lib/firebase-types";
 export default function ClientesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const db = useFirestore();
-  const clientesQuery = query(collection(db, "clientes"), orderBy("nombre", "asc"));
-  const { data: clientes, isLoading } = useCollection<Cliente>(clientesQuery);
+  const fetchClientes = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const clientesRef = collection(db, "clientes");
+      const q = query(clientesRef, orderBy("nombre", "asc"));
+      const querySnapshot = await getDocs(q);
+      const clientesList = querySnapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as Cliente)
+      );
+      setClientes(clientesList);
+    } catch (error) {
+      console.error("Error fetching clientes:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchClientes();
+  }, [fetchClientes]);
 
   const handleOpenForm = (cliente?: Cliente) => {
     setSelectedCliente(cliente || null);
     setIsFormOpen(true);
   };
 
+  const handleFormSuccess = () => {
+    setIsFormOpen(false);
+    setSelectedCliente(null);
+    fetchClientes(); // Refresh data after form submission
+  };
+  
   const handleFormClose = () => {
     setIsFormOpen(false);
     setSelectedCliente(null);
+  };
+
+  const handleDelete = (clienteId: string) => {
+    setClientes((prev) => prev.filter((c) => c.id !== clienteId));
   };
 
   return (
@@ -51,8 +81,8 @@ export default function ClientesPage() {
         </CardHeader>
         <CardContent>
           <DataTable
-            columns={clienteColumns({ onEdit: handleOpenForm })}
-            data={clientes || []}
+            columns={clienteColumns({ onEdit: handleOpenForm, onDelete: handleDelete })}
+            data={clientes}
             isLoading={isLoading}
             filterColumnId="nombre"
             filterPlaceholder="Filtrar por nombre..."
@@ -65,8 +95,9 @@ export default function ClientesPage() {
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         cliente={selectedCliente}
-        onSuccess={handleFormClose}
+        onSuccess={handleFormSuccess}
       />
     </div>
   );
 }
+

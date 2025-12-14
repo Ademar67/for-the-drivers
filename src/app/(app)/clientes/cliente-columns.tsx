@@ -1,3 +1,4 @@
+
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
@@ -24,19 +25,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useFirestore } from "@/firebase";
-import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase";
 import type { Cliente } from "@/lib/firebase-types";
-
-// This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
 
 interface ClienteColumnsProps {
   onEdit: (cliente: Cliente) => void;
+  onDelete: (clienteId: string) => void;
 }
 
 export const clienteColumns = ({
   onEdit,
+  onDelete,
 }: ClienteColumnsProps): ColumnDef<Cliente>[] => [
   {
     accessorKey: "nombre",
@@ -62,23 +61,13 @@ export const clienteColumns = ({
     id: "actions",
     cell: ({ row }) => {
       const cliente = row.original;
-      const db = useFirestore();
-      const { toast } = useToast();
 
       const handleDelete = async () => {
         try {
           await deleteDoc(doc(db, "clientes", cliente.id));
-          toast({
-            title: "Cliente eliminado",
-            description: `El cliente "${cliente.nombre}" ha sido eliminado.`,
-          });
+          onDelete(cliente.id);
         } catch (error) {
           console.error("Error deleting document: ", error);
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "No se pudo eliminar el cliente.",
-          });
         }
       };
 
@@ -99,7 +88,7 @@ export const clienteColumns = ({
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <AlertDialogTrigger asChild>
-                <DropdownMenuItem className="text-red-500 focus:text-red-500">
+                <DropdownMenuItem className="text-red-500 hover:text-red-500 focus:text-red-500">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Eliminar
                 </DropdownMenuItem>
