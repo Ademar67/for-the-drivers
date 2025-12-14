@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Users, PlusCircle } from "lucide-react";
-import { collection, getDocs, orderBy, query, doc, serverTimestamp, deleteDoc, setDoc } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, doc, serverTimestamp } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ClienteForm, type ClienteFormValues } from "./cliente-form";
 import { clienteColumns } from "./cliente-columns";
 import type { Cliente } from "@/lib/firebase-types";
+import { setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 export default function ClientesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -50,38 +51,32 @@ export default function ClientesPage() {
     setSelectedCliente(null);
   };
 
-  const handleSaveCliente = async (values: ClienteFormValues) => {
-    try {
-      const docRef = selectedCliente
-        ? doc(db, "clientes", selectedCliente.id)
-        : doc(collection(db, "clientes"));
+  const handleSaveCliente = (values: ClienteFormValues) => {
+    const docRef = selectedCliente
+      ? doc(db, "clientes", selectedCliente.id)
+      : doc(collection(db, "clientes"));
 
-      const dataToSave: Omit<Cliente, 'createdAt' | 'updatedAt'> & { createdAt?: any, updatedAt: any } = {
-        ...values,
-        id: docRef.id,
-        updatedAt: serverTimestamp(),
-      };
-      
-      if (!selectedCliente) {
-        dataToSave.createdAt = serverTimestamp();
-      }
-      
-      await setDoc(docRef, dataToSave, { merge: true });
-
-      handleFormClose();
-      fetchClientes();
-    } catch (error) {
-      console.error("Error saving document: ", error);
+    const dataToSave: Omit<Cliente, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: any, updatedAt: any } = {
+      ...values,
+      updatedAt: serverTimestamp(),
+    };
+    
+    if (!selectedCliente) {
+      dataToSave.createdAt = serverTimestamp();
     }
+    
+    setDocumentNonBlocking(docRef, dataToSave, { merge: true });
+
+    handleFormClose();
+    // Optimistically update UI or refetch
+    setTimeout(fetchClientes, 500); // Refetch after a short delay
   };
   
-  const handleDeleteCliente = async (clienteId: string) => {
-    try {
-      await deleteDoc(doc(db, "clientes", clienteId));
-      fetchClientes();
-    } catch (error) {
-      console.error("Error deleting document: ", error);
-    }
+  const handleDeleteCliente = (clienteId: string) => {
+    const docRef = doc(db, "clientes", clienteId);
+    deleteDocumentNonBlocking(docRef);
+    // Optimistically update UI or refetch
+    setTimeout(fetchClientes, 500); // Refetch after a short delay
   };
 
   return (
