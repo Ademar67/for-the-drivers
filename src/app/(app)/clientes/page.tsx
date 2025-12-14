@@ -3,9 +3,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Users, PlusCircle } from "lucide-react";
-import { collection, getDocs, orderBy, query, doc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, doc, serverTimestamp, Firestore } from "firebase/firestore";
 
-import { db } from "@/lib/firebase";
+import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
@@ -19,8 +19,10 @@ export default function ClientesPage() {
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const db = useFirestore() as Firestore;
 
   const fetchClientes = useCallback(async () => {
+    if (!db) return;
     setIsLoading(true);
     try {
       const clientesRef = collection(db, "clientes");
@@ -35,7 +37,7 @@ export default function ClientesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [db]);
 
   useEffect(() => {
     fetchClientes();

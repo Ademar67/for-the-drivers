@@ -1,4 +1,5 @@
 import "./globals.css";
+import { FirebaseClientProvider } from "@/firebase";
 
 export const metadata = {
   title: "Liqui Moly Sales Hub",
@@ -11,7 +12,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <FirebaseClientProvider>{children}</FirebaseClientProvider>
+      </body>
     </html>
   );
 }
