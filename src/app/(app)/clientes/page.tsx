@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Users, PlusCircle } from "lucide-react";
 import { collection, getDocs, orderBy, query, doc, serverTimestamp, Firestore } from "firebase/firestore";
 
-import { useFirestore } from "@/firebase";
+import { useFirestore } from "@/firebase/provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";

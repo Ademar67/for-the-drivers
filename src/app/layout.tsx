@@ -1,5 +1,5 @@
 import "./globals.css";
-import { FirebaseClientProvider } from "@/firebase";
+import { FirebaseClientProvider } from "@/firebase/client-provider";
 
 export const metadata = {
   title: "Liqui Moly Sales Hub",
