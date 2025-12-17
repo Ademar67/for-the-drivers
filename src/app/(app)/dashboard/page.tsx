@@ -5,7 +5,7 @@ export default function DashboardPage() {
         Panel de Control
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <DashboardCard
           title="Clientes"
           description="Gestiona la información de tus clientes."
@@ -29,14 +29,6 @@ export default function DashboardPage() {
         <DashboardCard
           title="Guías Liqui Moly"
           description="Aceites y aditivos recomendados."
-        />
-        <DashboardCard
-          title="IA Soporte"
-          description="Asistente virtual para tus consultas."
-        />
-        <DashboardCard
-          title="Calculadora"
-          description="Herramientas para cálculos rápidos."
         />
       </div>
     </div>
