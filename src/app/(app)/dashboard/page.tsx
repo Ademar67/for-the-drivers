@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -146,8 +147,11 @@ export default function DashboardPage() {
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
-            <LayoutDashboard className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">Liqui Moly</span>
+            <img
+              src="/icon-192x192.png"
+              alt="Liqui Moly"
+              className="h-10 w-10 rounded-sm"
+            />
           </div>
         </SidebarHeader>
 
