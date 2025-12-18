@@ -7,6 +7,8 @@ import {
   Activity,
   Calculator,
   Bot,
+  MapPin,
+  Droplet,
 } from "lucide-react";
 
 const dashboardCards = [
@@ -32,8 +34,8 @@ const dashboardCards = [
   {
     title: "Mapa de Clientes",
     description: "Visualiza y gestiona tus clientes y prospectos.",
-    href: "/Mapa de Clientes",
-    icon: Users ,
+    href: "/mapa-clientes",
+    icon: MapPin,
   },
   {
     title: "Productos",
@@ -48,10 +50,10 @@ const dashboardCards = [
     icon: FileText,
   },
   {
-    title: "Guias Liqui Moly ",
+    title: "Guias Liqui Moly",
     description: "Descubre el Producto ideal para cada necesidad.",
-    href: "/clientes",
-    icon: Users,
+    href: "/guias-liqui-moly",
+    icon: Droplet,
   },
   {
     title: "Calculadora",
