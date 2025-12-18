@@ -13,6 +13,8 @@ type Punto = {
 export default function MapaClientes() {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [filtro, setFiltro] = useState<'todos' | 'cliente' | 'prospecto' | 'inactivo'>('todos');
+  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
 
   // 👉 datos de ejemplo (luego los jalas de Firestore)
   const puntos: Punto[] = [
@@ -55,9 +57,11 @@ export default function MapaClientes() {
   }, []);
 
   const initMap = () => {
-    if (!mapRef.current) return;
+    // The user has changed the ref name to 'map', so we need to get it by ID.
+    const mapElement = document.getElementById('map');
+    if (!mapElement) return;
 
-    const mapa = new google.maps.Map(mapRef.current, {
+    const mapa = new google.maps.Map(mapElement, {
       center: { lat: 19.243, lng: -103.728 },
       zoom: 12,
     });
@@ -65,51 +69,76 @@ export default function MapaClientes() {
     setMap(mapa);
   };
 
-  // Pintar marcadores
+  // Pintar marcadores y aplicar filtros
   useEffect(() => {
     if (!map) return;
 
-    puntos.forEach((punto) => {
-      let color = 'blue';
+    // 1. Limpiar marcadores anteriores del mapa
+    markers.forEach(marker => marker.setMap(null));
+    const nuevosMarkers: google.maps.Marker[] = [];
 
-      if (punto.tipo === 'prospecto') color = 'green';
-      if (punto.tipo === 'inactivo') color = 'gray';
+    // 2. Filtrar y crear nuevos marcadores
+    puntos
+      .filter(punto => filtro === 'todos' || punto.tipo === filtro)
+      .forEach(punto => {
+        let color;
+        switch (punto.tipo) {
+          case 'cliente':
+            color = 'blue';
+            break;
+          case 'prospecto':
+            color = 'green';
+            break;
+          case 'inactivo':
+            color = 'gray';
+            break;
+        }
 
-      const marker = new google.maps.Marker({
-        position: { lat: punto.lat, lng: punto.lng },
-        map,
-        title: punto.nombre,
-        icon: `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`,
+        const marker = new google.maps.Marker({
+          position: { lat: punto.lat, lng: punto.lng },
+          map,
+          title: punto.nombre,
+          icon: `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`,
+        });
+
+        const info = new google.maps.InfoWindow({
+            content: `
+              <strong>${punto.nombre}</strong><br/>
+              Tipo: ${punto.tipo}
+            `,
+          });
+    
+          marker.addListener('click', () => {
+            info.open(map, marker);
+          });
+
+        nuevosMarkers.push(marker);
       });
 
-      const info = new google.maps.InfoWindow({
-        content: `
-          <strong>${punto.nombre}</strong><br/>
-          Tipo: ${punto.tipo}
-        `,
-      });
+    // 3. Actualizar el estado con los nuevos marcadores
+    setMarkers(nuevosMarkers);
 
-      marker.addListener('click', () => {
-        info.open(map, marker);
-      });
-    });
-  }, [map]);
+  }, [map, filtro]); // Se ejecuta cuando cambia el mapa o el filtro
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 12 }}>
-        Mapa de Clientes
-      </h1>
+  <div className="flex h-screen w-full">
+    
+    {/* PANEL IZQUIERDO */}
+    <div className="w-80 border-r bg-white p-4">
+      <h2 className="text-lg font-semibold mb-4">
+        Agenda de Visitas
+      </h2>
 
-      <div
-        ref={mapRef}
-        style={{
-          width: '100%',
-          height: '600px',
-          borderRadius: 12,
-          border: '1px solid #ddd',
-        }}
-      />
+      <p className="text-sm text-gray-500">
+        (Panel en construcción)
+      </p>
     </div>
-  );
+
+    {/* MAPA */}
+    <div className="flex-1">
+      <div id="map" className="w-full h-full" />
+    </div>
+
+  </div>
+);
 }
