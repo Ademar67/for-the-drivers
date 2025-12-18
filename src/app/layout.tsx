@@ -1,28 +1,36 @@
+
 import "./globals.css";
-import { FirebaseClientProvider } from "@/firebase/client-provider";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import Image from "next/image";
+import Link from "next/link";
+
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
-  SidebarInset,
   SidebarMenu,
-  SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+
 import {
-  Book,
-  Bot,
-  Calculator,
   Home,
   Users,
+  ShoppingCart,
+  Activity,
   Package,
   FileText,
-  Map,
+  MapPin,
+  BookOpen,
+  Calculator,
+  Bot,
 } from "lucide-react";
-import Image from "next/image";
+
+import { FirebaseClientProvider } from "@/firebase/client-provider";
 
 export const metadata = {
   title: "Liqui Moly Sales Hub",
@@ -41,87 +49,119 @@ export default function RootLayout({
             <div className="flex min-h-screen w-full">
               <Sidebar>
                 <SidebarHeader>
-                  <div className="flex items-center gap-2">
-                    <Image
-                      src="/icon-192x192.png"
-                      alt="Liqui Moly"
-                      width={40}
-                      height={40}
-                      className="h-10 w-10 rounded-sm"
-                    />
-                  </div>
+                  <img
+                    src="/icon-192x192.png"
+                    alt="Liqui Moly"
+                    className="h-10 w-10 rounded-sm"
+                  />
                 </SidebarHeader>
+
                 <SidebarContent>
-                  <SidebarMenu>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton href="/dashboard" tooltip="Dashboard">
-                        <Home />
-                        <span>Dashboard</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton href="/clientes" tooltip="Clientes">
-                        <Users />
-                        <span>Clientes</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton href="/pedidos" tooltip="Pedidos">
-                        <Package />
-                        <span>Pedidos</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton href="/productos" tooltip="Productos">
-                        <Package />
-                        <span>Productos</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton href="/facturas" tooltip="Facturas">
-                        <FileText />
-                        <span>Facturas</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton href="/mapa" tooltip="Mapa">
-                        <Map />
-                        <span>Mapa de Clientes</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton href="/guias" tooltip="Guías">
-                        <Book />
-                        <span>Guías Liqui Moly</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton href="/ia-soporte" tooltip="IA Soporte">
-                        <Bot />
-                        <span>IA Soporte</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        href="/calculadora"
-                        tooltip="Calculadora"
-                      >
-                        <Calculator />
-                        <span>Calculadora</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
+                  <SidebarGroup>
+                    <SidebarGroupLabel>Menú</SidebarGroupLabel>
+
+                    <SidebarMenu>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/dashboard">
+                            <Home />
+                            <span>Dashboard</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/clientes">
+                            <Users />
+                            <span>Clientes</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/pedidos">
+                            <ShoppingCart />
+                            <span>Pedidos</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                      {/* 🔥 SEGUIMIENTOS (ESTO ES LO NUEVO) */}
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/seguimientos">
+                            <Activity />
+                            <span>Seguimientos</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/productos">
+                            <Package />
+                            <span>Productos</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/facturas">
+                            <FileText />
+                            <span>Facturas</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/mapa-clientes">
+                            <MapPin />
+                            <span>Mapa de Clientes</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/guias-liqui-moly">
+                            <BookOpen />
+                            <span>Guías Liqui Moly</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/calculadora">
+                            <Calculator />
+                            <span>Calculadora</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/soporte-ia">
+                            <Bot />
+                            <span>Soporte IA</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </SidebarMenu>
+                  </SidebarGroup>
                 </SidebarContent>
+
+                <SidebarFooter />
               </Sidebar>
-              <SidebarInset>
-                <header className="flex h-12 items-center gap-2 border-b bg-background px-4">
-                  <SidebarTrigger className="md:hidden" />
-                  <h1 className="flex-1 text-lg font-semibold">
-                    Liqui Moly Sales Hub
-                  </h1>
-                </header>
+
+              <main className="flex-1 p-6">
+                <SidebarTrigger />
                 {children}
-              </SidebarInset>
+              </main>
             </div>
           </SidebarProvider>
         </FirebaseClientProvider>
