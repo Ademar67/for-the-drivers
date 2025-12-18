@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Users, PlusCircle } from "lucide-react";
-import { collection, getDocs, orderBy, query, doc, serverTimestamp, Firestore } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, doc, serverTimestamp, type Firestore } from "firebase/firestore";
 
 import { useFirestore } from "@/firebase/provider";
 import { Button } from "@/components/ui/button";
