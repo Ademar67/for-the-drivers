@@ -17,7 +17,7 @@ export default function MapaClientes() {
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
 
   // 👉 datos de ejemplo (luego los jalas de Firestore)
-  const puntos: Punto[] = [
+  const [clientes, setClientes] = useState<Punto[]>([
     {
       id: '1',
       nombre: 'Cliente Activo',
@@ -39,7 +39,7 @@ export default function MapaClientes() {
       lat: 19.23,
       lng: -103.71,
     },
-  ];
+  ]);
 
   // Cargar Google Maps
   useEffect(() => {
@@ -78,7 +78,7 @@ export default function MapaClientes() {
     const nuevosMarkers: google.maps.Marker[] = [];
 
     // 2. Filtrar y crear nuevos marcadores
-    puntos
+    clientes
       .filter(punto => filtro === 'todos' || punto.tipo === filtro)
       .forEach(punto => {
         let color;
@@ -118,7 +118,7 @@ export default function MapaClientes() {
     // 3. Actualizar el estado con los nuevos marcadores
     setMarkers(nuevosMarkers);
 
-  }, [map, filtro]); // Se ejecuta cuando cambia el mapa o el filtro
+  }, [map, filtro, clientes]); // Se ejecuta cuando cambia el mapa o el filtro
 
   return (
   <div className="flex h-screen w-full">
@@ -129,9 +129,21 @@ export default function MapaClientes() {
         Agenda de Visitas
       </h2>
 
-      <p className="text-sm text-gray-500">
-        (Panel en construcción)
-      </p>
+      <ul className="space-y-2">
+        {clientes.map((cliente) => (
+          <li
+            key={cliente.id}
+            className="p-2 rounded border text-sm"
+          >
+            <div className="font-medium">
+              {cliente.nombre}
+            </div>
+            <div className="text-xs text-gray-500">
+              {cliente.tipo}
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
 
     {/* MAPA */}
