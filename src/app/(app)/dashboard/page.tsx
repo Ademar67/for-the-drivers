@@ -56,8 +56,8 @@ const dashboardCards = [
     icon: Droplet,
   },
   {
-    title: "Calculadora",
-    description: "Cálculo de precios",
+    title: "Calculadora de productos",
+    description: "Obtén recomendaciones de productos por IA.",
     href: "/calculadora",
     icon: Calculator,
   },
