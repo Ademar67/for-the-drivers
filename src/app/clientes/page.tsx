@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -14,7 +13,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
