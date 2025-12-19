@@ -2,6 +2,25 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+const DIAS_SEMANA = [
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Jueves",
+  "Viernes",
+  "Sábado",
+  "Domingo",
+];
+
+const asignarDiaVisita = (clienteId: string) => {
+  const index = clienteId.charCodeAt(0) % DIAS_SEMANA.length;
+  return DIAS_SEMANA[index];
+};
+
+const hoyIndex = new Date().getDay(); // 0 = Domingo
+const hoy =
+  hoyIndex === 0 ? "Domingo" : DIAS_SEMANA[hoyIndex - 1];
+
 type Punto = {
   id: string;
   nombre: string;
@@ -38,6 +57,27 @@ export default function MapaClientes() {
       tipo: 'inactivo',
       lat: 19.23,
       lng: -103.71,
+    },
+     {
+      id: '4',
+      nombre: 'Taller "El Pistón Feliz"',
+      tipo: 'cliente',
+      lat: 19.248,
+      lng: -103.735,
+    },
+    {
+      id: '5',
+      nombre: 'Refaccionaria "La Curva"',
+      tipo: 'prospecto',
+      lat: 19.252,
+      lng: -103.72,
+    },
+    {
+      id: '6',
+      nombre: 'Lubricentro "Speedy"',
+      tipo: 'cliente',
+      lat: 19.24,
+      lng: -103.74,
     },
   ]);
 
@@ -119,38 +159,65 @@ export default function MapaClientes() {
     setMarkers(nuevosMarkers);
 
   }, [map, filtro, clientes]); // Se ejecuta cuando cambia el mapa o el filtro
+  
+  const clientesPorDia = DIAS_SEMANA.reduce((acc: any, dia) => {
+    acc[dia] = clientes.filter(
+      (cliente) => asignarDiaVisita(cliente.id) === dia
+    );
+    return acc;
+  }, {});
+
 
   return (
-  <div className="flex h-screen w-full">
-    
-    {/* PANEL IZQUIERDO */}
-    <div className="w-80 border-r bg-white p-4">
-      <h2 className="text-lg font-semibold mb-4">
-        Agenda de Visitas
-      </h2>
+    <div className="flex h-screen w-full">
+      
+      {/* PANEL IZQUIERDO */}
+      <div className="w-80 border-r bg-white p-4">
+        <h2 className="text-lg font-semibold mb-4">
+          Agenda de Visitas
+        </h2>
 
-      <ul className="space-y-2">
-        {clientes.map((cliente) => (
-          <li
-            key={cliente.id}
-            className="p-2 rounded border text-sm"
-          >
-            <div className="font-medium">
-              {cliente.nombre}
-            </div>
-            <div className="text-xs text-gray-500">
-              {cliente.tipo}
-            </div>
-          </li>
-        ))}
-      </ul>
+        <div className="space-y-6">
+          {DIAS_SEMANA.map((dia) => {
+            const clientesDelDia = clientesPorDia[dia];
+            if (!clientesDelDia || clientesDelDia.length === 0) return null;
+
+            const esHoy = dia === hoy;
+
+            return (
+              <div key={dia}>
+                <h3
+                  className={`text-sm font-semibold mb-2 ${
+                    esHoy ? "text-blue-600" : "text-gray-700"
+                  }`}
+                >
+                  {esHoy ? `👉 ${dia} (HOY)` : dia}
+                </h3>
+
+                <ul className="space-y-2">
+                  {clientesDelDia.map((cliente: any) => (
+                    <li
+                      key={cliente.id}
+                      className="p-2 rounded border text-sm hover:bg-gray-50 cursor-pointer"
+                    >
+                      <div className="font-medium">{cliente.nombre}</div>
+                      <div className="text-xs text-gray-500">
+                        {cliente.tipo}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* MAPA */}
+      <div className="flex-1">
+        <div id="map" className="w-full h-full" />
+      </div>
+
     </div>
-
-    {/* MAPA */}
-    <div className="flex-1">
-      <div id="map" className="w-full h-full" />
-    </div>
-
-  </div>
-);
+  );
 }

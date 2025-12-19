@@ -1,47 +1,53 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Users, PlusCircle } from "lucide-react";
-import { collection, getDocs, orderBy, query, doc, serverTimestamp, type Firestore } from "firebase/firestore";
+import { useState, useMemo } from "react";
+import {
+  collection,
+  query,
+  orderBy,
+  doc,
+  serverTimestamp,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  type Firestore,
+} from 'firebase/firestore';
+import { useCollection } from 'react-firebase-hooks/firestore';
+import { PlusCircle } from 'lucide-react';
 
-import { useFirestore } from "@/firebase/provider";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { DataTable } from "@/components/ui/data-table";
-import { ClienteForm, type ClienteFormValues } from "./cliente-form";
-import { clienteColumns } from "./cliente-columns";
-import type { Cliente } from "@/lib/firebase-types";
-import { setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from '@/components/ui/card';
+import { DataTable } from '@/components/ui/data-table';
+import { clienteColumns } from './cliente-columns';
+import { ClienteForm, ClienteFormValues } from './cliente-form';
+import type { Cliente } from '@/lib/firebase-types';
+import { useFirestore } from '@/firebase/provider';
 
 export default function ClientesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const db = useFirestore() as Firestore;
 
-  const fetchClientes = useCallback(async () => {
-    if (!db) return;
-    setIsLoading(true);
-    try {
-      const clientesRef = collection(db, "clientes");
-      const q = query(clientesRef, orderBy("nombre", "asc"));
-      const querySnapshot = await getDocs(q);
-      const clientesList = querySnapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as Cliente)
-      );
-      setClientes(clientesList);
-    } catch (error) {
-      console.error("Error fetching clientes:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [db]);
+  const clientesQuery = useMemo(
+    () => (db ? query(collection(db, 'clientes'), orderBy('nombre', 'asc')) : null),
+    [db]
+  );
+  const [snapshot, isLoading, error] = useCollection(clientesQuery);
 
-  useEffect(() => {
-    fetchClientes();
-  }, [fetchClientes]);
+  const clientes = useMemo(
+    () => snapshot?.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Cliente)) || [],
+    [snapshot]
+  );
+  
+  if (error) {
+    console.error("Error fetching clientes:", error);
+  }
 
   const handleOpenForm = (cliente?: Cliente) => {
     setSelectedCliente(cliente || null);
@@ -53,32 +59,32 @@ export default function ClientesPage() {
     setSelectedCliente(null);
   };
 
-  const handleSaveCliente = (values: ClienteFormValues) => {
-    const docRef = selectedCliente
-      ? doc(db, "clientes", selectedCliente.id)
-      : doc(collection(db, "clientes"));
-
-    const dataToSave: Omit<Cliente, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: any, updatedAt: any } = {
-      ...values,
-      updatedAt: serverTimestamp(),
-    };
-    
-    if (!selectedCliente) {
-      dataToSave.createdAt = serverTimestamp();
+  const handleSaveCliente = async (values: ClienteFormValues) => {
+    try {
+      if (selectedCliente) {
+        // Update
+        const docRef = doc(db, 'clientes', selectedCliente.id);
+        await updateDoc(docRef, { ...values, updatedAt: serverTimestamp() });
+      } else {
+        // Create
+        await addDoc(collection(db, 'clientes'), {
+          ...values,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      handleFormClose();
+    } catch (error) {
+      console.error('Error saving cliente:', error);
     }
-    
-    setDocumentNonBlocking(docRef, dataToSave, { merge: true });
-
-    handleFormClose();
-    // Optimistically update UI or refetch
-    setTimeout(fetchClientes, 500); // Refetch after a short delay
   };
-  
-  const handleDeleteCliente = (clienteId: string) => {
-    const docRef = doc(db, "clientes", clienteId);
-    deleteDocumentNonBlocking(docRef);
-    // Optimistically update UI or refetch
-    setTimeout(fetchClientes, 500); // Refetch after a short delay
+
+  const handleDeleteCliente = async (clienteId: string) => {
+    try {
+      await deleteDoc(doc(db, 'clientes', clienteId));
+    } catch (error) {
+      console.error('Error deleting cliente:', error);
+    }
   };
 
   return (
@@ -102,7 +108,10 @@ export default function ClientesPage() {
         </CardHeader>
         <CardContent>
           <DataTable
-            columns={clienteColumns({ onEdit: handleOpenForm, onDelete: handleDeleteCliente })}
+            columns={clienteColumns({
+              onEdit: handleOpenForm,
+              onDelete: handleDeleteCliente,
+            })}
             data={clientes}
             isLoading={isLoading}
             filterColumnId="nombre"
