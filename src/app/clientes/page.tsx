@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getClientes, type Cliente } from '@/lib/firestore/clientes';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
+import { db } from '@/lib/firebase';
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -43,6 +44,8 @@ export default function ClientesPage() {
               <th className="px-4 py-3 text-left">Nombre</th>
               <th className="px-4 py-3 text-left">Tipo</th>
               <th className="px-4 py-3 text-left">Ciudad</th>
+              <th className="px-4 py-3 text-left">Día visita</th>
+              <th className="px-4 py-3 text-left">Frecuencia</th>
             </tr>
           </thead>
           <tbody>
@@ -51,6 +54,8 @@ export default function ClientesPage() {
                 <td className="px-4 py-3">{c.nombre}</td>
                 <td className="px-4 py-3">{c.tipo}</td>
                 <td className="px-4 py-3">{c.ciudad}</td>
+                <td className="px-4 py-3">{(c as any).diaVisita ?? '—'}</td>
+                <td className="px-4 py-3">{(c as any).frecuencia ?? '—'}</td>
               </tr>
             ))}
           </tbody>
