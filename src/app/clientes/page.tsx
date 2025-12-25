@@ -1,5 +1,7 @@
 'use client';
 
+import { db } from '@/lib/firebase';
+
 export default function ClientesPage() {
   return (
     <div className="p-8">
