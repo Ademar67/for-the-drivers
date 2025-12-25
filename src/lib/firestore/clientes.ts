@@ -1,4 +1,4 @@
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export type Cliente = {
@@ -19,5 +19,22 @@ export async function getClientes(): Promise<Cliente[]> {
       ciudad: data.ciudad ?? '',
       tipo: data.tipo ?? 'Prospecto',
     };
+  });
+}
+
+export async function crearCliente(input: {
+  nombre: string;
+  ciudad: string;
+  tipo: 'Cliente' | 'Prospecto' | 'Inactivo';
+}) {
+  if (!input.nombre.trim()) {
+    throw new Error('El nombre es obligatorio');
+  }
+
+  await addDoc(collection(db, 'clientes'), {
+    nombre: input.nombre.trim(),
+    ciudad: input.ciudad.trim(),
+    tipo: input.tipo,
+    createdAt: new Date(),
   });
 }
