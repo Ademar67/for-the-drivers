@@ -6,78 +6,108 @@ import { crearCliente } from '@/lib/firestore/clientes';
 export default function CrearClienteModal({
   open,
   onClose,
-  onCreated,
 }: {
   open: boolean;
   onClose: () => void;
-  onCreated: () => void;
 }) {
-  const [nombre, setNombre] = useState('');
-  const [ciudad, setCiudad] = useState('');
-  const [tipo, setTipo] = useState<'Cliente' | 'Prospecto' | 'Inactivo'>('Prospecto');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+
+  const [form, setForm] = useState({
+    nombre: '',
+    tipo: 'prospecto',
+    ciudad: '',
+    domicilio: '',
+    diaVisita: 'lunes',
+    frecuencia: 'semanal',
+  });
 
   if (!open) return null;
 
-  async function handleSubmit() {
-    try {
-      setLoading(true);
-      setError('');
-      await crearCliente({ nombre, ciudad, tipo });
-      onClose();
-      onCreated();
-      setNombre('');
-      setCiudad('');
-      setTipo('Prospecto');
-    } catch (e: any) {
-      setError(e.message ?? 'Error al crear cliente');
-    } finally {
-      setLoading(false);
-    }
+  async function guardar() {
+    if (!form.nombre.trim()) return;
+
+    setLoading(true);
+
+    await crearCliente({
+      nombre: form.nombre,
+      tipo: form.tipo as any,
+      ciudad: form.ciudad,
+      domicilio: form.domicilio,
+      diaVisita: form.diaVisita,
+      frecuencia: form.frecuencia,
+    });
+
+    setLoading(false);
+    onClose();
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-md p-6 space-y-4">
-        <h2 className="text-xl font-bold">Agregar cliente</h2>
+      <div className="bg-white p-6 rounded-lg w-[420px] space-y-3">
+        <h2 className="text-lg font-semibold">Agregar cliente</h2>
 
         <input
-          className="w-full border rounded px-3 py-2"
           placeholder="Nombre"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
+          className="w-full border p-2 rounded"
+          value={form.nombre}
+          onChange={(e) => setForm({ ...form, nombre: e.target.value })}
         />
 
         <input
-          className="w-full border rounded px-3 py-2"
           placeholder="Ciudad"
-          value={ciudad}
-          onChange={(e) => setCiudad(e.target.value)}
+          className="w-full border p-2 rounded"
+          value={form.ciudad}
+          onChange={(e) => setForm({ ...form, ciudad: e.target.value })}
+        />
+
+        <input
+          placeholder="Domicilio"
+          className="w-full border p-2 rounded"
+          value={form.domicilio}
+          onChange={(e) => setForm({ ...form, domicilio: e.target.value })}
         />
 
         <select
-          className="w-full border rounded px-3 py-2"
-          value={tipo}
-          onChange={(e) => setTipo(e.target.value as any)}
+          className="w-full border p-2 rounded"
+          value={form.tipo}
+          onChange={(e) => setForm({ ...form, tipo: e.target.value })}
         >
-          <option value="Cliente">Cliente</option>
-          <option value="Prospecto">Prospecto</option>
-          <option value="Inactivo">Inactivo</option>
+          <option value="cliente">Cliente</option>
+          <option value="prospecto">Prospecto</option>
+          <option value="inactivo">Inactivo</option>
         </select>
 
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        <select
+          className="w-full border p-2 rounded"
+          value={form.diaVisita}
+          onChange={(e) => setForm({ ...form, diaVisita: e.target.value })}
+        >
+          <option>lunes</option>
+          <option>martes</option>
+          <option>miercoles</option>
+          <option>jueves</option>
+          <option>viernes</option>
+          <option>sabado</option>
+        </select>
+
+        <select
+          className="w-full border p-2 rounded"
+          value={form.frecuencia}
+          onChange={(e) => setForm({ ...form, frecuencia: e.target.value })}
+        >
+          <option>semanal</option>
+          <option>quincenal</option>
+          <option>mensual</option>
+        </select>
 
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} className="px-4 py-2 border rounded">
-            Cancelar
-          </button>
+          <button onClick={onClose}>Cancelar</button>
           <button
-            onClick={handleSubmit}
+            onClick={guardar}
+            className="bg-blue-600 text-white px-4 py-2 rounded"
             disabled={loading}
-            className="px-4 py-2 bg-[#00468E] text-white rounded"
           >
-            {loading ? 'Guardando…' : 'Guardar'}
+            {loading ? 'Guardando...' : 'Guardar'}
           </button>
         </div>
       </div>
