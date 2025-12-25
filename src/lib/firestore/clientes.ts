@@ -35,6 +35,8 @@ export async function crearCliente(input: {
     nombre: input.nombre.trim(),
     ciudad: input.ciudad.trim(),
     tipo: input.tipo,
+    diaVisita: null,
+    frecuencia: null,
     createdAt: new Date(),
   });
 }
