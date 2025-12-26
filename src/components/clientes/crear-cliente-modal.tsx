@@ -36,6 +36,14 @@ export default function CrearClienteModal({
         frecuencia: form.frecuencia,
       });
       onClose();
+      setForm({
+        nombre: '',
+        tipo: 'prospecto',
+        ciudad: '',
+        domicilio: '',
+        diaVisita: 'lunes',
+        frecuencia: 'semanal',
+      });
     } catch (e) {
       alert('Error guardando cliente');
     } finally {
