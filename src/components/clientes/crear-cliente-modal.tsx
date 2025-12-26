@@ -35,7 +35,9 @@ export default function CrearClienteModal({
         diaVisita: form.diaVisita,
         frecuencia: form.frecuencia,
       });
+      
       onClose();
+
       setForm({
         nombre: '',
         tipo: 'prospecto',
