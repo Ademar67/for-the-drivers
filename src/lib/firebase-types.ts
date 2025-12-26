@@ -18,14 +18,15 @@ export interface Cliente {
 }
 
 /**
- * Represents a follow-up activity with a customer or prospect.
+ * Represents a scheduled activity in the visit agenda.
  */
-export interface Seguimiento {
-  id: string; // Unique identifier for the Seguimiento entity.
-  clienteId: string; // Reference to Cliente. (Relationship: Cliente 1:N Seguimiento)
-  fecha: string; // Date of the follow-up activity.
-  descripcion?: string; // Description of the follow-up activity.
-  estado?: string; // Status of the follow-up activity (e.g., pending, completed).
+export interface Agenda {
+  id: string; // Unique identifier for the Agenda entity.
+  clienteId: string; // Reference to the Cliente this activity is for.
+  fecha: string; // Date of the scheduled activity.
+  asunto: string; // The subject or type of the activity (e.g., Visita, Cotización, Cobranza).
+  descripcion?: string; // Detailed description of the activity or notes.
+  estado: string; // Status of the activity (e.g., pendiente, realizada).
 }
 
 /**

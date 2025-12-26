@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Cliente": {
@@ -37,38 +38,44 @@
         "nombre"
       ]
     },
-    "Seguimiento": {
+    "Agenda": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Seguimiento",
+      "title": "Agenda",
       "type": "object",
-      "description": "Represents a follow-up activity with a customer or prospect.",
+      "description": "Represents a scheduled activity in the visit agenda.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the Seguimiento entity."
+          "description": "Unique identifier for the Agenda entity."
         },
         "clienteId": {
           "type": "string",
-          "description": "Reference to Cliente. (Relationship: Cliente 1:N Seguimiento)"
+          "description": "Reference to the Cliente this activity is for."
         },
         "fecha": {
           "type": "string",
-          "description": "Date of the follow-up activity.",
+          "description": "Date of the scheduled activity.",
           "format": "date-time"
+        },
+        "asunto": {
+          "type": "string",
+          "description": "The subject or type of the activity (e.g., Visita, Cotización, Cobranza)."
         },
         "descripcion": {
           "type": "string",
-          "description": "Description of the follow-up activity."
+          "description": "Detailed description of the activity or notes."
         },
         "estado": {
           "type": "string",
-          "description": "Status of the follow-up activity (e.g., pending, completed)."
+          "description": "Status of the activity (e.g., pendiente, realizada)."
         }
       },
       "required": [
         "id",
         "clienteId",
-        "fecha"
+        "fecha",
+        "asunto",
+        "estado"
       ]
     },
     "Pedido": {
@@ -231,21 +238,21 @@
         }
       },
       {
-        "path": "/clientes/{clienteId}/seguimientos/{seguimientoId}",
+        "path": "/clientes/{clienteId}/agenda/{agendaId}",
         "definition": {
-          "entityName": "Seguimiento",
+          "entityName": "Agenda",
           "schema": {
-            "$ref": "#/backend/entities/Seguimiento"
+            "$ref": "#/backend/entities/Agenda"
           },
-          "description": "Stores follow-up activities for a specific customer. Includes denormalized 'clienteId' for authorization independence.",
+          "description": "Stores scheduled activities for a specific customer. Includes denormalized 'clienteId' for authorization independence.",
           "params": [
             {
               "name": "clienteId",
               "description": "Unique identifier for the customer."
             },
             {
-              "name": "seguimientoId",
-              "description": "Unique identifier for the follow-up activity."
+              "name": "agendaId",
+              "description": "Unique identifier for the agenda activity."
             }
           ]
         }
@@ -319,6 +326,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to support the Liqui Moly Sales Hub application, focusing on managing customer information, follow-up activities, orders, invoices, and product catalogs. It follows the principles of Authorization Independence, Structural Segregation, and Access Modeling to ensure security and scalability.\n\n*   **Authorization Independence:**  The structure leverages path-based ownership for private data, specifically for collections directly related to a customer (Seguimientos, Pedidos). This eliminates the need for `get()` calls in security rules, as the `clienteId` within these subcollections confirms ownership. \n*   **Structural Segregation:** Each collection serves a distinct purpose. For instance, `clientes` stores customer profiles, while `productos` stores product information. There is no mixing of different data access requirements within the same collection.\n*   **Access Modeling:**  Path-based ownership (`/clientes/{clienteId}/seguimientos/{seguimientoId}`) establishes clear ownership and avoids relying on complex authorization logic. This approach aligns with the principle of keeping security rules simple and efficient. The relationships between entities (Cliente 1:N Seguimiento, Cliente 1:N Pedido) are implemented using subcollections to ensure data locality and efficient querying.\n*   **QAPs (Rules are not Filters):** The structure supports secure `list` operations.  Listing follow-ups or orders is always scoped to a specific customer, ensuring that users can only access the data they are authorized to see. By structuring data using subcollections (`/clientes/{clienteId}/seguimientos/{seguimientoId}`), it's straightforward to write rules that allow listing only the follow-ups for a specific customer.\n"
+    "reasoning": "The Firestore data structure is designed to support the Liqui Moly Sales Hub application, focusing on managing customer information, visit agenda, orders, invoices, and product catalogs. It follows the principles of Authorization Independence, Structural Segregation, and Access Modeling to ensure security and scalability.\n\n*   **Authorization Independence:**  The structure leverages path-based ownership for private data, specifically for collections directly related to a customer (Agenda, Pedidos). This eliminates the need for `get()` calls in security rules, as the `clienteId` within these subcollections confirms ownership. \n*   **Structural Segregation:** Each collection serves a distinct purpose. For instance, `clientes` stores customer profiles, while `productos` stores product information. There is no mixing of different data access requirements within the same collection.\n*   **Access Modeling:**  Path-based ownership (`/clientes/{clienteId}/agenda/{agendaId}`) establishes clear ownership and avoids relying on complex authorization logic. This approach aligns with the principle of keeping security rules simple and efficient. The relationships between entities (Cliente 1:N Agenda, Cliente 1:N Pedido) are implemented using subcollections to ensure data locality and efficient querying.\n*   **QAPs (Rules are not Filters):** The structure supports secure `list` operations.  Listing agenda items or orders is always scoped to a specific customer, ensuring that users can only access the data they are authorized to see. By structuring data using subcollections (`/clientes/{clienteId}/agenda/{agendaId}`), it's straightforward to write rules that allow listing only the agenda items for a specific customer.\n"
   }
 }

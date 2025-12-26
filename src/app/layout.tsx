@@ -21,7 +21,7 @@ import {
   Home,
   Users,
   ShoppingCart,
-  Activity,
+  Calendar,
   Package,
   FileText,
   MapPin,
@@ -87,13 +87,12 @@ export default function RootLayout({
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-
-                      {/* 🔥 SEGUIMIENTOS (ESTO ES LO NUEVO) */}
+                      
                       <SidebarMenuItem>
                         <SidebarMenuButton asChild>
-                          <Link href="/seguimientos">
-                            <Activity />
-                            <span>Seguimientos</span>
+                          <Link href="/agenda">
+                            <Calendar />
+                            <span>Agenda</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>

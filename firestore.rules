@@ -1,3 +1,4 @@
+
 /**
  * Core Philosophy:
  * This ruleset is designed for an internal Sales Hub application where authenticated
@@ -8,7 +9,7 @@
  *
  * Data Structure:
  * The data is organized into several top-level collections. Customer-specific data,
- * such as 'seguimientos' (follow-ups) and 'pedidos' (orders), are logically nested
+ * such as 'agenda' (visits) and 'pedidos' (orders), are logically nested
  * as subcollections under their respective '/clientes/{clienteId}' document. This
  * colocation simplifies path-based queries and rules. Global data like 'productos',
  * 'facturas', and 'pedido_productos' exist at the root level.
@@ -25,7 +26,7 @@
  * - Strict Default Deny: Access is implicitly denied for any path not explicitly
  *   matched. Unauthenticated users are locked out of all data except the public
  *   product catalog.
- * - Relational Integrity: For nested documents (e.g., pedidos within a cliente),
+ * - Relational Integrity: For nested documents (e.g., agenda items within a cliente),
  *   rules enforce that the parent ID in the document data matches the ID in the
  *   path, ensuring data consistency on creation and preventing reparenting on update.
  */
@@ -78,13 +79,13 @@ service cloud.firestore {
     }
 
     /**
-     * @description Manages follow-up activities for a specific customer. Access is restricted to authenticated staff.
-     * @path /clientes/{clienteId}/seguimientos/{seguimientoId}
-     * @allow (create) An authenticated user creates a new follow-up for customer 'client_123', ensuring the document data contains 'clienteId: "client_123"'.
-     * @deny (create) An authenticated user tries to create a follow-up under '/clientes/client_123' but with 'clienteId: "client_456"' in the document data.
+     * @description Manages scheduled activities for a specific customer. Access is restricted to authenticated staff.
+     * @path /clientes/{clienteId}/agenda/{agendaId}
+     * @allow (create) An authenticated user creates a new agenda item for customer 'client_123', ensuring the document data contains 'clienteId: "client_123"'.
+     * @deny (create) An authenticated user tries to create an agenda item under '/clientes/client_123' but with 'clienteId: "client_456"' in the document data.
      * @principle Enforces path integrity for subcollection documents, ensuring a document's internal ID reference matches its parent path.
      */
-    match /clientes/{clienteId}/seguimientos/{seguimientoId} {
+    match /clientes/{clienteId}/agenda/{agendaId} {
       allow get, list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.clienteId == clienteId;
       allow update: if canWriteExistingDocIfSignedIn() && request.resource.data.clienteId == resource.data.clienteId;

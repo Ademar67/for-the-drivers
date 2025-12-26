@@ -1,11 +1,12 @@
+
 import { db } from '@/lib/firebase';
 import {
   collection,
-  addDoc,
   onSnapshot,
   query,
   orderBy,
   Timestamp,
+  addDoc,
 } from 'firebase/firestore';
 
 export type ClienteFS = {
@@ -14,18 +15,10 @@ export type ClienteFS = {
   tipo: 'cliente' | 'prospecto' | 'inactivo';
   ciudad: string;
   domicilio: string;
-  diaVisita: string;
-  frecuencia: string;
+  diaVisita: string | null;
+  frecuencia: string | null;
   createdAt: Timestamp;
 };
-
-// Crear cliente (SIN update, SIN delete)
-export async function crearCliente(data: Omit<ClienteFS, 'createdAt'>) {
-  await addDoc(collection(db, 'clientes'), {
-    ...data,
-    createdAt: Timestamp.now(),
-  });
-}
 
 // Escuchar clientes en tiempo real
 export function listenClientes(
@@ -42,5 +35,28 @@ export function listenClientes(
       ...(doc.data() as ClienteFS),
     }));
     callback(clientes);
+  });
+}
+
+export async function crearCliente(input: {
+  nombre: string;
+  ciudad: string;
+  tipo: 'Cliente' | 'Prospecto' | 'Inactivo';
+}) {
+  if (!input.nombre || !input.nombre.trim()) {
+    throw new Error('El nombre es obligatorio');
+  }
+
+   if (!input.ciudad || !input.ciudad.trim()) {
+    throw new Error('La ciudad es obligatoria');
+  }
+
+  await addDoc(collection(db, 'clientes'), {
+    nombre: input.nombre.trim(),
+    ciudad: input.ciudad.trim(),
+    tipo: input.tipo,
+    diaVisita: null,
+    frecuencia: null,
+    createdAt: new Date(),
   });
 }

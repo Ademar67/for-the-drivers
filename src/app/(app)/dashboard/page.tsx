@@ -1,10 +1,11 @@
+
 import Link from "next/link";
 import {
   Users,
   ShoppingCart,
   Package,
   FileText,
-  Activity,
+  Calendar,
   Calculator,
   Bot,
   MapPin,
@@ -25,10 +26,10 @@ const dashboardCards = [
     icon: ShoppingCart,
   },
   {
-    title: "Seguimientos",
-    description: "Estados y control",
-    href: "/seguimientos",
-    icon: Activity,
+    title: "Agenda de Visitas",
+    description: "Tareas, visitas y cotizaciones",
+    href: "/agenda",
+    icon: Calendar,
   },
  
   {
