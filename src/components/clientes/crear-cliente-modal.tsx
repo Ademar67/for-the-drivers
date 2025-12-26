@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -24,21 +25,22 @@ export default function CrearClienteModal({
   if (!open) return null;
 
   async function guardar() {
-    if (!form.nombre.trim()) return;
-
-    setLoading(true);
-
-    await crearCliente({
-      nombre: form.nombre,
-      tipo: form.tipo as any,
-      ciudad: form.ciudad,
-      domicilio: form.domicilio,
-      diaVisita: form.diaVisita,
-      frecuencia: form.frecuencia,
-    });
-
-    setLoading(false);
-    onClose();
+    try {
+      setLoading(true);
+      await crearCliente({
+        nombre: form.nombre,
+        tipo: form.tipo as any,
+        ciudad: form.ciudad,
+        domicilio: form.domicilio,
+        diaVisita: form.diaVisita,
+        frecuencia: form.frecuencia,
+      });
+      onClose();
+    } catch (e) {
+      alert('Error guardando cliente');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

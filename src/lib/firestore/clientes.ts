@@ -21,19 +21,22 @@ export type ClienteFS = {
 };
 
 // Escuchar clientes en tiempo real
-export function listenClientes(
-  callback: (clientes: ClienteFS[]) => void
-) {
-  const q = query(
-    collection(db, 'clientes'),
-    orderBy('createdAt', 'desc')
-  );
+export function listenClientes(callback: (clientes: ClienteFS[]) => void) {
+  const q = query(collection(db, 'clientes'), orderBy('createdAt', 'desc'));
 
   return onSnapshot(q, (snapshot) => {
-    const clientes = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as ClienteFS),
-    }));
+    const clientes = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        nombre: data.nombre ?? '',
+        ciudad: data.ciudad ?? '',
+        direccion: data.direccion ?? '',
+        tipo: data.tipo ?? 'prospecto',
+        diaVisita: data.diaVisita ?? null,
+        frecuencia: data.frecuencia ?? null,
+      };
+    }) as ClienteFS[];
     callback(clientes);
   });
 }
@@ -47,7 +50,7 @@ export async function crearCliente(input: {
     throw new Error('El nombre es obligatorio');
   }
 
-   if (!input.ciudad || !input.ciudad.trim()) {
+  if (!input.ciudad || !input.ciudad.trim()) {
     throw new Error('La ciudad es obligatoria');
   }
 
