@@ -1,9 +1,11 @@
+
 'use client';
 
 import { useState } from 'react';
+import type { ClienteFS } from '@/lib/firestore/clientes';
 
 type NuevaVisita = {
-  cliente: string;
+  clienteId: string;
   fecha: string;
   hora: string;
   tipo: 'visita' | 'cotizacion' | 'cobranza' | 'seguimiento';
@@ -14,13 +16,15 @@ export default function AgregarVisitaModal({
   open,
   onClose,
   onSave,
+  clientes,
 }: {
   open: boolean;
   onClose: () => void;
   onSave: (visita: NuevaVisita) => void;
+  clientes: ClienteFS[];
 }) {
   const [form, setForm] = useState<NuevaVisita>({
-    cliente: '',
+    clienteId: '',
     fecha: '',
     hora: '',
     tipo: 'visita',
@@ -29,6 +33,15 @@ export default function AgregarVisitaModal({
 
   if (!open) return null;
 
+  const handleSave = () => {
+    if (!form.clienteId) {
+      alert('Por favor, selecciona un cliente.');
+      return;
+    }
+    onSave(form);
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg w-full max-w-md p-6 space-y-4">
@@ -36,14 +49,20 @@ export default function AgregarVisitaModal({
           Agregar visita
         </h2>
 
-        <input
+        <select
           className="w-full border rounded px-3 py-2"
-          placeholder="Cliente"
-          value={form.cliente}
+          value={form.clienteId}
           onChange={(e) =>
-            setForm({ ...form, cliente: e.target.value })
+            setForm({ ...form, clienteId: e.target.value })
           }
-        />
+        >
+          <option value="" disabled>Selecciona un cliente</option>
+          {clientes.map((cliente) => (
+            <option key={cliente.id} value={cliente.id}>
+              {cliente.nombre}
+            </option>
+          ))}
+        </select>
 
         <input
           type="date"
@@ -98,10 +117,7 @@ export default function AgregarVisitaModal({
           </button>
 
           <button
-            onClick={() => {
-              onSave(form);
-              onClose();
-            }}
+            onClick={handleSave}
             className="px-4 py-2 bg-[#DA251D] text-white rounded"
           >
             Guardar

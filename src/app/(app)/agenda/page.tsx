@@ -56,30 +56,29 @@ export default function AgendaPage() {
   }, []);
 
   const handleSaveVisita = async (nuevaVisita: {
-    cliente: string;
+    clienteId: string;
     fecha: string;
     hora: string;
     tipo: 'visita' | 'cotizacion' | 'cobranza' | 'seguimiento';
     notas: string;
   }) => {
     try {
+      const clienteSeleccionado = clientes.find(c => c.id === nuevaVisita.clienteId);
+      if (!clienteSeleccionado) {
+        throw new Error("Cliente no encontrado");
+      }
+
       const visitaToSave = {
         ...nuevaVisita,
+        cliente: clienteSeleccionado.nombre, // Guardamos el nombre para visualización
         estado: 'pendiente' as const,
       };
       
-      // No esperamos el ID de vuelta, pero sí que se cree
       await crearVisita(visitaToSave);
 
-      // Actualizamos el estado local para reflejar el cambio inmediatamente
-      setVisitas(prev => [
-        { 
-          ...visitaToSave,
-          id: crypto.randomUUID(), // ID temporal para el renderizado
-          createdAt: Timestamp.now() // Timestamp temporal
-        },
-        ...prev
-      ]);
+      // Recargamos las visitas para obtener la nueva con lat/lng
+      const visitasFromDb = await obtenerVisitas();
+      setVisitas(visitasFromDb);
 
     } catch (error) {
       console.error("Error al crear la visita:", error);
@@ -225,6 +224,7 @@ export default function AgendaPage() {
         open={openAgregarVisita}
         onClose={() => setOpenAgregarVisita(false)}
         onSave={handleSaveVisita}
+        clientes={clientes}
       />
     </div>
   );
