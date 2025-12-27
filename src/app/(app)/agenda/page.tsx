@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
+import AgregarVisitaModal from '@/components/agenda/agregar-visita-modal';
 
 const DIAS_SEMANA = [
   'lunes',
@@ -26,7 +27,9 @@ const hoy =
 
 export default function AgendaPage() {
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
-  const [openCrear, setOpenCrear] = useState(false);
+  const [openCrearCliente, setOpenCrearCliente] = useState(false);
+  const [openAgregarVisita, setOpenAgregarVisita] = useState(false);
+
 
   useEffect(() => {
     const unsub = listenClientes(setClientes);
@@ -37,12 +40,20 @@ export default function AgendaPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Agenda de Visitas</h1>
-        <button
-          onClick={() => setOpenCrear(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-        >
-          + Nuevo Cliente
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setOpenCrearCliente(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+          >
+            + Nuevo Cliente
+          </button>
+          <button
+            onClick={() => setOpenAgregarVisita(true)}
+            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+          >
+            + Agregar visita
+          </button>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -117,7 +128,12 @@ export default function AgendaPage() {
           );
         })}
       </div>
-      <CrearClienteModal open={openCrear} onClose={() => setOpenCrear(false)} />
+      <CrearClienteModal open={openCrearCliente} onClose={() => setOpenCrearCliente(false)} />
+      <AgregarVisitaModal 
+        open={openAgregarVisita}
+        onClose={() => setOpenAgregarVisita(false)}
+        onSave={(visita) => console.log(visita)}
+      />
     </div>
   );
 }
