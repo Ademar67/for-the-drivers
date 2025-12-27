@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
+import { crearVisita, obtenerVisitas, Visita } from '@/lib/firestore/visitas';
 import {
   Collapsible,
   CollapsibleContent,
@@ -11,16 +12,8 @@ import {
 import { ChevronDown, PlusCircle } from 'lucide-react';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import AgregarVisitaModal from '@/components/agenda/agregar-visita-modal';
+import { Timestamp } from 'firebase/firestore';
 
-type Visita = {
-  id: string;
-  cliente: string;
-  fecha: string;
-  hora: string;
-  tipo: 'visita' | 'cotizacion' | 'cobranza' | 'seguimiento';
-  estado: 'pendiente' | 'realizada';
-  notas: string;
-};
 
 const DIAS_SEMANA = [
   'lunes',
@@ -37,34 +30,62 @@ const hoy =
 
 export default function AgendaPage() {
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
+  const [visitas, setVisitas] = useState<Visita[]>([]);
+  const [loading, setLoading] = useState(true);
   const [openCrearCliente, setOpenCrearCliente] = useState(false);
   const [openAgregarVisita, setOpenAgregarVisita] = useState(false);
 
-  const [visitas, setVisitas] = useState<Visita[]>([
-    {
-      id: 'v1',
-      cliente: 'Taller "El Pistón Feliz"',
-      fecha: '2024-08-05',
-      hora: '10:00',
-      tipo: 'visita',
-      estado: 'pendiente',
-      notas: 'Revisar stock de aceite 5W-30.',
-    },
-    {
-      id: 'v2',
-      cliente: 'Refaccionaria "La Curva"',
-      fecha: '2024-08-05',
-      hora: '12:30',
-      tipo: 'cobranza',
-      estado: 'pendiente',
-      notas: 'Factura #1234 por vencer.',
-    },
-  ]);
-
   useEffect(() => {
     const unsub = listenClientes(setClientes);
+    
+    async function loadVisitas() {
+      try {
+        setLoading(true);
+        const visitasFromDb = await obtenerVisitas();
+        setVisitas(visitasFromDb);
+      } catch (error) {
+        console.error("Error al cargar las visitas:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadVisitas();
+
     return () => unsub();
   }, []);
+
+  const handleSaveVisita = async (nuevaVisita: {
+    cliente: string;
+    fecha: string;
+    hora: string;
+    tipo: 'visita' | 'cotizacion' | 'cobranza' | 'seguimiento';
+    notas: string;
+  }) => {
+    try {
+      const visitaToSave = {
+        ...nuevaVisita,
+        estado: 'pendiente' as const,
+      };
+      
+      // No esperamos el ID de vuelta, pero sí que se cree
+      await crearVisita(visitaToSave);
+
+      // Actualizamos el estado local para reflejar el cambio inmediatamente
+      setVisitas(prev => [
+        { 
+          ...visitaToSave,
+          id: crypto.randomUUID(), // ID temporal para el renderizado
+          createdAt: Timestamp.now() // Timestamp temporal
+        },
+        ...prev
+      ]);
+
+    } catch (error) {
+      console.error("Error al crear la visita:", error);
+      alert("No se pudo guardar la visita. Inténtalo de nuevo.");
+    }
+  };
 
   const visitasPendientes = visitas.filter(v => v.estado === 'pendiente');
 
@@ -93,7 +114,9 @@ export default function AgendaPage() {
         {/* Sección de Visitas Pendientes */}
         <div>
           <h2 className="text-xl font-semibold mb-3 text-gray-800">Visitas Pendientes</h2>
-          {visitasPendientes.length > 0 ? (
+          {loading ? (
+             <p className="text-gray-500 italic">Cargando visitas...</p>
+          ) : visitasPendientes.length > 0 ? (
             <ul className="space-y-3">
               {visitasPendientes.map((visita) => (
                 <li
@@ -201,23 +224,8 @@ export default function AgendaPage() {
       <AgregarVisitaModal 
         open={openAgregarVisita}
         onClose={() => setOpenAgregarVisita(false)}
-        onSave={(nuevaVisita) => {
-          setVisitas(prev => [
-            ...prev,
-            {
-              id: crypto.randomUUID(),
-              cliente: nuevaVisita.cliente,
-              fecha: nuevaVisita.fecha,
-              hora: nuevaVisita.hora,
-              tipo: nuevaVisita.tipo,
-              estado: 'pendiente',
-              notas: nuevaVisita.notas,
-            }
-          ]);
-        }}
+        onSave={handleSaveVisita}
       />
     </div>
   );
 }
-
-    
