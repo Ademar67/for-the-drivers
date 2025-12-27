@@ -8,9 +8,19 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, PlusCircle } from 'lucide-react';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import AgregarVisitaModal from '@/components/agenda/agregar-visita-modal';
+
+type Visita = {
+  id: string;
+  cliente: string;
+  fecha: string;
+  hora: string;
+  tipo: 'visita' | 'cotizacion' | 'cobranza' | 'seguimiento';
+  estado: 'pendiente' | 'realizada';
+  notas: string;
+};
 
 const DIAS_SEMANA = [
   'lunes',
@@ -30,16 +40,38 @@ export default function AgendaPage() {
   const [openCrearCliente, setOpenCrearCliente] = useState(false);
   const [openAgregarVisita, setOpenAgregarVisita] = useState(false);
 
+  const [visitas, setVisitas] = useState<Visita[]>([
+    {
+      id: 'v1',
+      cliente: 'Taller "El Pistón Feliz"',
+      fecha: '2024-08-05',
+      hora: '10:00',
+      tipo: 'visita',
+      estado: 'pendiente',
+      notas: 'Revisar stock de aceite 5W-30.',
+    },
+    {
+      id: 'v2',
+      cliente: 'Refaccionaria "La Curva"',
+      fecha: '2024-08-05',
+      hora: '12:30',
+      tipo: 'cobranza',
+      estado: 'pendiente',
+      notas: 'Factura #1234 por vencer.',
+    },
+  ]);
 
   useEffect(() => {
     const unsub = listenClientes(setClientes);
     return () => unsub();
   }, []);
 
+  const visitasPendientes = visitas.filter(v => v.estado === 'pendiente');
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Agenda de Visitas</h1>
+        <h1 className="text-3xl font-bold">Agenda</h1>
         <div className="flex gap-2">
           <button
             onClick={() => setOpenCrearCliente(true)}
@@ -51,89 +83,141 @@ export default function AgendaPage() {
             onClick={() => setOpenAgregarVisita(true)}
             className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
           >
-            + Agregar visita
+            <PlusCircle className="inline-block mr-2 h-5 w-5" />
+            Agregar visita
           </button>
         </div>
       </div>
 
-      <div className="space-y-6">
-        {DIAS_SEMANA.map((dia) => {
-          const delDia = clientes.filter(
-            (c) => c.diaVisita === dia && c.tipo !== 'inactivo' && c.diaVisita
-          );
-
-          if (delDia.length === 0) {
-            return null;
-          }
-
-          const esHoy = dia === hoy;
-
-          return (
-            <Collapsible key={dia} defaultOpen={esHoy}>
-              <CollapsibleTrigger className="w-full">
-                <div
-                  className={`
-                    flex items-center justify-between p-3 rounded-lg border
-                    ${
-                      esHoy
-                        ? 'bg-blue-100 border-blue-300'
-                        : 'bg-gray-50 border-gray-200'
-                    }
-                  `}
+      <div className="space-y-8">
+        {/* Sección de Visitas Pendientes */}
+        <div>
+          <h2 className="text-xl font-semibold mb-3 text-gray-800">Visitas Pendientes</h2>
+          {visitasPendientes.length > 0 ? (
+            <ul className="space-y-3">
+              {visitasPendientes.map((visita) => (
+                <li
+                  key={visita.id}
+                  className="p-4 rounded-lg border bg-white shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-center gap-3">
-                    <h3
-                      className={`text-lg font-semibold capitalize ${
-                        esHoy ? 'text-blue-800' : 'text-gray-800'
-                      }`}
-                    >
-                      {dia}
-                    </h3>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        esHoy
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-700'
-                      }`}
-                    >
-                      {delDia.length}
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-bold text-gray-900">{visita.cliente}</div>
+                      <div className="text-sm text-gray-600 capitalize">
+                        {visita.tipo} - {visita.fecha} {visita.hora}
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">{visita.notas}</p>
+                    </div>
+                    <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                      {visita.estado}
                     </span>
                   </div>
-                  <ChevronDown
-                    className={`h-5 w-5 transition-transform ${
-                      esHoy ? 'text-blue-700' : 'text-gray-600'
-                    }`}
-                  />
-                </div>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <ul className="mt-2 space-y-2 border-l-2 pl-6 ml-3">
-                  {delDia.map((cliente) => (
-                    <li
-                      key={cliente.id}
-                      className="p-3 rounded-md border text-sm hover:bg-gray-50 cursor-pointer bg-white"
-                    >
-                      <div className="font-semibold">{cliente.nombre}</div>
-                      <div className="text-xs text-gray-600">
-                        {cliente.ciudad}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500 italic">No hay visitas pendientes.</p>
+          )}
+        </div>
+
+        {/* Sección de Clientes por Día */}
+        <div>
+           <h2 className="text-xl font-semibold mb-4 text-gray-800 border-t pt-6">Clientes a Visitar por Día</h2>
+            <div className="space-y-6">
+              {DIAS_SEMANA.map((dia) => {
+                const delDia = clientes.filter(
+                  (c) => c.diaVisita === dia && c.tipo !== 'inactivo' && c.diaVisita
+                );
+
+                if (delDia.length === 0) {
+                  return null;
+                }
+
+                const esHoy = dia === hoy;
+
+                return (
+                  <Collapsible key={dia} defaultOpen={esHoy}>
+                    <CollapsibleTrigger className="w-full">
+                      <div
+                        className={`
+                          flex items-center justify-between p-3 rounded-lg border
+                          ${
+                            esHoy
+                              ? 'bg-blue-100 border-blue-300'
+                              : 'bg-gray-50 border-gray-200'
+                          }
+                        `}
+                      >
+                        <div className="flex items-center gap-3">
+                          <h3
+                            className={`text-lg font-semibold capitalize ${
+                              esHoy ? 'text-blue-800' : 'text-gray-800'
+                            }`}
+                          >
+                            {dia}
+                          </h3>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              esHoy
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-200 text-gray-700'
+                            }`}
+                          >
+                            {delDia.length}
+                          </span>
+                        </div>
+                        <ChevronDown
+                          className={`h-5 w-5 transition-transform data-[state=open]:rotate-180 ${
+                            esHoy ? 'text-blue-700' : 'text-gray-600'
+                          }`}
+                        />
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Frecuencia: {cliente.frecuencia}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </CollapsibleContent>
-            </Collapsible>
-          );
-        })}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <ul className="mt-2 space-y-2 border-l-2 pl-6 ml-3">
+                        {delDia.map((cliente) => (
+                          <li
+                            key={cliente.id}
+                            className="p-3 rounded-md border text-sm hover:bg-gray-50 cursor-pointer bg-white"
+                          >
+                            <div className="font-semibold">{cliente.nombre}</div>
+                            <div className="text-xs text-gray-600">
+                              {cliente.ciudad}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Frecuencia: {cliente.frecuencia}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
+            </div>
+        </div>
       </div>
       <CrearClienteModal open={openCrearCliente} onClose={() => setOpenCrearCliente(false)} />
       <AgregarVisitaModal 
         open={openAgregarVisita}
         onClose={() => setOpenAgregarVisita(false)}
-        onSave={(visita) => console.log(visita)}
+        onSave={(nuevaVisita) => {
+          setVisitas(prev => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              cliente: nuevaVisita.cliente,
+              fecha: nuevaVisita.fecha,
+              hora: nuevaVisita.hora,
+              tipo: nuevaVisita.tipo,
+              estado: 'pendiente',
+              notas: nuevaVisita.notas,
+            }
+          ]);
+        }}
       />
     </div>
   );
 }
+
+    
