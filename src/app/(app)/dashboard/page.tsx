@@ -10,6 +10,7 @@ import {
   Bot,
   MapPin,
   Droplet,
+  Map,
 } from "lucide-react";
 
 const dashboardCards = [
@@ -37,6 +38,12 @@ const dashboardCards = [
     description: "Visualiza y gestiona tus clientes y prospectos.",
     href: "/mapa-clientes",
     icon: MapPin,
+  },
+   {
+    title: "Mapa de Visitas",
+    description: "Visualiza tus visitas en el mapa.",
+    href: "/mapa-visitas",
+    icon: Map,
   },
   {
     title: "Productos",

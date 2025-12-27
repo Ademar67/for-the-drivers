@@ -28,6 +28,7 @@ import {
   BookOpen,
   Calculator,
   Bot,
+  Map,
 } from "lucide-react";
 
 import { FirebaseClientProvider } from "@/firebase/client-provider";
@@ -93,6 +94,14 @@ export default function RootLayout({
                           <Link href="/agenda">
                             <Calendar />
                             <span>Agenda</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                       <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/mapa-visitas">
+                            <Map />
+                            <span>Mapa de Visitas</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
