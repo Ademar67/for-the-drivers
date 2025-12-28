@@ -112,13 +112,20 @@ export default function MapaVisitasPage() {
         });
 
         const infoWindowContent = `
-          <div style="padding: 5px;">
-            <strong style="font-size: 14px;">${visita.cliente}</strong><br/>
-            <p>Tipo: ${visita.tipo}</p>
-            <p>Hora: ${visita.hora}</p>
-            <a href="https://www.google.com/maps?q=${visita.lat},${visita.lng}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: none; font-weight: 500;">
-              Abrir en Google Maps
-            </a>
+          <div style="padding: 5px; font-family: sans-serif; display: flex; flex-direction: column; gap: 8px;">
+            <strong style="font-size: 14px;">${visita.cliente}</strong>
+            <div>
+              <div>Tipo: ${visita.tipo}</div>
+              <div>Hora: ${visita.hora}</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+              <a href="/agenda?clienteId=${visita.clienteId}" style="color: #1a73e8; text-decoration: none; font-weight: 500; font-size: 13px;">
+                Ver agenda del cliente
+              </a>
+              <a href="https://www.google.com/maps?q=${visita.lat},${visita.lng}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: none; font-weight: 500; font-size: 13px;">
+                Abrir en Google Maps
+              </a>
+            </div>
           </div>
         `;
 
