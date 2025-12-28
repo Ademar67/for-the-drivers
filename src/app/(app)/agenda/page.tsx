@@ -3,14 +3,15 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
-import { crearVisita, obtenerVisitas, Visita, marcarVisitaRealizada } from '@/lib/firestore/visitas';
+import { crearVisita, obtenerVisitas, Visita } from '@/lib/firestore/visitas';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown, PlusCircle } from 'lucide-react';
+import { ChevronDown, PlusCircle, AlertTriangle } from 'lucide-react';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import AgregarVisitaModal from '@/components/agenda/agregar-visita-modal';
 
@@ -70,16 +71,17 @@ export default function AgendaPage() {
       if (!clienteSeleccionado) {
         throw new Error("Cliente no encontrado");
       }
-
+      
       const visitaToSave = {
         ...nuevaVisita,
-        cliente: clienteSeleccionado.nombre, // Guardamos el nombre para visualización
+        cliente: clienteSeleccionado.nombre, 
         estado: 'pendiente' as const,
+        lat: (clienteSeleccionado as any).lat,
+        lng: (clienteSeleccionado as any).lng,
       };
       
       await crearVisita(visitaToSave);
 
-      // Recargamos las visitas para obtener la nueva con lat/lng
       const visitasFromDb = await obtenerVisitas();
       setVisitas(visitasFromDb);
 
@@ -98,6 +100,23 @@ export default function AgendaPage() {
     : visitas;
 
   const visitasPendientes = visitasFiltradas.filter(v => v.estado === 'pendiente');
+
+  // Lógica para "Clientes sin visita esta semana"
+  const sieteDiasAtras = new Date();
+  sieteDiasAtras.setDate(sieteDiasAtras.getDate() - 7);
+
+  const clientesActivos = clientes.filter(c => c.tipo === 'cliente');
+  
+  const clientesSinVisitaReciente = clientesActivos.filter(cliente => {
+    const visitasDelCliente = visitas.filter(v => v.clienteId === cliente.id);
+    if (visitasDelCliente.length === 0) {
+      return true; // No tiene ninguna visita registrada
+    }
+    const ultimaVisita = visitasDelCliente.reduce((masReciente, actual) => 
+      new Date(actual.fecha) > new Date(masReciente.fecha) ? actual : masReciente
+    );
+    return new Date(ultimaVisita.fecha) < sieteDiasAtras;
+  });
 
   return (
     <div className="p-6">
@@ -150,9 +169,9 @@ export default function AgendaPage() {
                       </div>
                       <p className="text-sm text-gray-500 mt-1">{visita.notas}</p>
                     </div>
-                    <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                      {visita.estado}
-                    </span>
+                      <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                        {visita.estado}
+                      </span>
                   </div>
                 </li>
               ))}
@@ -162,8 +181,28 @@ export default function AgendaPage() {
           )}
         </div>
 
+        {/* Sección Clientes sin visita */}
+        {clientesSinVisitaReciente.length > 0 && !clienteIdFromUrl && (
+          <div className="border-t pt-6">
+            <h2 className="text-xl font-semibold mb-3 text-yellow-700 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Clientes sin visita esta semana ({clientesSinVisitaReciente.length})
+            </h2>
+            <div className="p-4 rounded-lg border bg-yellow-50 border-yellow-200">
+              <ul className="space-y-2">
+                {clientesSinVisitaReciente.map(cliente => (
+                  <li key={cliente.id}>
+                    <Link href={`/agenda?clienteId=${cliente.id}`} className="text-sm text-blue-600 hover:underline">
+                      {cliente.nombre}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {/* Sección de Clientes por Día */}
-        {/* Ocultamos esta sección si estamos filtrando por un cliente específico */}
         {!clienteIdFromUrl && (
           <div>
             <h2 className="text-xl font-semibold mb-4 text-gray-800 border-t pt-6">Clientes a Visitar por Día</h2>
@@ -253,3 +292,5 @@ export default function AgendaPage() {
     </div>
   );
 }
+
+    
