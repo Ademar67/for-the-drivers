@@ -26,8 +26,9 @@ const DIAS_SEMANA = [
 ];
 
 const hoyIndex = new Date().getDay(); // 0 = Domingo, 1 = Lunes
-const hoy =
+const hoyDiaSemana =
   hoyIndex === 0 ? 'domingo' : DIAS_SEMANA[hoyIndex - 1];
+const hoyFecha = new Date().toISOString().split('T')[0];
 
 export default function AgendaPage() {
   const searchParams = useSearchParams();
@@ -76,8 +77,6 @@ export default function AgendaPage() {
         ...nuevaVisita,
         cliente: clienteSeleccionado.nombre, 
         estado: 'pendiente' as const,
-        lat: (clienteSeleccionado as any).lat,
-        lng: (clienteSeleccionado as any).lng,
       };
       
       await crearVisita(visitaToSave);
@@ -101,7 +100,6 @@ export default function AgendaPage() {
 
   const visitasPendientes = visitasFiltradas.filter(v => v.estado === 'pendiente');
 
-  // Lógica para "Clientes sin visita esta semana"
   const sieteDiasAtras = new Date();
   sieteDiasAtras.setDate(sieteDiasAtras.getDate() - 7);
 
@@ -110,7 +108,7 @@ export default function AgendaPage() {
   const clientesSinVisitaReciente = clientesActivos.filter(cliente => {
     const visitasDelCliente = visitas.filter(v => v.clienteId === cliente.id);
     if (visitasDelCliente.length === 0) {
-      return true; // No tiene ninguna visita registrada
+      return true;
     }
     const ultimaVisita = visitasDelCliente.reduce((masReciente, actual) => 
       new Date(actual.fecha) > new Date(masReciente.fecha) ? actual : masReciente
@@ -149,46 +147,50 @@ export default function AgendaPage() {
       </div>
 
       <div className="space-y-8">
-        {/* Sección de Visitas Pendientes */}
         <div>
           <h2 className="text-xl font-semibold mb-3 text-gray-800">Visitas Pendientes</h2>
           {loading ? (
              <p className="text-gray-500 italic">Cargando visitas...</p>
           ) : visitasPendientes.length > 0 ? (
             <ul className="space-y-3">
-              {visitasPendientes.map((visita) => (
-                <li
-                  key={visita.id}
-                  className="p-4 rounded-lg border bg-white shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-bold text-gray-900">{visita.cliente}</div>
-                      <div className="text-sm text-gray-600 capitalize">
-                        {visita.tipo} - {visita.fecha} {visita.hora}
+              {visitasPendientes.map((visita) => {
+                const esVisitaDeHoy = visita.fecha === hoyFecha;
+                return (
+                  <li
+                    key={visita.id}
+                    className={`
+                      p-4 rounded-lg border bg-white shadow-sm hover:shadow-md transition-shadow
+                      ${esVisitaDeHoy ? 'border-l-4 border-l-green-500' : 'border'}
+                    `}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-bold text-gray-900">{visita.cliente}</div>
+                        <div className="text-sm text-gray-600 capitalize">
+                          {visita.tipo} - {visita.fecha} {visita.hora}
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">{visita.notas}</p>
                       </div>
-                      <p className="text-sm text-gray-500 mt-1">{visita.notas}</p>
+                        <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                          {visita.estado}
+                        </span>
                     </div>
-                      <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                        {visita.estado}
-                      </span>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="text-gray-500 italic">No hay visitas pendientes {nombreClienteFiltrado ? `para ${nombreClienteFiltrado}` : ''}.</p>
           )}
         </div>
 
-        {/* Sección Clientes sin visita */}
         {clientesSinVisitaReciente.length > 0 && !clienteIdFromUrl && (
           <div className="border-t pt-6">
-            <h2 className="text-xl font-semibold mb-3 text-yellow-700 flex items-center gap-2">
+            <h2 className="text-xl font-semibold mb-3 text-red-700 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
               Clientes sin visita esta semana ({clientesSinVisitaReciente.length})
             </h2>
-            <div className="p-4 rounded-lg border bg-yellow-50 border-yellow-200">
+            <div className="p-4 rounded-lg border bg-red-50 border-red-200">
               <ul className="space-y-2">
                 {clientesSinVisitaReciente.map(cliente => (
                   <li key={cliente.id}>
@@ -202,7 +204,6 @@ export default function AgendaPage() {
           </div>
         )}
 
-        {/* Sección de Clientes por Día */}
         {!clienteIdFromUrl && (
           <div>
             <h2 className="text-xl font-semibold mb-4 text-gray-800 border-t pt-6">Clientes a Visitar por Día</h2>
@@ -216,7 +217,7 @@ export default function AgendaPage() {
                     return null;
                   }
 
-                  const esHoy = dia === hoy;
+                  const esHoy = dia === hoyDiaSemana;
 
                   return (
                     <Collapsible key={dia} defaultOpen={esHoy}>
@@ -292,5 +293,3 @@ export default function AgendaPage() {
     </div>
   );
 }
-
-    
