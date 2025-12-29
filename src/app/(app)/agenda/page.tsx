@@ -14,6 +14,7 @@ import {
 import { ChevronDown, PlusCircle, AlertTriangle } from 'lucide-react';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import AgregarVisitaModal from '@/components/agenda/agregar-visita-modal';
+import { Badge } from '@/components/ui/badge';
 
 
 const DIAS_SEMANA = [
@@ -66,6 +67,8 @@ export default function AgendaPage() {
     hora: string;
     tipo: 'visita' | 'cotizacion' | 'cobranza' | 'seguimiento';
     notas: string;
+    lat?: number;
+    lng?: number;
   }) => {
     try {
       const clienteSeleccionado = clientes.find(c => c.id === nuevaVisita.clienteId);
@@ -77,6 +80,8 @@ export default function AgendaPage() {
         ...nuevaVisita,
         cliente: clienteSeleccionado.nombre, 
         estado: 'pendiente' as const,
+        lat: clienteSeleccionado.lat,
+        lng: clienteSeleccionado.lng,
       };
       
       await crearVisita(visitaToSave);
@@ -115,6 +120,44 @@ export default function AgendaPage() {
     );
     return new Date(ultimaVisita.fecha) < sieteDiasAtras;
   });
+
+  const getFechaLimite = (ultimaFecha: Date, frecuencia: string) => {
+    const fechaLimite = new Date(ultimaFecha);
+    switch (frecuencia) {
+      case 'semanal':
+        fechaLimite.setDate(fechaLimite.getDate() + 7);
+        break;
+      case 'quincenal':
+        fechaLimite.setDate(fechaLimite.getDate() + 15);
+        break;
+      case 'mensual':
+        fechaLimite.setMonth(fechaLimite.getMonth() + 1);
+        break;
+      default:
+        return new Date(); // No vence nunca si no hay frecuencia
+    }
+    return fechaLimite;
+  };
+  
+  const clientesVencidos = clientesActivos
+    .filter(c => c.frecuencia) // Solo clientes con frecuencia definida
+    .filter(cliente => {
+      const visitasRealizadas = visitas.filter(
+        v => v.clienteId === cliente.id && v.estado === 'realizada'
+      );
+  
+      if (visitasRealizadas.length === 0) {
+        return true; // Vencido si nunca se ha visitado
+      }
+  
+      const ultimaVisita = visitasRealizadas.reduce((masReciente, actual) =>
+        new Date(actual.fecha) > new Date(masReciente.fecha) ? actual : masReciente
+      );
+  
+      const fechaLimite = getFechaLimite(new Date(ultimaVisita.fecha), cliente.frecuencia!);
+      return new Date() > fechaLimite; // Vencido si hoy es después de la fecha límite
+  });
+
 
   return (
     <div className="p-6">
@@ -203,6 +246,28 @@ export default function AgendaPage() {
             </div>
           </div>
         )}
+
+        {clientesVencidos.length > 0 && !clienteIdFromUrl && (
+            <div className="border-t pt-6">
+              <h2 className="text-xl font-semibold mb-3 text-yellow-800 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Clientes con frecuencia vencida ({clientesVencidos.length})
+              </h2>
+              <div className="p-4 rounded-lg border bg-yellow-50 border-yellow-200">
+                <ul className="space-y-2">
+                  {clientesVencidos.map(cliente => (
+                    <li key={cliente.id} className="flex justify-between items-center">
+                      <Link href={`/agenda?clienteId=${cliente.id}`} className="text-sm text-blue-600 hover:underline">
+                        {cliente.nombre}
+                      </Link>
+                      <Badge variant="destructive">URGENTE</Badge>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
 
         {!clienteIdFromUrl && (
           <div>
