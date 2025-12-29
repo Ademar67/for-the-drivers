@@ -97,6 +97,20 @@ export default function AgendaPage() {
   const [loading, setLoading] = useState(true);
   const [openCrearCliente, setOpenCrearCliente] = useState(false);
   const [openAgregarVisita, setOpenAgregarVisita] = useState(false);
+  const [hechosHoy, setHechosHoy] = useState<Set<string>>(new Set());
+
+
+  function toggleHechoHoy(id: string) {
+    setHechosHoy(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
 
   useEffect(() => {
     const unsub = listenClientes(setClientes);
@@ -271,15 +285,17 @@ export default function AgendaPage() {
       ultimaVisitaMap,
       hoy,
     });
+    const estaHecho = hechosHoy.has(visita.id);
 
     return (
       <li
         key={visita.id}
         className={cn(
-          'p-4 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow border',
+          'p-4 rounded-lg bg-white shadow-sm hover:shadow-md transition-all border',
           urgenciaScore === 0 && 'border-l-4 border-l-red-500',
           urgenciaScore === 1 && 'border-l-4 border-l-orange-400',
-          esVisitaDeHoy && urgenciaScore > 1 && 'border-l-4 border-l-green-500'
+          esVisitaDeHoy && urgenciaScore > 1 && 'border-l-4 border-l-green-500',
+          estaHecho && 'opacity-50 line-through'
         )}
       >
         <div className="flex justify-between items-start">
@@ -305,8 +321,8 @@ export default function AgendaPage() {
                 {visita.estado}
               </span>
                <button 
-                 onClick={() => handleMarcarRealizada(visita.id)}
-                 title="Marcar como realizada"
+                 onClick={() => toggleHechoHoy(visita.id)}
+                 title={estaHecho ? 'Desmarcar' : 'Marcar como hecho hoy'}
                  className="p-1 rounded-full text-green-600 hover:bg-green-100 transition-colors"
                >
                 <CheckCircle className="h-5 w-5" />
