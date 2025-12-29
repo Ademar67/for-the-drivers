@@ -61,6 +61,18 @@ function getMotivoUrgencia(
   return null;
 }
 
+function getDiasAtraso(
+    clienteId: string,
+    ultimaVisitaMap: Map<string, Date>,
+    hoy: Date
+  ) {
+    const ultimaVisita = ultimaVisitaMap.get(clienteId)
+    if (!ultimaVisita) return Infinity // nunca visitado = máximo atraso
+  
+    const diffMs = hoy.getTime() - ultimaVisita.getTime()
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  }
+
 
 export default function AgendaPage() {
   const searchParams = useSearchParams();
@@ -147,6 +159,18 @@ export default function AgendaPage() {
   sieteDiasAtras.setDate(sieteDiasAtras.getDate() - 7);
 
   const clientesActivos = clientes.filter(c => c.tipo === 'cliente');
+
+  const ultimaVisitaMap = new Map<string, Date>();
+  visitas
+    .filter(v => v.estado === 'realizada')
+    .forEach(v => {
+      const fechaVisita = new Date(v.fecha);
+      const fechaExistente = ultimaVisitaMap.get(v.clienteId);
+      if (!fechaExistente || fechaVisita > fechaExistente) {
+        ultimaVisitaMap.set(v.clienteId, fechaVisita);
+      }
+    });
+
   
   const clientesSinVisitaReciente = clientesActivos.filter(cliente => {
     const visitasDelCliente = visitas.filter(v => v.clienteId === cliente.id);
@@ -207,19 +231,26 @@ export default function AgendaPage() {
   const visitasFiltradas = clienteIdFromUrl
     ? visitas.filter(v => v.clienteId === clienteIdFromUrl)
     : visitas;
-
+  
+  const hoy = new Date();
+  
   const visitasPendientes = visitasFiltradas
     .filter(v => v.estado === 'pendiente')
     .sort((a, b) => {
-      const diff =
-        getUrgenciaScore(a.clienteId, urgenciaSets) -
-        getUrgenciaScore(b.clienteId, urgenciaSets);
-
-      if (diff !== 0) return diff;
-
-      // Si tienen la misma urgencia, ordenar por fecha más próxima
-      return new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
-    });
+        const urgenciaDiff =
+          getUrgenciaScore(a.clienteId, urgenciaSets) -
+          getUrgenciaScore(b.clienteId, urgenciaSets);
+      
+        if (urgenciaDiff !== 0) return urgenciaDiff;
+      
+        const atrasoA = getDiasAtraso(a.clienteId, ultimaVisitaMap, hoy);
+        const atrasoB = getDiasAtraso(b.clienteId, ultimaVisitaMap, hoy);
+      
+        if (atrasoA !== atrasoB) return atrasoB - atrasoA;
+      
+        // Si tienen la misma urgencia y atraso, ordenar por fecha más próxima
+        return new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
+      });
 
 
   return (
@@ -370,7 +401,16 @@ export default function AgendaPage() {
                   }
                   
                   const delDia = [...delDiaOriginal].sort((a, b) => {
-                    return getUrgenciaScore(a.id, urgenciaSets) - getUrgenciaScore(b.id, urgenciaSets);
+                    const urgenciaDiff =
+                        getUrgenciaScore(a.id, urgenciaSets) -
+                        getUrgenciaScore(b.id, urgenciaSets);
+
+                    if (urgenciaDiff !== 0) return urgenciaDiff;
+
+                    const atrasoA = getDiasAtraso(a.id, ultimaVisitaMap, hoy);
+                    const atrasoB = getDiasAtraso(b.id, ultimaVisitaMap, hoy);
+
+                    return atrasoB - atrasoA; // más atraso primero
                   });
 
 
