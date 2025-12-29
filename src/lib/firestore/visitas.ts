@@ -1,5 +1,5 @@
 
-'use server';
+'use client';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -11,6 +11,7 @@ import {
   serverTimestamp,
   doc,
   getDoc,
+  updateDoc,
 } from 'firebase/firestore';
 
 export type Visita = {
@@ -22,32 +23,26 @@ export type Visita = {
   tipo: 'visita' | 'cotizacion' | 'cobranza' | 'seguimiento';
   estado: 'pendiente' | 'realizada';
   notas: string;
-  createdAt: Timestamp;
+  createdAt: string;
   lat?: number;
   lng?: number;
 };
 
-type CrearVisitaInput = Omit<Visita, 'id' | 'createdAt' | 'lat' | 'lng'>;
+type CrearVisitaInput = {
+  cliente: string;
+  clienteId: string;
+  fecha: string;
+  hora: string;
+  tipo: 'visita' | 'cotizacion' | 'cobranza' | 'seguimiento';
+  estado: 'pendiente' | 'realizada';
+  notas: string;
+  lat?: number;
+  lng?: number;
+};
 
 export async function crearVisita(visita: CrearVisitaInput) {
-  let lat, lng;
-
-  // Obtener las coordenadas del cliente
-  if (visita.clienteId) {
-    const clienteRef = doc(db, 'clientes', visita.clienteId);
-    const clienteSnap = await getDoc(clienteRef);
-
-    if (clienteSnap.exists()) {
-      const clienteData = clienteSnap.data();
-      lat = clienteData.lat; // Puede ser undefined si no existe
-      lng = clienteData.lng; // Puede ser undefined si no existe
-    }
-  }
-
   const docRef = await addDoc(collection(db, 'visitas'), {
     ...visita,
-    lat,
-    lng,
     createdAt: serverTimestamp(),
   });
   return docRef.id;
@@ -59,6 +54,7 @@ export async function obtenerVisitas(): Promise<Visita[]> {
   
   const visitas = querySnapshot.docs.map(doc => {
     const data = doc.data();
+    const createdAt = data.createdAt as Timestamp;
     return {
       id: doc.id,
       cliente: data.cliente,
@@ -68,11 +64,18 @@ export async function obtenerVisitas(): Promise<Visita[]> {
       tipo: data.tipo,
       estado: data.estado,
       notas: data.notas,
-      createdAt: data.createdAt,
+      createdAt: createdAt.toDate().toISOString(),
       lat: data.lat,
       lng: data.lng,
     } as Visita;
   });
 
   return visitas;
+}
+
+export async function marcarVisitaRealizada(visitaId: string) {
+  const visitaRef = doc(db, 'visitas', visitaId);
+  await updateDoc(visitaRef, {
+    estado: 'realizada',
+  });
 }
