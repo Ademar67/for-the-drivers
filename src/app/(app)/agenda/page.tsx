@@ -15,6 +15,7 @@ import { ChevronDown, PlusCircle, AlertTriangle, CheckCircle } from 'lucide-reac
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import AgregarVisitaModal from '@/components/agenda/agregar-visita-modal';
 import { Badge } from '@/components/ui/badge';
+import { cn } from "@/lib/utils";
 
 
 const DIAS_SEMANA = [
@@ -297,7 +298,7 @@ export default function AgendaPage() {
             <ul className="space-y-3">
               {visitasPendientes.map((visita) => {
                 const esVisitaDeHoy = visita.fecha === hoyFecha;
-                const estaVencido = frecuenciaVencidaSet.has(visita.clienteId);
+                const urgenciaScore = getUrgenciaScore(visita.clienteId, urgenciaSets);
                 const textoUrgencia = getTextoUrgencia(visita.clienteId, {
                   frecuenciaVencida: urgenciaSets.frecuenciaVencida,
                   sinVisitaSemana: urgenciaSets.sinVisitaSemana,
@@ -305,25 +306,26 @@ export default function AgendaPage() {
                   hoy,
                 });
 
-
-                let borderColor = 'border'; // Default
-                if (estaVencido) {
-                    borderColor = 'border-l-4 border-l-red-500';
-                } else if (esVisitaDeHoy) {
-                    borderColor = 'border-l-4 border-l-green-500';
-                }
-
                 return (
                   <li
                     key={visita.id}
-                    className={`
-                      p-4 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow
-                      ${borderColor}
-                    `}
+                    className={cn(
+                      'p-4 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow border',
+                      urgenciaScore === 0 && 'border-l-4 border-l-red-500',
+                      urgenciaScore === 1 && 'border-l-4 border-l-orange-400',
+                      esVisitaDeHoy && urgenciaScore > 1 && 'border-l-4 border-l-green-500'
+                    )}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <div className="font-bold text-gray-900">{visita.cliente}</div>
+                        <div className="font-bold text-gray-900 flex items-center">
+                          {visita.cliente}
+                          {urgenciaScore === 0 && (
+                            <span className="ml-2 text-[10px] font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                              URGENTE
+                            </span>
+                          )}
+                        </div>
                         <div className="text-sm text-gray-600 capitalize">
                           {visita.tipo} - {visita.fecha} {visita.hora}
                         </div>
@@ -333,7 +335,6 @@ export default function AgendaPage() {
                         )}
                       </div>
                        <div className="flex items-center gap-2">
-                          {estaVencido && <Badge variant="destructive">URGENTE</Badge>}
                           <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
                             {visita.estado}
                           </span>
@@ -357,11 +358,11 @@ export default function AgendaPage() {
 
         {clientesSinVisitaReciente.length > 0 && !clienteIdFromUrl && (
           <div className="border-t pt-6">
-            <h2 className="text-xl font-semibold mb-3 text-red-700 flex items-center gap-2">
+            <h2 className="text-xl font-semibold mb-3 text-orange-700 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
               Clientes sin visita esta semana ({clientesSinVisitaReciente.length})
             </h2>
-            <div className="p-4 rounded-lg border bg-red-50 border-red-200">
+            <div className="p-4 rounded-lg border bg-orange-50 border-orange-200">
               <ul className="space-y-2">
                 {clientesSinVisitaReciente.map(cliente => (
                   <li key={cliente.id}>
@@ -377,11 +378,11 @@ export default function AgendaPage() {
 
         {clientesVencidos.length > 0 && !clienteIdFromUrl && (
             <div className="border-t pt-6">
-              <h2 className="text-xl font-semibold mb-3 text-yellow-800 flex items-center gap-2">
+              <h2 className="text-xl font-semibold mb-3 text-red-700 flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" />
                 Clientes con frecuencia vencida ({clientesVencidos.length})
               </h2>
-              <div className="p-4 rounded-lg border bg-yellow-50 border-yellow-200">
+              <div className="p-4 rounded-lg border bg-red-50 border-red-200">
                 <ul className="space-y-2">
                   {clientesVencidos.map(cliente => (
                     <li key={cliente.id} className="flex justify-between items-center">
@@ -473,17 +474,26 @@ export default function AgendaPage() {
                                 ultimaVisitaMap,
                                 hoy,
                              });
+                             const urgenciaScore = getUrgenciaScore(cliente.id, urgenciaSets);
                              return (
                              <li
                               key={cliente.id}
-                              className="p-3 rounded-md border text-sm hover:bg-gray-50 cursor-pointer bg-white relative"
+                              className={cn(
+                                "p-3 rounded-md border text-sm hover:bg-gray-50 cursor-pointer bg-white relative",
+                                urgenciaScore === 0 && "border-red-500",
+                                urgenciaScore === 1 && "border-orange-400"
+                              )}
                             >
-                              {frecuenciaVencidaSet.has(cliente.id) && (
+                              {urgenciaScore === 0 && (
                                 <span className="absolute -left-1 top-1/2 -translate-y-1/2 h-full w-1.5 bg-red-500 rounded-r-full"></span>
                               )}
                               <div className="font-semibold flex justify-between items-center">
                                 {cliente.nombre}
-                                {frecuenciaVencidaSet.has(cliente.id) && <Badge variant="destructive" className="text-xs">URGENTE</Badge>}
+                                {urgenciaScore === 0 && (
+                                  <span className="ml-2 text-[10px] font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                                    URGENTE
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs text-gray-600">
                                 {cliente.ciudad}
@@ -517,3 +527,5 @@ export default function AgendaPage() {
     </div>
   );
 }
+
+    
