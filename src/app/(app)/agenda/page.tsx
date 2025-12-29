@@ -149,8 +149,6 @@ export default function AgendaPage() {
         ...nuevaVisita,
         cliente: clienteSeleccionado.nombre, 
         estado: 'pendiente' as const,
-        lat: (clienteSeleccionado as any).lat,
-        lng: (clienteSeleccionado as any).lng,
       };
       
       await crearVisita(visitaToSave);
@@ -570,4 +568,3 @@ export default function AgendaPage() {
     
 
     
-

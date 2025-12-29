@@ -24,8 +24,7 @@ export type Visita = {
   estado: 'pendiente' | 'realizada';
   notas: string;
   createdAt: string;
-  lat?: number;
-  lng?: number;
+  // lat/lng se eliminan de aquí y se obtienen del cliente
 };
 
 type CrearVisitaInput = {
@@ -36,8 +35,6 @@ type CrearVisitaInput = {
   tipo: 'visita' | 'cotizacion' | 'cobranza' | 'seguimiento';
   estado: 'pendiente' | 'realizada';
   notas: string;
-  lat?: number;
-  lng?: number;
 };
 
 export async function crearVisita(visita: CrearVisitaInput) {
@@ -65,8 +62,6 @@ export async function obtenerVisitas(): Promise<Visita[]> {
       estado: data.estado,
       notas: data.notas,
       createdAt: createdAt.toDate().toISOString(),
-      lat: data.lat,
-      lng: data.lng,
     } as Visita;
   });
 

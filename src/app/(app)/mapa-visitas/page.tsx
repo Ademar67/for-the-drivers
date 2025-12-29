@@ -3,31 +3,37 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { obtenerVisitas, Visita } from '@/lib/firestore/visitas';
+import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
 import { Button } from '@/components/ui/button';
 
 export default function MapaVisitasPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [allVisitas, setAllVisitas] = useState<Visita[]>([]);
+  const [clientes, setClientes] = useState<ClienteFS[]>([]);
   const [filteredVisitas, setFilteredVisitas] = useState<Visita[]>([]);
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const [activeFilter, setActiveFilter] = useState<'pendientes' | 'hoy'>('pendientes');
   const [loading, setLoading] = useState(true);
 
-  // 1. Cargar visitas desde Firestore
+  // 1. Cargar datos
   useEffect(() => {
-    async function loadVisitas() {
+    async function loadData() {
       try {
         setLoading(true);
         const visitasFromDb = await obtenerVisitas();
         setAllVisitas(visitasFromDb);
+        
+        const unsubClientes = listenClientes(setClientes);
+        return () => unsubClientes(); // Cleanup listener
+        
       } catch (error) {
-        console.error("Error al cargar las visitas:", error);
+        console.error("Error al cargar los datos:", error);
       } finally {
         setLoading(false);
       }
     }
-    loadVisitas();
+    loadData();
   }, []);
 
   // 2. Cargar Google Maps
@@ -82,7 +88,9 @@ export default function MapaVisitasPage() {
 
   // 4. Renderizar marcadores en el mapa
   useEffect(() => {
-    if (!map) return;
+    if (!map || clientes.length === 0) return;
+
+    const clientesMap = new Map(clientes.map(c => [c.id, c]));
 
     // Limpiar marcadores anteriores
     markers.forEach(marker => marker.setMap(null));
@@ -91,9 +99,14 @@ export default function MapaVisitasPage() {
     let hasValidLocations = false;
 
     filteredVisitas.forEach(visita => {
-      if (visita.lat && visita.lng) {
+      const cliente = clientesMap.get(visita.clienteId);
+      // @ts-ignore
+      const lat = cliente?.lat, lng = cliente?.lng;
+
+
+      if (lat && lng) {
         hasValidLocations = true;
-        const position = { lat: visita.lat, lng: visita.lng };
+        const position = { lat, lng };
         bounds.extend(position);
 
         let color;
@@ -122,7 +135,7 @@ export default function MapaVisitasPage() {
               <a href="/agenda?clienteId=${visita.clienteId}" style="color: #1a73e8; text-decoration: none; font-weight: 500; font-size: 13px;">
                 Ver agenda del cliente
               </a>
-              <a href="https://www.google.com/maps?q=${visita.lat},${visita.lng}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: none; font-weight: 500; font-size: 13px;">
+              <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: none; font-weight: 500; font-size: 13px;">
                 Abrir en Google Maps
               </a>
             </div>
@@ -147,7 +160,7 @@ export default function MapaVisitasPage() {
       map.fitBounds(bounds);
     }
 
-  }, [map, filteredVisitas]);
+  }, [map, filteredVisitas, clientes]);
 
   return (
     <div className="h-[calc(100vh-6rem)] flex flex-col">
