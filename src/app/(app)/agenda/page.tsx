@@ -31,6 +31,8 @@ const hoyIndex = new Date().getDay(); // 0 = Domingo, 1 = Lunes
 const hoyDiaSemana =
   hoyIndex === 0 ? 'domingo' : DIAS_SEMANA[hoyIndex - 1];
 const hoyFecha = new Date().toISOString().split('T')[0];
+const PLAN_DIARIO_LIMITE = 6;
+
 
 function getUrgenciaScore(
   clienteId: string,
@@ -258,6 +260,62 @@ export default function AgendaPage() {
         return new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
       });
 
+  const planDeHoy = visitasPendientes.slice(0, PLAN_DIARIO_LIMITE);
+
+  const renderVisita = (visita: Visita) => {
+    const esVisitaDeHoy = visita.fecha === hoyFecha;
+    const urgenciaScore = getUrgenciaScore(visita.clienteId, urgenciaSets);
+    const textoUrgencia = getTextoUrgencia(visita.clienteId, {
+      frecuenciaVencida: urgenciaSets.frecuenciaVencida,
+      sinVisitaSemana: urgenciaSets.sinVisitaSemana,
+      ultimaVisitaMap,
+      hoy,
+    });
+
+    return (
+      <li
+        key={visita.id}
+        className={cn(
+          'p-4 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow border',
+          urgenciaScore === 0 && 'border-l-4 border-l-red-500',
+          urgenciaScore === 1 && 'border-l-4 border-l-orange-400',
+          esVisitaDeHoy && urgenciaScore > 1 && 'border-l-4 border-l-green-500'
+        )}
+      >
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <div className="font-bold text-gray-900 flex items-center">
+              {visita.cliente}
+              {urgenciaScore === 0 && (
+                <span className="ml-2 text-[10px] font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                  URGENTE
+                </span>
+              )}
+            </div>
+            <div className="text-sm text-gray-600 capitalize">
+              {visita.tipo} - {visita.fecha} {visita.hora}
+            </div>
+            <p className="text-sm text-gray-500 mt-1">{visita.notas}</p>
+            {textoUrgencia && (
+              <p className="text-xs text-red-600 font-medium mt-1">{textoUrgencia}</p>
+            )}
+          </div>
+           <div className="flex items-center gap-2">
+              <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                {visita.estado}
+              </span>
+               <button 
+                 onClick={() => handleMarcarRealizada(visita.id)}
+                 title="Marcar como realizada"
+                 className="p-1 rounded-full text-green-600 hover:bg-green-100 transition-colors"
+               >
+                <CheckCircle className="h-5 w-5" />
+               </button>
+           </div>
+        </div>
+      </li>
+    );
+  };
 
   return (
     <div className="p-6">
@@ -288,68 +346,29 @@ export default function AgendaPage() {
           </button>
         </div>
       </div>
+      
+      {planDeHoy.length > 0 && !clienteIdFromUrl && (
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-3 text-gray-800">
+            📋 Plan sugerido para hoy ({planDeHoy.length})
+          </h2>
+          <ul className="space-y-3">
+            {planDeHoy.map(renderVisita)}
+          </ul>
+        </section>
+      )}
+
 
       <div className="space-y-8">
         <div>
-          <h2 className="text-xl font-semibold mb-3 text-gray-800">Visitas Pendientes</h2>
+          <h2 className="text-xl font-semibold mb-3 text-gray-800 border-t pt-6">
+            Visitas Pendientes ({visitasPendientes.length})
+          </h2>
           {loading ? (
              <p className="text-gray-500 italic">Cargando visitas...</p>
           ) : visitasPendientes.length > 0 ? (
             <ul className="space-y-3">
-              {visitasPendientes.map((visita) => {
-                const esVisitaDeHoy = visita.fecha === hoyFecha;
-                const urgenciaScore = getUrgenciaScore(visita.clienteId, urgenciaSets);
-                const textoUrgencia = getTextoUrgencia(visita.clienteId, {
-                  frecuenciaVencida: urgenciaSets.frecuenciaVencida,
-                  sinVisitaSemana: urgenciaSets.sinVisitaSemana,
-                  ultimaVisitaMap,
-                  hoy,
-                });
-
-                return (
-                  <li
-                    key={visita.id}
-                    className={cn(
-                      'p-4 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow border',
-                      urgenciaScore === 0 && 'border-l-4 border-l-red-500',
-                      urgenciaScore === 1 && 'border-l-4 border-l-orange-400',
-                      esVisitaDeHoy && urgenciaScore > 1 && 'border-l-4 border-l-green-500'
-                    )}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="font-bold text-gray-900 flex items-center">
-                          {visita.cliente}
-                          {urgenciaScore === 0 && (
-                            <span className="ml-2 text-[10px] font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
-                              URGENTE
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-600 capitalize">
-                          {visita.tipo} - {visita.fecha} {visita.hora}
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">{visita.notas}</p>
-                        {textoUrgencia && (
-                          <p className="text-xs text-red-600 font-medium mt-1">{textoUrgencia}</p>
-                        )}
-                      </div>
-                       <div className="flex items-center gap-2">
-                          <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                            {visita.estado}
-                          </span>
-                           <button 
-                             onClick={() => handleMarcarRealizada(visita.id)}
-                             title="Marcar como realizada"
-                             className="p-1 rounded-full text-green-600 hover:bg-green-100 transition-colors"
-                           >
-                            <CheckCircle className="h-5 w-5" />
-                           </button>
-                       </div>
-                    </div>
-                  </li>
-                );
-              })}
+              {visitasPendientes.map(renderVisita)}
             </ul>
           ) : (
             <p className="text-gray-500 italic">No hay visitas pendientes {nombreClienteFiltrado ? `para ${nombreClienteFiltrado}` : ''}.</p>
@@ -527,5 +546,7 @@ export default function AgendaPage() {
     </div>
   );
 }
+
+    
 
     
