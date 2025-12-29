@@ -29,6 +29,7 @@ import {
   Calculator,
   Bot,
   Map,
+  UserPlus,
 } from "lucide-react";
 
 import { FirebaseClientProvider } from "@/firebase/client-provider";
@@ -76,6 +77,15 @@ export default function RootLayout({
                           <Link href="/clientes">
                             <Users />
                             <span>Clientes</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                       <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/prospectos">
+                            <UserPlus />
+                            <span>Prospectos</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>

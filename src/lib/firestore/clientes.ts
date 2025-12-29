@@ -31,10 +31,11 @@ export function listenClientes(callback: (clientes: ClienteFS[]) => void) {
         id: doc.id,
         nombre: data.nombre ?? '',
         ciudad: data.ciudad ?? '',
-        direccion: data.direccion ?? '',
+        domicilio: data.domicilio ?? '',
         tipo: data.tipo ?? 'prospecto',
         diaVisita: data.diaVisita ?? null,
         frecuencia: data.frecuencia ?? null,
+        createdAt: data.createdAt
       };
     }) as ClienteFS[];
     callback(clientes);
@@ -44,7 +45,10 @@ export function listenClientes(callback: (clientes: ClienteFS[]) => void) {
 export async function crearCliente(input: {
   nombre: string;
   ciudad: string;
-  tipo: 'Cliente' | 'Prospecto' | 'Inactivo';
+  domicilio: string,
+  tipo: 'cliente' | 'prospecto' | 'inactivo';
+  diaVisita: string | null;
+  frecuencia: string | null;
 }) {
   if (!input.nombre || !input.nombre.trim()) {
     throw new Error('El nombre es obligatorio');
@@ -57,9 +61,10 @@ export async function crearCliente(input: {
   await addDoc(collection(db, 'clientes'), {
     nombre: input.nombre.trim(),
     ciudad: input.ciudad.trim(),
+    domicilio: input.domicilio.trim(),
     tipo: input.tipo,
-    diaVisita: null,
-    frecuencia: null,
-    createdAt: new Date(),
+    diaVisita: input.diaVisita,
+    frecuencia: input.frecuencia,
+    createdAt: Timestamp.now(),
   });
 }

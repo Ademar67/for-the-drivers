@@ -15,7 +15,7 @@ export default function CrearClienteModal({
 
   const [form, setForm] = useState({
     nombre: '',
-    tipo: 'prospecto',
+    tipo: 'prospecto' as 'prospecto' | 'cliente' | 'inactivo',
     ciudad: '',
     domicilio: '',
     diaVisita: 'lunes',
@@ -29,7 +29,7 @@ export default function CrearClienteModal({
       setLoading(true);
       await crearCliente({
         nombre: form.nombre,
-        tipo: form.tipo as any,
+        tipo: form.tipo,
         ciudad: form.ciudad,
         domicilio: form.domicilio,
         diaVisita: form.diaVisita,
@@ -47,6 +47,7 @@ export default function CrearClienteModal({
         frecuencia: 'semanal',
       });
     } catch (e) {
+      console.error(e)
       alert('Error guardando cliente');
     } finally {
       setLoading(false);
@@ -82,10 +83,10 @@ export default function CrearClienteModal({
         <select
           className="w-full border p-2 rounded"
           value={form.tipo}
-          onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+          onChange={(e) => setForm({ ...form, tipo: e.target.value as typeof form.tipo })}
         >
-          <option value="cliente">Cliente</option>
           <option value="prospecto">Prospecto</option>
+          <option value="cliente">Cliente</option>
           <option value="inactivo">Inactivo</option>
         </select>
 

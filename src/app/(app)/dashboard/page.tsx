@@ -11,6 +11,7 @@ import {
   MapPin,
   Droplet,
   Map,
+  UserPlus,
 } from "lucide-react";
 
 const dashboardCards = [
@@ -19,6 +20,12 @@ const dashboardCards = [
     description: "Gestión de clientes",
     href: "/clientes",
     icon: Users,
+  },
+  {
+    title: "Prospectos",
+    description: "Seguimiento de oportunidades",
+    href: "/prospectos",
+    icon: UserPlus,
   },
   {
     title: "Pedidos",
