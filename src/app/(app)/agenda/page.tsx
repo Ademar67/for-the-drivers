@@ -5,13 +5,13 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
-import { crearVisita, obtenerVisitas, Visita } from '@/lib/firestore/visitas';
+import { crearVisita, obtenerVisitas, Visita, marcarVisitaRealizada } from '@/lib/firestore/visitas';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown, PlusCircle, AlertTriangle } from 'lucide-react';
+import { ChevronDown, PlusCircle, AlertTriangle, CheckCircle } from 'lucide-react';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import AgregarVisitaModal from '@/components/agenda/agregar-visita-modal';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +41,24 @@ function getUrgenciaScore(
   if (sets.frecuenciaVencida.has(clienteId)) return 0
   if (sets.sinVisitaSemana.has(clienteId)) return 1
   return 2
+}
+
+function getMotivoUrgencia(
+  clienteId: string,
+  sets: {
+    frecuenciaVencida: Set<string>;
+    sinVisitaSemana: Set<string>;
+  }
+) {
+  if (sets.frecuenciaVencida.has(clienteId)) {
+    return 'Frecuencia vencida';
+  }
+
+  if (sets.sinVisitaSemana.has(clienteId)) {
+    return 'Sin visita esta semana';
+  }
+
+  return null;
 }
 
 
@@ -108,6 +126,19 @@ export default function AgendaPage() {
     }
   };
   
+    const handleMarcarRealizada = async (visitaId: string) => {
+    try {
+      await marcarVisitaRealizada(visitaId);
+      // Optimistic update
+      setVisitas(prevVisitas => prevVisitas.map(v => 
+        v.id === visitaId ? { ...v, estado: 'realizada' } : v
+      ));
+    } catch (error) {
+      console.error("Error al marcar como realizada:", error);
+      alert("No se pudo actualizar la visita.");
+    }
+  };
+
   const nombreClienteFiltrado = clienteIdFromUrl
     ? clientes.find(c => c.id === clienteIdFromUrl)?.nombre
     : null;
@@ -231,6 +262,8 @@ export default function AgendaPage() {
               {visitasPendientes.map((visita) => {
                 const esVisitaDeHoy = visita.fecha === hoyFecha;
                 const estaVencido = frecuenciaVencidaSet.has(visita.clienteId);
+                const motivo = getMotivoUrgencia(visita.clienteId, urgenciaSets);
+
 
                 let borderColor = 'border'; // Default
                 if (estaVencido) {
@@ -248,18 +281,28 @@ export default function AgendaPage() {
                     `}
                   >
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="flex-1">
                         <div className="font-bold text-gray-900">{visita.cliente}</div>
                         <div className="text-sm text-gray-600 capitalize">
                           {visita.tipo} - {visita.fecha} {visita.hora}
                         </div>
                         <p className="text-sm text-gray-500 mt-1">{visita.notas}</p>
+                        {motivo && (
+                          <p className="text-xs text-red-600 font-medium mt-1">{motivo}</p>
+                        )}
                       </div>
                        <div className="flex items-center gap-2">
                           {estaVencido && <Badge variant="destructive">URGENTE</Badge>}
                           <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
                             {visita.estado}
                           </span>
+                           <button 
+                             onClick={() => handleMarcarRealizada(visita.id)}
+                             title="Marcar como realizada"
+                             className="p-1 rounded-full text-green-600 hover:bg-green-100 transition-colors"
+                           >
+                            <CheckCircle className="h-5 w-5" />
+                           </button>
                        </div>
                     </div>
                   </li>
@@ -373,7 +416,9 @@ export default function AgendaPage() {
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <ul className="mt-2 space-y-2 border-l-2 pl-6 ml-3">
-                          {delDia.map((cliente) => (
+                          {delDia.map((cliente) => {
+                             const motivo = getMotivoUrgencia(cliente.id, urgenciaSets);
+                             return (
                              <li
                               key={cliente.id}
                               className="p-3 rounded-md border text-sm hover:bg-gray-50 cursor-pointer bg-white relative"
@@ -391,8 +436,12 @@ export default function AgendaPage() {
                               <div className="text-xs text-gray-500 mt-1">
                                 Frecuencia: {cliente.frecuencia}
                               </div>
+                               {motivo && (
+                                <p className="text-xs text-red-600 font-medium mt-1">{motivo}</p>
+                              )}
                             </li>
-                          ))}
+                             )
+                          })}
                         </ul>
                       </CollapsibleContent>
                     </Collapsible>
