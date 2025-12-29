@@ -31,6 +31,19 @@ const hoyDiaSemana =
   hoyIndex === 0 ? 'domingo' : DIAS_SEMANA[hoyIndex - 1];
 const hoyFecha = new Date().toISOString().split('T')[0];
 
+function getUrgenciaScore(
+  clienteId: string,
+  sets: {
+    frecuenciaVencida: Set<string>
+    sinVisitaSemana: Set<string>
+  }
+) {
+  if (sets.frecuenciaVencida.has(clienteId)) return 0
+  if (sets.sinVisitaSemana.has(clienteId)) return 1
+  return 2
+}
+
+
 export default function AgendaPage() {
   const searchParams = useSearchParams();
   const clienteIdFromUrl = searchParams.get('clienteId');
@@ -99,12 +112,6 @@ export default function AgendaPage() {
     ? clientes.find(c => c.id === clienteIdFromUrl)?.nombre
     : null;
     
-  const visitasFiltradas = clienteIdFromUrl
-    ? visitas.filter(v => v.clienteId === clienteIdFromUrl)
-    : visitas;
-
-  const visitasPendientes = visitasFiltradas.filter(v => v.estado === 'pendiente');
-
   const sieteDiasAtras = new Date();
   sieteDiasAtras.setDate(sieteDiasAtras.getDate() - 7);
 
@@ -158,6 +165,31 @@ export default function AgendaPage() {
       return new Date() > fechaLimite; // Vencido si hoy es después de la fecha límite
   });
 
+  const frecuenciaVencidaSet = new Set(clientesVencidos.map(c => c.id));
+  const sinVisitaSemanaSet = new Set(clientesSinVisitaReciente.map(c => c.id));
+
+  const urgenciaSets = {
+    frecuenciaVencida: frecuenciaVencidaSet,
+    sinVisitaSemana: sinVisitaSemanaSet,
+  };
+
+  const visitasFiltradas = clienteIdFromUrl
+    ? visitas.filter(v => v.clienteId === clienteIdFromUrl)
+    : visitas;
+
+  const visitasPendientes = visitasFiltradas
+    .filter(v => v.estado === 'pendiente')
+    .sort((a, b) => {
+      const diff =
+        getUrgenciaScore(a.clienteId, urgenciaSets) -
+        getUrgenciaScore(b.clienteId, urgenciaSets);
+
+      if (diff !== 0) return diff;
+
+      // Si tienen la misma urgencia, ordenar por fecha más próxima
+      return new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
+    });
+
 
   return (
     <div className="p-6">
@@ -198,12 +230,21 @@ export default function AgendaPage() {
             <ul className="space-y-3">
               {visitasPendientes.map((visita) => {
                 const esVisitaDeHoy = visita.fecha === hoyFecha;
+                const estaVencido = frecuenciaVencidaSet.has(visita.clienteId);
+
+                let borderColor = 'border'; // Default
+                if (estaVencido) {
+                    borderColor = 'border-l-4 border-l-red-500';
+                } else if (esVisitaDeHoy) {
+                    borderColor = 'border-l-4 border-l-green-500';
+                }
+
                 return (
                   <li
                     key={visita.id}
                     className={`
-                      p-4 rounded-lg border bg-white shadow-sm hover:shadow-md transition-shadow
-                      ${esVisitaDeHoy ? 'border-l-4 border-l-green-500' : 'border'}
+                      p-4 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow
+                      ${borderColor}
                     `}
                   >
                     <div className="flex justify-between items-start">
@@ -214,9 +255,12 @@ export default function AgendaPage() {
                         </div>
                         <p className="text-sm text-gray-500 mt-1">{visita.notas}</p>
                       </div>
-                        <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                          {visita.estado}
-                        </span>
+                       <div className="flex items-center gap-2">
+                          {estaVencido && <Badge variant="destructive">URGENTE</Badge>}
+                          <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                            {visita.estado}
+                          </span>
+                       </div>
                     </div>
                   </li>
                 );
@@ -274,13 +318,18 @@ export default function AgendaPage() {
             <h2 className="text-xl font-semibold mb-4 text-gray-800 border-t pt-6">Clientes a Visitar por Día</h2>
               <div className="space-y-6">
                 {DIAS_SEMANA.map((dia) => {
-                  const delDia = clientes.filter(
+                  const delDiaOriginal = clientes.filter(
                     (c) => c.diaVisita === dia && c.tipo !== 'inactivo' && c.diaVisita
                   );
 
-                  if (delDia.length === 0) {
+                  if (delDiaOriginal.length === 0) {
                     return null;
                   }
+                  
+                  const delDia = [...delDiaOriginal].sort((a, b) => {
+                    return getUrgenciaScore(a.id, urgenciaSets) - getUrgenciaScore(b.id, urgenciaSets);
+                  });
+
 
                   const esHoy = dia === hoyDiaSemana;
 
@@ -325,11 +374,17 @@ export default function AgendaPage() {
                       <CollapsibleContent>
                         <ul className="mt-2 space-y-2 border-l-2 pl-6 ml-3">
                           {delDia.map((cliente) => (
-                            <li
+                             <li
                               key={cliente.id}
-                              className="p-3 rounded-md border text-sm hover:bg-gray-50 cursor-pointer bg-white"
+                              className="p-3 rounded-md border text-sm hover:bg-gray-50 cursor-pointer bg-white relative"
                             >
-                              <div className="font-semibold">{cliente.nombre}</div>
+                              {frecuenciaVencidaSet.has(cliente.id) && (
+                                <span className="absolute -left-1 top-1/2 -translate-y-1/2 h-full w-1.5 bg-red-500 rounded-r-full"></span>
+                              )}
+                              <div className="font-semibold flex justify-between items-center">
+                                {cliente.nombre}
+                                {frecuenciaVencidaSet.has(cliente.id) && <Badge variant="destructive" className="text-xs">URGENTE</Badge>}
+                              </div>
                               <div className="text-xs text-gray-600">
                                 {cliente.ciudad}
                               </div>
