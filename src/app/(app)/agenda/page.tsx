@@ -159,8 +159,12 @@ export default function AgendaPage() {
       setVisitas(visitasFromDb);
 
     } catch (error) {
-      console.error("Error al crear la visita:", error);
-      alert("No se pudo guardar la visita. Inténtalo de nuevo.");
+      console.error('ERROR AL GUARDAR VISITA:', error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Error desconocido al guardar visita'
+      );
     }
   };
   
@@ -566,3 +570,4 @@ export default function AgendaPage() {
     
 
     
+
