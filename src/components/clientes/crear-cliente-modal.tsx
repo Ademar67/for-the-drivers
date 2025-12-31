@@ -46,9 +46,14 @@ export default function CrearClienteModal({
         diaVisita: 'lunes',
         frecuencia: 'semanal',
       });
-    } catch (e) {
-      console.error(e)
-      alert('Error guardando cliente');
+    } catch (error) {
+      console.error('ERROR AL GUARDAR CLIENTE:', error)
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Error desconocido al guardar cliente'
+      )
     } finally {
       setLoading(false);
     }
