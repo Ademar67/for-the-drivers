@@ -12,6 +12,7 @@ import {
   Droplet,
   Map,
   UserPlus,
+  ClipboardList,
 } from "lucide-react";
 
 const dashboardCards = [
@@ -39,7 +40,12 @@ const dashboardCards = [
     href: "/agenda",
     icon: Calendar,
   },
- 
+  {
+    title: "Cotizaciones",
+    description: "Crear y gestionar cotizaciones",
+    href: "/cotizaciones",
+    icon: ClipboardList,
+  },
   {
     title: "Mapa de Clientes",
     description: "Visualiza y gestiona tus clientes y prospectos.",
