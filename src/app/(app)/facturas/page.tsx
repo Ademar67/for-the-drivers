@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, Timestamp, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, Timestamp, addDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Factura } from '@/lib/firebase-types';
 import { format } from 'date-fns';
@@ -12,9 +12,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable } from '@/components/ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpDown, CircleDollarSign, Clock, CheckCircle } from 'lucide-react';
+import { ArrowUpDown, CircleDollarSign, Clock, CheckCircle, Trash2 } from 'lucide-react';
 import CrearFacturaModal from '@/components/facturas/crear-factura-modal';
 import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 // Función para actualizar el estado de las facturas vencidas
 async function actualizarFacturasVencidas(facturas: Factura[]) {
@@ -79,6 +90,16 @@ export default function FacturasPage() {
   const marcarComoPagada = async (id: string) => {
     const facturaRef = doc(db, 'facturas', id);
     await updateDoc(facturaRef, { estado: 'pagada' });
+  };
+  
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'facturas', id));
+      // La tabla se actualizará automáticamente gracias al listener onSnapshot
+    } catch (error) {
+      console.error("Error al eliminar la factura:", error);
+      alert("No se pudo eliminar la factura.");
+    }
   };
 
   const { totalPorCobrar, totalVencido } = facturas.reduce(
@@ -165,12 +186,35 @@ export default function FacturasPage() {
       id: 'actions',
       cell: ({ row }) => {
         const factura = row.original;
-        if (factura.estado === 'pagada') return null;
-
         return (
-          <Button variant="outline" size="sm" onClick={() => marcarComoPagada(factura.id)}>
-            Marcar Pagada
-          </Button>
+            <div className="flex items-center justify-end gap-2">
+            {factura.estado !== 'pagada' && (
+              <Button variant="outline" size="sm" onClick={() => marcarComoPagada(factura.id)}>
+                Marcar Pagada
+              </Button>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                 <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción no se puede deshacer. Se eliminará permanentemente la factura con folio {factura.folio}.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleDelete(factura.id)} className="bg-red-600 hover:bg-red-700">
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         );
       },
     },
