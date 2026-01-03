@@ -2,7 +2,6 @@
 import Link from "next/link";
 import {
   Users,
-  ShoppingCart,
   Package,
   FileText,
   Calendar,
@@ -27,12 +26,6 @@ const dashboardCards = [
     description: "Seguimiento de oportunidades",
     href: "/prospectos",
     icon: UserPlus,
-  },
-  {
-    title: "Pedidos",
-    description: "Órdenes y ventas",
-    href: "/pedidos",
-    icon: ShoppingCart,
   },
   {
     title: "Agenda de Visitas",

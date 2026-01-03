@@ -20,7 +20,6 @@ import {
 import {
   Home,
   Users,
-  ShoppingCart,
   Calendar,
   Package,
   FileText,
@@ -86,15 +85,6 @@ export default function RootLayout({
                           <Link href="/prospectos">
                             <UserPlus />
                             <span>Prospectos</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/pedidos">
-                            <ShoppingCart />
-                            <span>Pedidos</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
