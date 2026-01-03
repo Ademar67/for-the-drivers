@@ -8,8 +8,15 @@ import {
   orderBy,
   Timestamp,
   serverTimestamp,
+  deleteDoc,
+  doc,
 } from 'firebase/firestore';
-import type { Cotizacion, CotizacionItem } from '@/lib/firebase-types';
+import type { Cotizacion as CotizacionBase, CotizacionItem } from '@/lib/firebase-types';
+
+// Extend the base type to ensure 'fecha' is a Timestamp, as it will be after fetching
+export interface Cotizacion extends Omit<CotizacionBase, 'fecha'> {
+  fecha: Timestamp;
+}
 
 type CrearCotizacionInput = {
   clienteId: string;
@@ -54,4 +61,9 @@ export async function obtenerCotizaciones(): Promise<Cotizacion[]> {
       items: data.items,
     } as Cotizacion;
   });
+}
+
+export async function eliminarCotizacion(id: string): Promise<void> {
+  const cotizacionRef = doc(db, 'cotizaciones', id);
+  await deleteDoc(cotizacionRef);
 }

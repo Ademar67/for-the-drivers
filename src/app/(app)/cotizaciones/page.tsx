@@ -1,28 +1,53 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { obtenerCotizaciones, Cotizacion } from '@/lib/firestore/cotizaciones';
+import { obtenerCotizaciones, eliminarCotizacion, Cotizacion } from '@/lib/firestore/cotizaciones';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Eye, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function CotizacionesPage() {
   const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadCotizaciones() {
-      try {
-        const cots = await obtenerCotizaciones();
-        setCotizaciones(cots);
-      } catch (error) {
-        console.error("Error al cargar cotizaciones:", error);
-      } finally {
-        setLoading(false);
-      }
+  async function loadCotizaciones() {
+    try {
+      setLoading(true);
+      const cots = await obtenerCotizaciones();
+      setCotizaciones(cots);
+    } catch (error) {
+      console.error("Error al cargar cotizaciones:", error);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  useEffect(() => {
     loadCotizaciones();
   }, []);
+
+  const handleDelete = async (id: string) => {
+    try {
+      await eliminarCotizacion(id);
+      // Vuelve a cargar las cotizaciones para reflejar el cambio
+      loadCotizaciones(); 
+    } catch (error) {
+      console.error("Error al eliminar la cotización:", error);
+      alert("No se pudo eliminar la cotización.");
+    }
+  };
 
   return (
     <div className="p-6">
@@ -48,6 +73,7 @@ export default function CotizacionesPage() {
                 <th className="p-3 text-left">Fecha</th>
                 <th className="p-3 text-left">Total</th>
                 <th className="p-3 text-left">Estado</th>
+                <th className="p-3 text-left">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -71,6 +97,38 @@ export default function CotizacionesPage() {
                      }`}>
                       {cot.estado}
                     </span>
+                  </td>
+                   <td className="p-3">
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link href={`/cotizaciones/${cot.id}`}>
+                           <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      
+                       <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción no se puede deshacer. Se eliminará permanentemente la cotización.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(cot.id)} className="bg-red-600 hover:bg-red-700">
+                              Eliminar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                    </div>
                   </td>
                 </tr>
               ))}
