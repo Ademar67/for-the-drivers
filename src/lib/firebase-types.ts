@@ -71,3 +71,23 @@ export interface PedidoProducto {
   productoId: string; // Reference to Producto. (Relationship: Pedido N:N Producto)
   cantidad: number; // Amount of the product in the order
 }
+
+export interface CotizacionItem {
+  productoId: string;
+  nombre: string;
+  codigo: string;
+  cantidad: number;
+  precio: number;
+}
+
+export interface Cotizacion {
+    id: string;
+    clienteId: string;
+    clienteNombre: string;
+    fecha: Timestamp;
+    items: CotizacionItem[];
+    subtotal: number;
+    descuentos: (number | undefined)[];
+    total: number;
+    estado: 'pendiente' | 'aprobada' | 'rechazada';
+}

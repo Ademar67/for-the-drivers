@@ -10,11 +10,13 @@ import {
   serverTimestamp,
   deleteDoc,
   doc,
+  getDoc,
 } from 'firebase/firestore';
 import type { Cotizacion as CotizacionBase, CotizacionItem } from '@/lib/firebase-types';
 
 // Extend the base type to ensure 'fecha' is a Timestamp, as it will be after fetching
 export interface Cotizacion extends Omit<CotizacionBase, 'fecha'> {
+  id: string; // Asegurarse de que el id siempre esté presente
   fecha: Timestamp;
 }
 
@@ -62,6 +64,29 @@ export async function obtenerCotizaciones(): Promise<Cotizacion[]> {
     } as Cotizacion;
   });
 }
+
+export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | null> {
+  const docRef = doc(db, 'cotizaciones', id);
+  const docSnap = await getDoc(docRef);
+
+  if (!docSnap.exists()) {
+    return null;
+  }
+
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    clienteId: data.clienteId,
+    clienteNombre: data.clienteNombre,
+    fecha: data.fecha as Timestamp,
+    subtotal: data.subtotal,
+    descuentos: data.descuentos,
+    total: data.total,
+    estado: data.estado,
+    items: data.items,
+  } as Cotizacion;
+}
+
 
 export async function eliminarCotizacion(id: string): Promise<void> {
   const cotizacionRef = doc(db, 'cotizaciones', id);
