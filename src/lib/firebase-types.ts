@@ -45,10 +45,14 @@ export interface Pedido {
  */
 export interface Factura {
   id: string; // Unique identifier for the Factura entity.
+  folio: string; // Custom identifier for the invoice.
+  clienteId: string;
+  clienteNombre: string;
   pedidoId: string; // Reference to Pedido. (Relationship: Pedido 1:1 Factura)
-  fecha: string; // Date of the invoice.
+  fecha: Timestamp; // Date of the invoice.
+  fechaVencimiento: Timestamp; // Due date of the invoice.
   monto: number; // Amount of the invoice.
-  estado?: string; // Status of the invoice (e.g., paid, unpaid).
+  estado: 'pagada' | 'pendiente' | 'vencida'; // Status of the invoice (e.g., pagada, pendiente, vencida).
 }
 
 /**
@@ -57,6 +61,7 @@ export interface Factura {
 export interface Producto {
   id: string; // Unique identifier for the Producto entity.
   nombre: string; // Name of the product.
+  codigo: string; // Code of the product.
   descripcion?: string; // Description of the product.
   precio: number; // Price of the product.
   imagenUrl?: string; // URL of the product image.
@@ -72,22 +77,29 @@ export interface PedidoProducto {
   cantidad: number; // Amount of the product in the order
 }
 
-export interface CotizacionItem {
-  productoId: string;
-  nombre: string;
-  codigo: string;
-  cantidad: number;
-  precio: number;
-}
 
+/**
+* Represents a sales quote.
+*/
 export interface Cotizacion {
     id: string;
     clienteId: string;
     clienteNombre: string;
     fecha: Timestamp;
-    items: CotizacionItem[];
     subtotal: number;
     descuentos: (number | undefined)[];
     total: number;
     estado: 'pendiente' | 'aprobada' | 'rechazada';
+    items: CotizacionItem[];
+}
+  
+/**
+ * Represents an item within a quote.
+ */
+export interface CotizacionItem {
+    productoId: string;
+    nombre: string;
+    codigo: string;
+    cantidad: number;
+    precio: number;
 }

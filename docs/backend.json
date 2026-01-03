@@ -132,20 +132,27 @@
           "description": "Date of the invoice.",
           "format": "date-time"
         },
+        "fechaVencimiento": {
+          "type": "string",
+          "description": "Due date of the invoice.",
+          "format": "date-time"
+        },
         "monto": {
           "type": "number",
           "description": "Amount of the invoice."
         },
         "estado": {
           "type": "string",
-          "description": "Status of the invoice (e.g., paid, unpaid)."
+          "description": "Status of the invoice (e.g., pagada, pendiente, vencida)."
         }
       },
       "required": [
         "id",
         "pedidoId",
         "fecha",
-        "monto"
+        "fechaVencimiento",
+        "monto",
+        "estado"
       ]
     },
     "Producto": {

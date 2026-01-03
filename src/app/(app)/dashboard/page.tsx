@@ -58,8 +58,8 @@ const dashboardCards = [
     icon: Package,
   },
   {
-    title: "Facturas",
-    description: "Facturación y cobros",
+    title: "Cobranza",
+    description: "Gestiona tus facturas y cobros",
     href: "/facturas",
     icon: FileText,
   },

@@ -29,6 +29,7 @@ import {
   Bot,
   Map,
   UserPlus,
+  ClipboardList,
 } from "lucide-react";
 
 import { FirebaseClientProvider } from "@/firebase/client-provider";
@@ -97,6 +98,16 @@ export default function RootLayout({
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
+                      
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                          <Link href="/cotizaciones">
+                            <ClipboardList />
+                            <span>Cotizaciones</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      
                        <SidebarMenuItem>
                         <SidebarMenuButton asChild>
                           <Link href="/mapa-visitas">
@@ -119,7 +130,7 @@ export default function RootLayout({
                         <SidebarMenuButton asChild>
                           <Link href="/facturas">
                             <FileText />
-                            <span>Facturas</span>
+                            <span>Cobranza</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
