@@ -45,12 +45,6 @@ const dashboardCards = [
     href: "/mapa-clientes",
     icon: MapPin,
   },
-   {
-    title: "Mapa de Visitas",
-    description: "Visualiza tus visitas en el mapa.",
-    href: "/mapa-visitas",
-    icon: Map,
-  },
   {
     title: "Productos",
     description: "Catálogo",
