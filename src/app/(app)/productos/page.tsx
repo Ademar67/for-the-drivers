@@ -1,8 +1,21 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore'
+import { collection, getDocs, addDoc, Timestamp, doc, deleteDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { Button } from '@/components/ui/button'
+import { Trash2 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 type Producto = {
   id: string
@@ -31,6 +44,16 @@ export default function ProductosPage() {
     cargarProductos()
   }, [])
 
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'productos', id));
+      await cargarProductos(); // Recargar productos después de eliminar
+    } catch (error) {
+      console.error("Error al eliminar el producto:", error);
+      alert("No se pudo eliminar el producto.");
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
@@ -51,11 +74,12 @@ export default function ProductosPage() {
         <table className="w-full text-sm border">
           <thead className="bg-gray-100">
             <tr>
-              <th className="p-2">Código</th>
-              <th className="p-2">Nombre</th>
-              <th className="p-2">Categoría</th>
-              <th className="p-2">Capacidad</th>
-              <th className="p-2">Precio</th>
+              <th className="p-2 text-left">Código</th>
+              <th className="p-2 text-left">Nombre</th>
+              <th className="p-2 text-left">Categoría</th>
+              <th className="p-2 text-left">Capacidad</th>
+              <th className="p-2 text-right">Precio</th>
+              <th className="p-2 text-center">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -65,7 +89,30 @@ export default function ProductosPage() {
                 <td className="p-2">{p.nombre}</td>
                 <td className="p-2">{p.categoria}</td>
                 <td className="p-2">{p.capacidad}</td>
-                <td className="p-2">${p.precio.toFixed(2)}</td>
+                <td className="p-2 text-right">${p.precio.toFixed(2)}</td>
+                <td className="p-2 text-center">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                       <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción no se puede deshacer. Se eliminará permanentemente el producto "{p.nombre}".
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(p.id)} className="bg-red-600 hover:bg-red-700">
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -75,7 +122,10 @@ export default function ProductosPage() {
       {open && (
         <ProductoModal
           onClose={() => setOpen(false)}
-          onSaved={cargarProductos}
+          onSaved={() => {
+            cargarProductos();
+            setOpen(false);
+          }}
         />
       )}
     </div>
@@ -130,7 +180,7 @@ function ProductoModal({
       <div className="bg-white p-6 rounded w-full max-w-md space-y-3">
         <h2 className="font-semibold text-lg">Añadir producto</h2>
 
-        <select value={categoria} onChange={e => setCategoria(e.target.value)}>
+        <select value={categoria} onChange={e => setCategoria(e.target.value)} className="w-full border p-2 rounded">
           <option>Aceites</option>
           <option>Tratamientos</option>
           <option>Mantenimiento</option>
@@ -141,15 +191,17 @@ function ProductoModal({
           placeholder="Código del producto"
           value={codigo}
           onChange={e => setCodigo(e.target.value)}
+          className="w-full border p-2 rounded"
         />
 
         <input
           placeholder="Nombre del producto"
           value={nombre}
           onChange={e => setNombre(e.target.value)}
+          className="w-full border p-2 rounded"
         />
 
-        <select value={capacidad} onChange={e => setCapacidad(e.target.value)}>
+        <select value={capacidad} onChange={e => setCapacidad(e.target.value)} className="w-full border p-2 rounded">
           <option value="">Capacidad</option>
           {capacidades.map(c => (
             <option key={c}>{c}</option>
@@ -161,10 +213,11 @@ function ProductoModal({
           placeholder="Precio (IVA incluido)"
           value={precio}
           onChange={e => setPrecio(e.target.value)}
+          className="w-full border p-2 rounded"
         />
 
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose}>Cancelar</button>
+          <button onClick={onClose} className="px-4 py-2 border rounded">Cancelar</button>
           <button
             onClick={guardar}
             className="bg-black text-white px-4 py-1 rounded"
