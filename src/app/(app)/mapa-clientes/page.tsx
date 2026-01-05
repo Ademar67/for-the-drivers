@@ -7,10 +7,12 @@ import {
   collection,
   onSnapshot,
   query,
+  doc,
+  updateDoc,
 } from 'firebase/firestore';
 
 // -----------------------------------------------------------------------------
-// 🔥 Firebase (usa TU config real)
+// 🔥 Firebase
 // -----------------------------------------------------------------------------
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -63,23 +65,21 @@ export default function MapaClientes() {
   const [clientes, setClientes] = useState<Punto[]>([]);
 
   // ---------------------------------------------------------------------------
-  // 🔥 CARGAR CLIENTES REALES DESDE FIRESTORE
-  // Colección: clientes
-  // Campos: nombre, lat, lng, tipo, diaVisita
+  // 🔥 CARGAR CLIENTES DESDE FIRESTORE
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const q = query(collection(db, 'clientes'));
 
     const unsub = onSnapshot(q, (snapshot) => {
-      const data: Punto[] = snapshot.docs.map((doc) => {
-        const d = doc.data();
+      const data: Punto[] = snapshot.docs.map((docSnap) => {
+        const d = docSnap.data();
 
         return {
-          id: doc.id,
+          id: docSnap.id,
           nombre: d.nombre,
           lat: d.lat,
           lng: d.lng,
-          tipo: d.tipo, // 👈 viene de Firestore
+          tipo: d.tipo,
           diaVisita: d.diaVisita
             ? d.diaVisita.charAt(0).toUpperCase() +
               d.diaVisita.slice(1)
@@ -121,7 +121,7 @@ export default function MapaClientes() {
   };
 
   // ---------------------------------------------------------------------------
-  // MARCADORES + FILTRO
+  // MARCADORES + EDICIÓN DE DÍA
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!map) return;
@@ -134,8 +134,8 @@ export default function MapaClientes() {
         (c) => filtro === 'todos' || c.tipo === filtro
       )
       .forEach((punto) => {
-        let color = 'blue';
-        if (punto.tipo === 'prospecto') color = 'green';
+        let color = 'green';
+        if (punto.tipo === 'prospecto') color = 'yellow';
         if (punto.tipo === 'inactivo') color = 'gray';
 
         const marker = new google.maps.Marker({
@@ -145,16 +145,61 @@ export default function MapaClientes() {
           icon: `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`,
         });
 
-        const info = new google.maps.InfoWindow({
-          content: `
-            <strong>${punto.nombre}</strong><br/>
-            Tipo: ${punto.tipo}<br/>
-            Día: ${punto.diaVisita ?? 'Sin asignar'}
-          `,
-        });
+        const infoWindow = new google.maps.InfoWindow();
 
         marker.addListener('click', () => {
-          info.open(map, marker);
+          const opcionesDias = DIAS_SEMANA.map(
+            (dia) =>
+              `<option value="${dia}" ${
+                punto.diaVisita === dia ? 'selected' : ''
+              }>${dia}</option>`
+          ).join('');
+
+          infoWindow.setContent(`
+            <div style="min-width:220px">
+              <strong>${punto.nombre}</strong><br/>
+              <small>Tipo: ${punto.tipo}</small><br/><br/>
+
+              <label>Día de visita</label><br/>
+              <select id="diaVisitaSelect">
+                <option value="">Sin asignar</option>
+                ${opcionesDias}
+              </select>
+
+              <div id="estadoGuardado"
+                   style="margin-top:6px;font-size:12px;color:green;"></div>
+            </div>
+          `);
+
+          infoWindow.open(map, marker);
+
+          google.maps.event.addListenerOnce(
+            infoWindow,
+            'domready',
+            () => {
+              const select =
+                document.getElementById(
+                  'diaVisitaSelect'
+                ) as HTMLSelectElement;
+
+              if (!select) return;
+
+              select.addEventListener('change', async (e) => {
+                const nuevoDia = (e.target as HTMLSelectElement).value;
+
+                await updateDoc(
+                  doc(db, 'clientes', punto.id),
+                  {
+                    diaVisita: nuevoDia || null,
+                  }
+                );
+
+                const estado =
+                  document.getElementById('estadoGuardado');
+                if (estado) estado.innerText = '✔ Guardado';
+              });
+            }
+          );
         });
 
         nuevos.push(marker);
@@ -164,7 +209,7 @@ export default function MapaClientes() {
   }, [map, clientes, filtro]);
 
   // ---------------------------------------------------------------------------
-  // AGENDA POR DÍA (USANDO diaVisita REAL)
+  // AGENDA POR DÍA
   // ---------------------------------------------------------------------------
   const clientesPorDia = DIAS_SEMANA.reduce(
     (acc: Record<string, Punto[]>, dia) => {
