@@ -134,9 +134,10 @@ export default function MapaClientes() {
         (c) => filtro === 'todos' || c.tipo === filtro
       )
       .forEach((punto) => {
-        let color = 'green';
-        if (punto.tipo === 'prospecto') color = 'yellow';
-        if (punto.tipo === 'inactivo') color = 'gray';
+        // 🎨 COLORES CORRECTOS
+        let color = 'blue'; // cliente
+        if (punto.tipo === 'prospecto') color = 'green';
+        if (punto.tipo === 'inactivo') color = 'yellow';
 
         const marker = new google.maps.Marker({
           map,
