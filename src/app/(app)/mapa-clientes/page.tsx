@@ -7,6 +7,8 @@ import {
   collection,
   onSnapshot,
   query,
+  addDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 
 // -----------------------------------------------------------------------------
@@ -59,6 +61,7 @@ export default function MapaClientes() {
 
   const [distanciaKm, setDistanciaKm] = useState<number | null>(null);
   const [tiempoMin, setTiempoMin] = useState<number | null>(null);
+  const [guardando, setGuardando] = useState(false);
 
   const markersRef = useRef<Map<string, google.maps.Marker>>(
     new Map()
@@ -68,7 +71,7 @@ export default function MapaClientes() {
     useRef<google.maps.DirectionsRenderer | null>(null);
 
   // ---------------------------------------------------------------------------
-  // 🔥 CARGAR CLIENTES
+  // 🔥 CLIENTES
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const q = query(collection(db, 'clientes'));
@@ -151,15 +154,14 @@ export default function MapaClientes() {
   }, [map, clientes]);
 
   // ---------------------------------------------------------------------------
-  // SELECCIÓN DE RUTA
+  // SELECCIÓN
   // ---------------------------------------------------------------------------
   const toggleRuta = (cliente: Punto) => {
     setRutaSeleccionada((prev) => {
       const existe = prev.find((c) => c.id === cliente.id);
-      if (existe) {
-        return prev.filter((c) => c.id !== cliente.id);
-      }
-      return [...prev, cliente];
+      return existe
+        ? prev.filter((c) => c.id !== cliente.id)
+        : [...prev, cliente];
     });
   };
 
@@ -167,7 +169,7 @@ export default function MapaClientes() {
     rutaSeleccionada.findIndex((c) => c.id === id) + 1;
 
   // ---------------------------------------------------------------------------
-  // 🛣️ TRAZAR RUTA
+  // TRAZAR
   // ---------------------------------------------------------------------------
   const trazarRuta = () => {
     if (!map || rutaSeleccionada.length < 2) return;
@@ -189,58 +191,42 @@ export default function MapaClientes() {
     }
 
     const service = new google.maps.DirectionsService();
-
     const origen = rutaSeleccionada[0];
-    const destino =
-      rutaSeleccionada[rutaSeleccionada.length - 1];
+    const destino = rutaSeleccionada[rutaSeleccionada.length - 1];
 
-    const waypoints = rutaSeleccionada
-      .slice(1, -1)
-      .map((p) => ({
-        location: { lat: p.lat, lng: p.lng },
-        stopover: true,
-      }));
+    const waypoints = rutaSeleccionada.slice(1, -1).map((p) => ({
+      location: { lat: p.lat, lng: p.lng },
+      stopover: true,
+    }));
 
     service.route(
       {
-        origin: { lat: origen.lat, lng: origen.lng },
-        destination: {
-          lat: destino.lat,
-          lng: destino.lng,
-        },
+        origin: origen,
+        destination: destino,
         waypoints,
         travelMode: google.maps.TravelMode.DRIVING,
         optimizeWaypoints: false,
       },
       (result, status) => {
-        if (
-          status === google.maps.DirectionsStatus.OK &&
-          result
-        ) {
-          directionsRendererRef.current?.setDirections(
-            result
-          );
+        if (status === 'OK' && result) {
+          directionsRendererRef.current!.setDirections(result);
 
-          const legs = result.routes[0].legs;
-          let totalDist = 0;
-          let totalTime = 0;
-
-          legs.forEach((leg) => {
-            totalDist += leg.distance?.value || 0;
-            totalTime += leg.duration?.value || 0;
+          let dist = 0;
+          let time = 0;
+          result.routes[0].legs.forEach((leg) => {
+            dist += leg.distance?.value || 0;
+            time += leg.duration?.value || 0;
           });
 
-          setDistanciaKm(
-            Math.round((totalDist / 1000) * 10) / 10
-          );
-          setTiempoMin(Math.round(totalTime / 60));
+          setDistanciaKm(Math.round((dist / 1000) * 10) / 10);
+          setTiempoMin(Math.round(time / 60));
         }
       }
     );
   };
 
   // ---------------------------------------------------------------------------
-  // 🧹 LIMPIAR RUTA
+  // 🧹 LIMPIAR RUTA (RESTABLECIDO)
   // ---------------------------------------------------------------------------
   const limpiarRuta = () => {
     if (directionsRendererRef.current) {
@@ -254,21 +240,50 @@ export default function MapaClientes() {
   };
 
   // ---------------------------------------------------------------------------
+  // 💾 GUARDAR
+  // ---------------------------------------------------------------------------
+  const guardarRuta = async () => {
+    if (
+      rutaSeleccionada.length < 2 ||
+      distanciaKm === null ||
+      tiempoMin === null
+    )
+      return;
+
+    setGuardando(true);
+
+    await addDoc(collection(db, 'rutas'), {
+      createdAt: serverTimestamp(),
+      distanciaKm,
+      tiempoMin,
+      clientes: rutaSeleccionada.map((c, i) => ({
+        id: c.id,
+        nombre: c.nombre,
+        lat: c.lat,
+        lng: c.lng,
+        orden: i + 1,
+      })),
+    });
+
+    setGuardando(false);
+    alert('Ruta guardada correctamente');
+  };
+
+  // ---------------------------------------------------------------------------
   // RENDER
   // ---------------------------------------------------------------------------
   return (
     <div className="flex h-screen w-full">
-      {/* PANEL IZQUIERDO */}
       <div className="w-96 border-r bg-white p-4 overflow-y-auto">
         <h2 className="text-lg font-semibold mb-4">
           Planeación de Ruta
         </h2>
 
         {DIAS_SEMANA.map((dia) => {
-          const clientesDelDia = clientes.filter(
+          const lista = clientes.filter(
             (c) => c.diaVisita === dia
           );
-          if (!clientesDelDia.length) return null;
+          if (!lista.length) return null;
 
           return (
             <div key={dia} className="mb-6">
@@ -276,42 +291,34 @@ export default function MapaClientes() {
                 {dia}
               </h3>
 
-              <ul className="space-y-2">
-                {clientesDelDia.map((cliente) => {
-                  const orden = ordenEnRuta(cliente.id);
-                  const seleccionado = orden > 0;
-
-                  return (
-                    <li
-                      key={cliente.id}
-                      className="flex items-center gap-2 border p-2 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={seleccionado}
-                        onChange={() =>
-                          toggleRuta(cliente)
-                        }
-                      />
-
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">
-                          {cliente.nombre}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {cliente.tipo}
-                        </div>
+              {lista.map((c) => {
+                const orden = ordenEnRuta(c.id);
+                return (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-2 border p-2 rounded mb-2"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={orden > 0}
+                      onChange={() => toggleRuta(c)}
+                    />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">
+                        {c.nombre}
                       </div>
-
-                      {seleccionado && (
-                        <span className="text-xs font-bold text-blue-600">
-                          #{orden}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+                      <div className="text-xs text-gray-500">
+                        {c.tipo}
+                      </div>
+                    </div>
+                    {orden > 0 && (
+                      <span className="text-xs font-bold text-blue-600">
+                        #{orden}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         })}
@@ -319,37 +326,33 @@ export default function MapaClientes() {
         <button
           onClick={trazarRuta}
           disabled={rutaSeleccionada.length < 2}
-          className="w-full mt-2 bg-blue-600 text-white py-2 rounded disabled:opacity-50"
+          className="w-full bg-blue-600 text-white py-2 rounded mt-2"
         >
           Trazar Ruta
         </button>
 
         <button
+          onClick={guardarRuta}
+          className="w-full bg-green-600 text-white py-2 rounded mt-2"
+        >
+          Guardar Ruta
+        </button>
+
+        <button
           onClick={limpiarRuta}
-          className="w-full mt-2 bg-gray-200 text-gray-800 py-2 rounded"
+          className="w-full bg-gray-200 text-gray-800 py-2 rounded mt-2"
         >
           Limpiar Ruta
         </button>
 
-        {(distanciaKm !== null || tiempoMin !== null) && (
+        {distanciaKm !== null && tiempoMin !== null && (
           <div className="mt-4 p-3 border rounded bg-gray-50 text-sm">
-            {distanciaKm !== null && (
-              <div>
-                <strong>Distancia total:</strong>{' '}
-                {distanciaKm} km
-              </div>
-            )}
-            {tiempoMin !== null && (
-              <div>
-                <strong>Tiempo estimado:</strong>{' '}
-                {tiempoMin} min
-              </div>
-            )}
+            <div>Distancia: {distanciaKm} km</div>
+            <div>Tiempo: {tiempoMin} min</div>
           </div>
         )}
       </div>
 
-      {/* MAPA */}
       <div className="flex-1">
         <div
           ref={mapRef}
