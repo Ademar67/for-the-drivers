@@ -57,6 +57,9 @@ export default function MapaClientes() {
   const [clientes, setClientes] = useState<Punto[]>([]);
   const [rutaSeleccionada, setRutaSeleccionada] = useState<Punto[]>([]);
 
+  const [distanciaKm, setDistanciaKm] = useState<number | null>(null);
+  const [tiempoMin, setTiempoMin] = useState<number | null>(null);
+
   const markersRef = useRef<Map<string, google.maps.Marker>>(
     new Map()
   );
@@ -164,10 +167,13 @@ export default function MapaClientes() {
     rutaSeleccionada.findIndex((c) => c.id === id) + 1;
 
   // ---------------------------------------------------------------------------
-  // 🛣️ TRAZAR RUTA
+  // 🛣️ TRAZAR RUTA + MÉTRICAS
   // ---------------------------------------------------------------------------
   const trazarRuta = () => {
     if (!map || rutaSeleccionada.length < 2) return;
+
+    setDistanciaKm(null);
+    setTiempoMin(null);
 
     if (!directionsRendererRef.current) {
       directionsRendererRef.current =
@@ -214,6 +220,22 @@ export default function MapaClientes() {
           directionsRendererRef.current?.setDirections(
             result
           );
+
+          // 🔢 CALCULAR DISTANCIA Y TIEMPO
+          const legs = result.routes[0].legs;
+
+          let totalDist = 0;
+          let totalTime = 0;
+
+          legs.forEach((leg) => {
+            totalDist += leg.distance?.value || 0;
+            totalTime += leg.duration?.value || 0;
+          });
+
+          setDistanciaKm(
+            Math.round((totalDist / 1000) * 10) / 10
+          );
+          setTiempoMin(Math.round(totalTime / 60));
         }
       }
     );
@@ -289,6 +311,23 @@ export default function MapaClientes() {
         >
           Trazar Ruta
         </button>
+
+        {(distanciaKm !== null || tiempoMin !== null) && (
+          <div className="mt-4 p-3 border rounded bg-gray-50 text-sm">
+            {distanciaKm !== null && (
+              <div>
+                <strong>Distancia total:</strong>{' '}
+                {distanciaKm} km
+              </div>
+            )}
+            {tiempoMin !== null && (
+              <div>
+                <strong>Tiempo estimado:</strong>{' '}
+                {tiempoMin} min
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* MAPA */}
@@ -302,4 +341,3 @@ export default function MapaClientes() {
     </div>
   );
 }
-
