@@ -167,7 +167,7 @@ export default function MapaClientes() {
     rutaSeleccionada.findIndex((c) => c.id === id) + 1;
 
   // ---------------------------------------------------------------------------
-  // 🛣️ TRAZAR RUTA + MÉTRICAS
+  // 🛣️ TRAZAR RUTA
   // ---------------------------------------------------------------------------
   const trazarRuta = () => {
     if (!map || rutaSeleccionada.length < 2) return;
@@ -221,9 +221,7 @@ export default function MapaClientes() {
             result
           );
 
-          // 🔢 CALCULAR DISTANCIA Y TIEMPO
           const legs = result.routes[0].legs;
-
           let totalDist = 0;
           let totalTime = 0;
 
@@ -239,6 +237,20 @@ export default function MapaClientes() {
         }
       }
     );
+  };
+
+  // ---------------------------------------------------------------------------
+  // 🧹 LIMPIAR RUTA
+  // ---------------------------------------------------------------------------
+  const limpiarRuta = () => {
+    if (directionsRendererRef.current) {
+      directionsRendererRef.current.setMap(null);
+      directionsRendererRef.current = null;
+    }
+
+    setRutaSeleccionada([]);
+    setDistanciaKm(null);
+    setTiempoMin(null);
   };
 
   // ---------------------------------------------------------------------------
@@ -307,9 +319,16 @@ export default function MapaClientes() {
         <button
           onClick={trazarRuta}
           disabled={rutaSeleccionada.length < 2}
-          className="w-full mt-4 bg-blue-600 text-white py-2 rounded disabled:opacity-50"
+          className="w-full mt-2 bg-blue-600 text-white py-2 rounded disabled:opacity-50"
         >
           Trazar Ruta
+        </button>
+
+        <button
+          onClick={limpiarRuta}
+          className="w-full mt-2 bg-gray-200 text-gray-800 py-2 rounded"
+        >
+          Limpiar Ruta
         </button>
 
         {(distanciaKm !== null || tiempoMin !== null) && (
