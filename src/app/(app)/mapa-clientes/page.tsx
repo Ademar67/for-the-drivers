@@ -37,7 +37,7 @@ const DIAS_SEMANA = [
 
 type DiaSemana = (typeof DIAS_SEMANA)[number];
 
-const hoyIndex = new Date().getDay(); // 0 = Domingo
+const hoyIndex = new Date().getDay();
 const hoy: DiaSemana | null =
   hoyIndex === 0 ? null : DIAS_SEMANA[hoyIndex - 1];
 
@@ -59,15 +59,16 @@ type Punto = {
 export default function MapaClientes() {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [clientes, setClientes] = useState<Punto[]>([]);
 
-  // 👉 referencia id → marker
+  const [clientes, setClientes] = useState<Punto[]>([]);
+  const [rutaSeleccionada, setRutaSeleccionada] = useState<Punto[]>([]);
+
   const markersRef = useRef<Map<string, google.maps.Marker>>(
     new Map()
   );
 
   // ---------------------------------------------------------------------------
-  // 🔥 CARGAR CLIENTES DESDE FIRESTORE
+  // 🔥 CARGAR CLIENTES
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const q = query(collection(db, 'clientes'));
@@ -75,7 +76,6 @@ export default function MapaClientes() {
     const unsub = onSnapshot(q, (snapshot) => {
       const data: Punto[] = snapshot.docs.map((docSnap) => {
         const d = docSnap.data();
-
         return {
           id: docSnap.id,
           nombre: d.nombre,
@@ -87,7 +87,6 @@ export default function MapaClientes() {
             : undefined,
         };
       });
-
       setClientes(data);
     });
 
@@ -95,7 +94,7 @@ export default function MapaClientes() {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // CARGAR GOOGLE MAPS
+  // MAPA
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if ((window as any).google) {
@@ -114,8 +113,7 @@ export default function MapaClientes() {
     if (!mapRef.current) return;
 
     const mapa = new google.maps.Map(mapRef.current, {
-      // centro solo como fallback
-      center: { lat: 19.4326, lng: -99.1332 }, // México
+      center: { lat: 19.4326, lng: -99.1332 },
       zoom: 6,
     });
 
@@ -123,15 +121,13 @@ export default function MapaClientes() {
   };
 
   // ---------------------------------------------------------------------------
-  // MARCADORES + AUTO-CENTRADO
+  // MARCADORES + AUTO ZOOM
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!map) return;
+    if (!map || clientes.length === 0) return;
 
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current.clear();
-
-    if (clientes.length === 0) return;
 
     const bounds = new google.maps.LatLngBounds();
 
@@ -147,73 +143,31 @@ export default function MapaClientes() {
         icon: `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`,
       });
 
-      const infoWindow = new google.maps.InfoWindow();
-
-      marker.addListener('click', () => {
-        const opcionesDias = DIAS_SEMANA.map(
-          (dia) =>
-            `<option value="${dia}" ${
-              punto.diaVisita === dia ? 'selected' : ''
-            }>${dia}</option>`
-        ).join('');
-
-        infoWindow.setContent(`
-          <div style="min-width:220px">
-            <strong>${punto.nombre}</strong><br/>
-            <small>Tipo: ${punto.tipo}</small><br/><br/>
-
-            <label>Día de visita</label><br/>
-            <select id="diaVisitaSelect">
-              <option value="">Sin asignar</option>
-              ${opcionesDias}
-            </select>
-
-            <div id="estadoGuardado"
-                 style="margin-top:6px;font-size:12px;color:green;"></div>
-          </div>
-        `);
-
-        infoWindow.open(map, marker);
-
-        google.maps.event.addListenerOnce(
-          infoWindow,
-          'domready',
-          () => {
-            const select = document.getElementById(
-              'diaVisitaSelect'
-            ) as HTMLSelectElement | null;
-
-            if (!select) return;
-
-            select.addEventListener('change', async (e) => {
-              const nuevoDia = (e.target as HTMLSelectElement)
-                .value as DiaSemana | '';
-
-              await updateDoc(
-                doc(db, 'clientes', punto.id),
-                {
-                  diaVisita: nuevoDia || null,
-                }
-              );
-
-              const estado =
-                document.getElementById('estadoGuardado');
-              if (estado) estado.innerText = '✔ Guardado';
-            });
-          }
-        );
-      });
-
-      markersRef.current.set(punto.id, marker);
       bounds.extend({ lat: punto.lat, lng: punto.lng });
+      markersRef.current.set(punto.id, marker);
     });
 
-    // 👉 AQUÍ ESTÁ LA CLAVE
     map.fitBounds(bounds);
   }, [map, clientes]);
 
   // ---------------------------------------------------------------------------
-  // AGENDA POR DÍA
+  // SELECCIÓN DE RUTA
+  // ---------------------------------------------------------------------------
+  const toggleRuta = (cliente: Punto) => {
+    setRutaSeleccionada((prev) => {
+      const existe = prev.find((c) => c.id === cliente.id);
+      if (existe) {
+        return prev.filter((c) => c.id !== cliente.id);
+      }
+      return [...prev, cliente];
+    });
+  };
+
+  const ordenEnRuta = (id: string) =>
+    rutaSeleccionada.findIndex((c) => c.id === id) + 1;
+
+  // ---------------------------------------------------------------------------
+  // AGENDA
   // ---------------------------------------------------------------------------
   const clientesPorDia: Record<DiaSemana, Punto[]> =
     DIAS_SEMANA.reduce((acc, dia) => {
@@ -224,70 +178,65 @@ export default function MapaClientes() {
     }, {} as Record<DiaSemana, Punto[]>);
 
   // ---------------------------------------------------------------------------
-  // CENTRAR DESDE AGENDA
-  // ---------------------------------------------------------------------------
-  const centrarCliente = (clienteId: string) => {
-    if (!map) return;
-
-    const marker = markersRef.current.get(clienteId);
-    if (!marker) return;
-
-    map.panTo(marker.getPosition()!);
-    map.setZoom(15);
-  };
-
-  // ---------------------------------------------------------------------------
   // RENDER
   // ---------------------------------------------------------------------------
   return (
     <div className="flex h-screen w-full">
       {/* PANEL IZQUIERDO */}
-      <div className="w-80 border-r bg-white p-4 overflow-y-auto">
+      <div className="w-96 border-r bg-white p-4 overflow-y-auto">
         <h2 className="text-lg font-semibold mb-4">
-          Agenda de Visitas
+          Planeación de Ruta
         </h2>
 
-        <div className="space-y-6">
-          {DIAS_SEMANA.map((dia) => {
-            const clientesDelDia = clientesPorDia[dia];
-            if (!clientesDelDia.length) return null;
+        {DIAS_SEMANA.map((dia) => {
+          const clientesDelDia = clientesPorDia[dia];
+          if (!clientesDelDia.length) return null;
 
-            const esHoy = hoy === dia;
+          return (
+            <div key={dia} className="mb-6">
+              <h3 className="font-semibold text-sm mb-2">
+                {dia}
+              </h3>
 
-            return (
-              <div key={dia}>
-                <h3
-                  className={`text-sm font-semibold mb-2 ${
-                    esHoy
-                      ? 'text-blue-600'
-                      : 'text-gray-700'
-                  }`}
-                >
-                  {esHoy ? `👉 ${dia} (HOY)` : dia}
-                </h3>
+              <ul className="space-y-2">
+                {clientesDelDia.map((cliente) => {
+                  const orden = ordenEnRuta(cliente.id);
+                  const seleccionado = orden > 0;
 
-                <ul className="space-y-2">
-                  {clientesDelDia.map((cliente) => (
+                  return (
                     <li
                       key={cliente.id}
-                      onClick={() =>
-                        centrarCliente(cliente.id)
-                      }
-                      className="p-2 rounded border text-sm hover:bg-gray-50 cursor-pointer"
+                      className="flex items-center gap-2 border p-2 rounded"
                     >
-                      <div className="font-medium">
-                        {cliente.nombre}
+                      <input
+                        type="checkbox"
+                        checked={seleccionado}
+                        onChange={() =>
+                          toggleRuta(cliente)
+                        }
+                      />
+
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">
+                          {cliente.nombre}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {cliente.tipo}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {cliente.tipo}
-                      </div>
+
+                      {seleccionado && (
+                        <span className="text-xs font-bold text-blue-600">
+                          #{orden}
+                        </span>
+                      )}
                     </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
       </div>
 
       {/* MAPA */}
@@ -301,4 +250,3 @@ export default function MapaClientes() {
     </div>
   );
 }
-
