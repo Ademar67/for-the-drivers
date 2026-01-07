@@ -7,8 +7,6 @@ import {
   collection,
   onSnapshot,
   query,
-  doc,
-  updateDoc,
 } from 'firebase/firestore';
 
 // -----------------------------------------------------------------------------
@@ -37,10 +35,6 @@ const DIAS_SEMANA = [
 
 type DiaSemana = (typeof DIAS_SEMANA)[number];
 
-const hoyIndex = new Date().getDay();
-const hoy: DiaSemana | null =
-  hoyIndex === 0 ? null : DIAS_SEMANA[hoyIndex - 1];
-
 // -----------------------------------------------------------------------------
 // TIPOS
 // -----------------------------------------------------------------------------
@@ -66,6 +60,9 @@ export default function MapaClientes() {
   const markersRef = useRef<Map<string, google.maps.Marker>>(
     new Map()
   );
+
+  const directionsRendererRef =
+    useRef<google.maps.DirectionsRenderer | null>(null);
 
   // ---------------------------------------------------------------------------
   // 🔥 CARGAR CLIENTES
@@ -121,7 +118,7 @@ export default function MapaClientes() {
   };
 
   // ---------------------------------------------------------------------------
-  // MARCADORES + AUTO ZOOM
+  // MARCADORES
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!map || clientes.length === 0) return;
@@ -167,15 +164,60 @@ export default function MapaClientes() {
     rutaSeleccionada.findIndex((c) => c.id === id) + 1;
 
   // ---------------------------------------------------------------------------
-  // AGENDA
+  // 🛣️ TRAZAR RUTA
   // ---------------------------------------------------------------------------
-  const clientesPorDia: Record<DiaSemana, Punto[]> =
-    DIAS_SEMANA.reduce((acc, dia) => {
-      acc[dia] = clientes.filter(
-        (c) => c.diaVisita === dia
-      );
-      return acc;
-    }, {} as Record<DiaSemana, Punto[]>);
+  const trazarRuta = () => {
+    if (!map || rutaSeleccionada.length < 2) return;
+
+    if (!directionsRendererRef.current) {
+      directionsRendererRef.current =
+        new google.maps.DirectionsRenderer({
+          suppressMarkers: true,
+          polylineOptions: {
+            strokeColor: '#FF0000',
+            strokeWeight: 5,
+          },
+        });
+
+      directionsRendererRef.current.setMap(map);
+    }
+
+    const service = new google.maps.DirectionsService();
+
+    const origen = rutaSeleccionada[0];
+    const destino =
+      rutaSeleccionada[rutaSeleccionada.length - 1];
+
+    const waypoints = rutaSeleccionada
+      .slice(1, -1)
+      .map((p) => ({
+        location: { lat: p.lat, lng: p.lng },
+        stopover: true,
+      }));
+
+    service.route(
+      {
+        origin: { lat: origen.lat, lng: origen.lng },
+        destination: {
+          lat: destino.lat,
+          lng: destino.lng,
+        },
+        waypoints,
+        travelMode: google.maps.TravelMode.DRIVING,
+        optimizeWaypoints: false,
+      },
+      (result, status) => {
+        if (
+          status === google.maps.DirectionsStatus.OK &&
+          result
+        ) {
+          directionsRendererRef.current?.setDirections(
+            result
+          );
+        }
+      }
+    );
+  };
 
   // ---------------------------------------------------------------------------
   // RENDER
@@ -189,7 +231,9 @@ export default function MapaClientes() {
         </h2>
 
         {DIAS_SEMANA.map((dia) => {
-          const clientesDelDia = clientesPorDia[dia];
+          const clientesDelDia = clientes.filter(
+            (c) => c.diaVisita === dia
+          );
           if (!clientesDelDia.length) return null;
 
           return (
@@ -237,6 +281,14 @@ export default function MapaClientes() {
             </div>
           );
         })}
+
+        <button
+          onClick={trazarRuta}
+          disabled={rutaSeleccionada.length < 2}
+          className="w-full mt-4 bg-blue-600 text-white py-2 rounded disabled:opacity-50"
+        >
+          Trazar Ruta
+        </button>
       </div>
 
       {/* MAPA */}
@@ -250,3 +302,4 @@ export default function MapaClientes() {
     </div>
   );
 }
+
