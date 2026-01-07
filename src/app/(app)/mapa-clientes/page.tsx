@@ -33,11 +33,13 @@ const DIAS_SEMANA = [
   'Jueves',
   'Viernes',
   'Sábado',
-  'Domingo',
-];
+] as const;
+
+type DiaSemana = (typeof DIAS_SEMANA)[number];
 
 const hoyIndex = new Date().getDay(); // 0 = Domingo
-const hoy = hoyIndex === 0 ? 'Domingo' : DIAS_SEMANA[hoyIndex - 1];
+const hoy: DiaSemana | null =
+  hoyIndex === 0 ? null : DIAS_SEMANA[hoyIndex - 1];
 
 // -----------------------------------------------------------------------------
 // TIPOS
@@ -48,7 +50,7 @@ type Punto = {
   tipo: 'cliente' | 'prospecto' | 'inactivo';
   lat: number;
   lng: number;
-  diaVisita?: string;
+  diaVisita?: DiaSemana;
 };
 
 // -----------------------------------------------------------------------------
@@ -57,12 +59,12 @@ type Punto = {
 export default function MapaClientes() {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
-  const [filtro, setFiltro] = useState<
-    'todos' | 'cliente' | 'prospecto' | 'inactivo'
-  >('todos');
-
   const [clientes, setClientes] = useState<Punto[]>([]);
+
+  // 👉 referencia id → marker
+  const markersRef = useRef<Map<string, google.maps.Marker>>(
+    new Map()
+  );
 
   // ---------------------------------------------------------------------------
   // 🔥 CARGAR CLIENTES DESDE FIRESTORE
@@ -80,9 +82,8 @@ export default function MapaClientes() {
           lat: d.lat,
           lng: d.lng,
           tipo: d.tipo,
-          diaVisita: d.diaVisita
-            ? d.diaVisita.charAt(0).toUpperCase() +
-              d.diaVisita.slice(1)
+          diaVisita: DIAS_SEMANA.includes(d.diaVisita)
+            ? d.diaVisita
             : undefined,
         };
       });
@@ -113,114 +114,127 @@ export default function MapaClientes() {
     if (!mapRef.current) return;
 
     const mapa = new google.maps.Map(mapRef.current, {
-      center: { lat: 19.243, lng: -103.728 },
-      zoom: 12,
+      // centro solo como fallback
+      center: { lat: 19.4326, lng: -99.1332 }, // México
+      zoom: 6,
     });
 
     setMap(mapa);
   };
 
   // ---------------------------------------------------------------------------
-  // MARCADORES + EDICIÓN DE DÍA
+  // MARCADORES + AUTO-CENTRADO
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!map) return;
 
-    markers.forEach((m) => m.setMap(null));
-    const nuevos: google.maps.Marker[] = [];
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current.clear();
 
-    clientes
-      .filter(
-        (c) => filtro === 'todos' || c.tipo === filtro
-      )
-      .forEach((punto) => {
-        // 🎨 COLORES CORRECTOS
-        let color = 'blue'; // cliente
-        if (punto.tipo === 'prospecto') color = 'green';
-        if (punto.tipo === 'inactivo') color = 'yellow';
+    if (clientes.length === 0) return;
 
-        const marker = new google.maps.Marker({
-          map,
-          position: { lat: punto.lat, lng: punto.lng },
-          title: punto.nombre,
-          icon: `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`,
-        });
+    const bounds = new google.maps.LatLngBounds();
 
-        const infoWindow = new google.maps.InfoWindow();
+    clientes.forEach((punto) => {
+      let color = 'blue';
+      if (punto.tipo === 'prospecto') color = 'green';
+      if (punto.tipo === 'inactivo') color = 'yellow';
 
-        marker.addListener('click', () => {
-          const opcionesDias = DIAS_SEMANA.map(
-            (dia) =>
-              `<option value="${dia}" ${
-                punto.diaVisita === dia ? 'selected' : ''
-              }>${dia}</option>`
-          ).join('');
-
-          infoWindow.setContent(`
-            <div style="min-width:220px">
-              <strong>${punto.nombre}</strong><br/>
-              <small>Tipo: ${punto.tipo}</small><br/><br/>
-
-              <label>Día de visita</label><br/>
-              <select id="diaVisitaSelect">
-                <option value="">Sin asignar</option>
-                ${opcionesDias}
-              </select>
-
-              <div id="estadoGuardado"
-                   style="margin-top:6px;font-size:12px;color:green;"></div>
-            </div>
-          `);
-
-          infoWindow.open(map, marker);
-
-          google.maps.event.addListenerOnce(
-            infoWindow,
-            'domready',
-            () => {
-              const select =
-                document.getElementById(
-                  'diaVisitaSelect'
-                ) as HTMLSelectElement;
-
-              if (!select) return;
-
-              select.addEventListener('change', async (e) => {
-                const nuevoDia = (e.target as HTMLSelectElement).value;
-
-                await updateDoc(
-                  doc(db, 'clientes', punto.id),
-                  {
-                    diaVisita: nuevoDia || null,
-                  }
-                );
-
-                const estado =
-                  document.getElementById('estadoGuardado');
-                if (estado) estado.innerText = '✔ Guardado';
-              });
-            }
-          );
-        });
-
-        nuevos.push(marker);
+      const marker = new google.maps.Marker({
+        map,
+        position: { lat: punto.lat, lng: punto.lng },
+        title: punto.nombre,
+        icon: `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`,
       });
 
-    setMarkers(nuevos);
-  }, [map, clientes, filtro]);
+      const infoWindow = new google.maps.InfoWindow();
+
+      marker.addListener('click', () => {
+        const opcionesDias = DIAS_SEMANA.map(
+          (dia) =>
+            `<option value="${dia}" ${
+              punto.diaVisita === dia ? 'selected' : ''
+            }>${dia}</option>`
+        ).join('');
+
+        infoWindow.setContent(`
+          <div style="min-width:220px">
+            <strong>${punto.nombre}</strong><br/>
+            <small>Tipo: ${punto.tipo}</small><br/><br/>
+
+            <label>Día de visita</label><br/>
+            <select id="diaVisitaSelect">
+              <option value="">Sin asignar</option>
+              ${opcionesDias}
+            </select>
+
+            <div id="estadoGuardado"
+                 style="margin-top:6px;font-size:12px;color:green;"></div>
+          </div>
+        `);
+
+        infoWindow.open(map, marker);
+
+        google.maps.event.addListenerOnce(
+          infoWindow,
+          'domready',
+          () => {
+            const select = document.getElementById(
+              'diaVisitaSelect'
+            ) as HTMLSelectElement | null;
+
+            if (!select) return;
+
+            select.addEventListener('change', async (e) => {
+              const nuevoDia = (e.target as HTMLSelectElement)
+                .value as DiaSemana | '';
+
+              await updateDoc(
+                doc(db, 'clientes', punto.id),
+                {
+                  diaVisita: nuevoDia || null,
+                }
+              );
+
+              const estado =
+                document.getElementById('estadoGuardado');
+              if (estado) estado.innerText = '✔ Guardado';
+            });
+          }
+        );
+      });
+
+      markersRef.current.set(punto.id, marker);
+      bounds.extend({ lat: punto.lat, lng: punto.lng });
+    });
+
+    // 👉 AQUÍ ESTÁ LA CLAVE
+    map.fitBounds(bounds);
+  }, [map, clientes]);
 
   // ---------------------------------------------------------------------------
   // AGENDA POR DÍA
   // ---------------------------------------------------------------------------
-  const clientesPorDia = DIAS_SEMANA.reduce(
-    (acc: Record<string, Punto[]>, dia) => {
+  const clientesPorDia: Record<DiaSemana, Punto[]> =
+    DIAS_SEMANA.reduce((acc, dia) => {
       acc[dia] = clientes.filter(
         (c) => c.diaVisita === dia
       );
       return acc;
-    },
-    {}
-  );
+    }, {} as Record<DiaSemana, Punto[]>);
+
+  // ---------------------------------------------------------------------------
+  // CENTRAR DESDE AGENDA
+  // ---------------------------------------------------------------------------
+  const centrarCliente = (clienteId: string) => {
+    if (!map) return;
+
+    const marker = markersRef.current.get(clienteId);
+    if (!marker) return;
+
+    map.panTo(marker.getPosition()!);
+    map.setZoom(15);
+  };
 
   // ---------------------------------------------------------------------------
   // RENDER
@@ -236,10 +250,9 @@ export default function MapaClientes() {
         <div className="space-y-6">
           {DIAS_SEMANA.map((dia) => {
             const clientesDelDia = clientesPorDia[dia];
-            if (!clientesDelDia || clientesDelDia.length === 0)
-              return null;
+            if (!clientesDelDia.length) return null;
 
-            const esHoy = dia === hoy;
+            const esHoy = hoy === dia;
 
             return (
               <div key={dia}>
@@ -257,7 +270,10 @@ export default function MapaClientes() {
                   {clientesDelDia.map((cliente) => (
                     <li
                       key={cliente.id}
-                      className="p-2 rounded border text-sm hover:bg-gray-50"
+                      onClick={() =>
+                        centrarCliente(cliente.id)
+                      }
+                      className="p-2 rounded border text-sm hover:bg-gray-50 cursor-pointer"
                     >
                       <div className="font-medium">
                         {cliente.nombre}
@@ -285,3 +301,4 @@ export default function MapaClientes() {
     </div>
   );
 }
+
