@@ -123,15 +123,14 @@ export default function NuevaCotizacionPage() {
     }
   };
 
-const generarPDF = () => {
+  const generarPDF = (vigenciaDias = 8, observaciones = '') => {
     const cliente = clientes.find(c => c.id === clienteSeleccionadoId);
     if (!cliente) {
-        alert("Selecciona un cliente primero.");
-        return;
+      alert('Selecciona un cliente primero.');
+      return;
     }
-
-    const doc = new jsPDF();
   
+    const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
   
     // ---------------------------------------------------------------------------
@@ -165,20 +164,20 @@ const generarPDF = () => {
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.text('Cotización', pageWidth - 14, 34, { align: 'right' });
-
+  
     // ---------------------------------------------------------------------------
     // DATOS DEL ASESOR (ARRIBA)
     // ---------------------------------------------------------------------------
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
-
+  
     let headerY = 42;
-
+  
     doc.text('José Ademar Vázquez', 14, headerY);
     doc.setFont('helvetica', 'normal');
     doc.text('ASESOR DE VENTAS', 14, headerY + 5);
-
+  
     doc.text('Tel: (52-55) 5598 1718 | 5598 1719', 14, headerY + 12);
     doc.text('Cel: 44 3618 8484', 14, headerY + 17);
     doc.text('Email: ademar.vazquez@liqui-moly.mx', 14, headerY + 22);
@@ -188,41 +187,31 @@ const generarPDF = () => {
     // ---------------------------------------------------------------------------
     const fechaEmision = new Date();
     const fechaVigencia = new Date();
-    fechaVigencia.setDate(fechaEmision.getDate() + 7); // 7 días de vigencia
-
+    fechaVigencia.setDate(fechaEmision.getDate() + vigenciaDias);
+  
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-
-    let y = 70; // Ajustar 'y' para empezar más abajo
-
-    doc.text('Cliente:', 14, y);
+  
+    let clienteY = 70;
+    doc.text('Cliente:', 14, clienteY);
     doc.setFont('helvetica', 'bold');
-    doc.text(cliente.nombre, 32, y);
+    doc.text(cliente.nombre, 32, clienteY);
   
-    y += 6;
     doc.setFont('helvetica', 'normal');
-    doc.text('Dirección:', 14, y);
-    doc.text(cliente.domicilio || '—', 32, y);
+    doc.text('Dirección:', 14, clienteY + 6);
+    doc.text(cliente.domicilio || '—', 32, clienteY + 6);
   
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-
-    doc.text(`Fecha emisión: ${fechaEmision.toLocaleDateString()}`, pageWidth - 14, 46, {
-      align: 'right',
-    });
-
-    doc.text(
-      `Vigencia hasta: ${fechaVigencia.toLocaleDateString()}`,
-      pageWidth - 14,
-      52,
-      { align: 'right' }
-    );
+  
+    doc.text(`Fecha emisión: ${fechaEmision.toLocaleDateString()}`, pageWidth - 14, 46, { align: 'right' });
+    doc.text(`Vigencia hasta: ${fechaVigencia.toLocaleDateString()}`, pageWidth - 14, 52, { align: 'right' });
   
     // ---------------------------------------------------------------------------
     // TABLA DE PRODUCTOS
     // ---------------------------------------------------------------------------
     autoTable(doc, {
-      startY: y + 10,
+      startY: clienteY + 12,
       head: [['Código', 'Producto', 'Cantidad', 'Precio Unit.', 'Total']],
       body: items.map((p) => [
         p.codigo,
@@ -248,13 +237,13 @@ const generarPDF = () => {
       },
     });
   
-    const finalY = (doc as any).lastAutoTable.finalY + 8;
+    let finalY = (doc as any).lastAutoTable.finalY;
   
     // ---------------------------------------------------------------------------
     // TOTALES
     // ---------------------------------------------------------------------------
-    let totalsY = finalY;
-
+    let totalsY = finalY + 8;
+  
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
   
@@ -264,9 +253,7 @@ const generarPDF = () => {
     totalsY += 6;
     doc.text(`Total descuentos:`, pageWidth - 60, totalsY);
     doc.setTextColor(...rojo);
-    doc.text(`-$${totalDescuentos.toFixed(2)}`, pageWidth - 14, totalsY, {
-      align: 'right',
-    });
+    doc.text(`-$${totalDescuentos.toFixed(2)}`, pageWidth - 14, totalsY, { align: 'right' });
   
     totalsY += 10;
     doc.setTextColor(0, 0, 0);
@@ -274,36 +261,29 @@ const generarPDF = () => {
     doc.setFont('helvetica', 'bold');
     doc.text(`TOTAL:`, pageWidth - 60, totalsY);
     doc.setTextColor(...rojo);
-    doc.text(`$${total.toFixed(2)}`, pageWidth - 14, totalsY, {
-      align: 'right',
-    });
-
+    doc.text(`$${total.toFixed(2)}`, pageWidth - 14, totalsY, { align: 'right' });
+  
     // ---------------------------------------------------------------------------
     // OBSERVACIONES
     // ---------------------------------------------------------------------------
-    const obsY = (doc as any).lastAutoTable.finalY > totalsY ? (doc as any).lastAutoTable.finalY + 8 : totalsY + 8;
-
-    doc.setDrawColor(0, 56, 168); // azul Liqui Moly
+    let obsY = totalsY + 10;
+    const obsText = observaciones || '• Se acepta pago con terminal bancaria.\n• Precios sujetos a disponibilidad.\n• Tiempo de entrega estimado: 24 a 48 hrs.';
+  
+    doc.setDrawColor(...azul);
     doc.rect(14, obsY, pageWidth - 28, 28);
-
+  
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('Observaciones:', 16, obsY + 6);
-
+  
     doc.setFont('helvetica', 'normal');
-    doc.text(
-      '• Se acepta pago con terminal bancaria.\n' +
-      '• Precios sujetos a disponibilidad.\n' +
-      '• Tiempo de entrega estimado: 24 a 48 hrs.',
-      16,
-      obsY + 12
-    );
+    doc.text(obsText, 16, obsY + 12);
   
     // ---------------------------------------------------------------------------
     // GUARDAR
     // ---------------------------------------------------------------------------
-    doc.save(`cotizacion-${cliente.nombre}.pdf`);
+    doc.save(`cotizacion-${cliente.nombre.replace(/\s/g, '_')}.pdf`);
   };
 
   return (
@@ -433,7 +413,7 @@ const generarPDF = () => {
           {/* Acciones */}
           <div className="mt-8 flex justify-end gap-4">
             <button
-              onClick={generarPDF}
+              onClick={() => generarPDF()}
               disabled={items.length === 0 || !clienteSeleccionadoId}
               className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400"
             >
