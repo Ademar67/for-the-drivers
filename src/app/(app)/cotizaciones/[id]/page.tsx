@@ -6,6 +6,7 @@ import { obtenerCotizacionPorId, Cotizacion } from '@/lib/firestore/cotizaciones
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { format } from 'date-fns';
+import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
 
 export default function CotizacionDetallePage() {
   const { id } = useParams();
@@ -43,7 +44,7 @@ export default function CotizacionDetallePage() {
     return <div className="p-6">Cotización no encontrada.</div>;
   }
 
-  const { subtotal, total, totalDescuentos } = cotizacion.items.reduce(
+  const { subtotal, totalDescuentos } = cotizacion.items.reduce(
     (acc, item) => {
       const itemTotal = item.precio * item.cantidad;
       let subtotalConDescuentos = itemTotal;
@@ -55,12 +56,11 @@ export default function CotizacionDetallePage() {
       });
       
       acc.subtotal += itemTotal;
-      acc.total += subtotalConDescuentos;
       acc.totalDescuentos += itemTotal - subtotalConDescuentos;
       
       return acc;
     },
-    { subtotal: 0, total: 0, totalDescuentos: 0 }
+    { subtotal: 0, totalDescuentos: 0 }
   );
 
   return (
@@ -70,8 +70,8 @@ export default function CotizacionDetallePage() {
           <Button variant="outline" onClick={() => router.back()}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Volver
           </Button>
-          <Button onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" /> Imprimir
+          <Button onClick={() => generarCotizacionPDF(cotizacion)}>
+            <Printer className="mr-2 h-4 w-4" /> Exportar PDF
           </Button>
         </div>
 
