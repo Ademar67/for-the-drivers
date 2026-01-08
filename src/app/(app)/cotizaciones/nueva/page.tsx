@@ -240,10 +240,29 @@ export default function NuevaCotizacionPage() {
     let finalY = (doc as any).lastAutoTable.finalY;
   
     // ---------------------------------------------------------------------------
+    // OBSERVACIONES
+    // ---------------------------------------------------------------------------
+    const obsText = observaciones || '• Se acepta pago con terminal bancaria.\n• Precios sujetos a disponibilidad.\n• Tiempo de entrega estimado: 24 a 48 hrs.';
+    
+    let obsY = finalY + 8;
+  
+    doc.setDrawColor(...azul);
+    doc.rect(14, obsY, pageWidth - 28, 28);
+  
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('Observaciones:', 16, obsY + 6);
+  
+    doc.setFont('helvetica', 'normal');
+    doc.text(obsText, 16, obsY + 12);
+
+    // Ajustamos la posición de los totales para que no se solapen con las observaciones
+    let totalsY = obsY + 36;
+  
+    // ---------------------------------------------------------------------------
     // TOTALES
     // ---------------------------------------------------------------------------
-    let totalsY = finalY + 8;
-  
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
   
@@ -262,23 +281,6 @@ export default function NuevaCotizacionPage() {
     doc.text(`TOTAL:`, pageWidth - 60, totalsY);
     doc.setTextColor(...rojo);
     doc.text(`$${total.toFixed(2)}`, pageWidth - 14, totalsY, { align: 'right' });
-  
-    // ---------------------------------------------------------------------------
-    // OBSERVACIONES
-    // ---------------------------------------------------------------------------
-    let obsY = totalsY + 10;
-    const obsText = observaciones || '• Se acepta pago con terminal bancaria.\n• Precios sujetos a disponibilidad.\n• Tiempo de entrega estimado: 24 a 48 hrs.';
-  
-    doc.setDrawColor(...azul);
-    doc.rect(14, obsY, pageWidth - 28, 28);
-  
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('Observaciones:', 16, obsY + 6);
-  
-    doc.setFont('helvetica', 'normal');
-    doc.text(obsText, 16, obsY + 12);
   
     // ---------------------------------------------------------------------------
     // GUARDAR
