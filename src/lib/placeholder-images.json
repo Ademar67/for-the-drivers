@@ -1,3 +1,10 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "calculator-hero",
+      "description": "A hero image for the product calculator page, showing a mechanic working on a car engine.",
+      "imageUrl": "https://images.unsplash.com/photo-1615906655593-ad0386982a0f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtZWNoYW5pYyUyMGNhcnxlbnwwfHx8fDE3Njc3NjE1Njl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "mechanic car"
+    }
+  ]
 }
