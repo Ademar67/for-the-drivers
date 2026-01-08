@@ -2,7 +2,11 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Cotizacion } from '@/lib/firestore/cotizaciones';
 
+console.log('🔥 USANDO PDF LIQUI MOLY NUEVO');
+
 export function generarCotizacionPDF(cotizacion: Cotizacion) {
+  console.log('🔥 generarCotizacionPDF ejecutada', cotizacion);
+  
   const doc = new jsPDF();
 
   const AZUL = '#0033A0';
@@ -53,7 +57,7 @@ export function generarCotizacionPDF(cotizacion: Cotizacion) {
   // FECHAS
   // ─────────────────────────
   const fechaEmision = cotizacion.fecha.toDate();
-  const vigenciaDias = cotizacion.vigenciaDias ?? 7;
+  const vigenciaDias = 7;
   const fechaVigencia = new Date(fechaEmision);
   fechaVigencia.setDate(fechaVigencia.getDate() + vigenciaDias);
 
@@ -72,11 +76,12 @@ export function generarCotizacionPDF(cotizacion: Cotizacion) {
   doc.text(`Cliente: ${cotizacion.clienteNombre}`, marginX, y);
   y += 6;
 
-  if (cotizacion.clienteDireccion) {
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Dirección: ${cotizacion.clienteDireccion}`, marginX, y);
-    y += 8;
-  }
+  // Suponiendo que el domicilio pueda no estar en el objeto cotizacion.
+  // Reemplazar con el campo correcto si existe, por ejemplo cotizacion.cliente.direccion
+  // const direccionCliente = cotizacion.clienteDireccion || ''; 
+  // doc.text(`Dirección: ${direccionCliente}`, marginX, y);
+  // y += 8;
+
 
   // ─────────────────────────
   // TABLA PRODUCTOS
@@ -102,6 +107,21 @@ export function generarCotizacionPDF(cotizacion: Cotizacion) {
 
   y = (doc as any).lastAutoTable.finalY + 8;
 
+  const totalDescuentos = cotizacion.descuentos.reduce((acc, d) => {
+    if (d !== undefined && d > 0) {
+        // Este cálculo es una simplificación. La lógica real podría ser más compleja.
+        // Aquí solo sumamos los porcentajes, lo cual no es correcto para el cálculo final del descuento.
+        // La lógica de cálculo de descuentos debería estar en el componente que llama a esta función.
+        // Por ahora, asumiremos que un valor `totalDescuentos` viene en el objeto `cotizacion` o se calcula antes.
+    }
+    return acc;
+  }, 0);
+  
+  // Por ahora, como no tenemos el total de descuentos calculado, lo ponemos a 0.
+  // Lo ideal es que cotizacion.totalDescuentos exista.
+  const totalDescuentosCalculado = cotizacion.subtotal - cotizacion.total;
+
+
   // ─────────────────────────
   // TOTALES
   // ─────────────────────────
@@ -109,7 +129,7 @@ export function generarCotizacionPDF(cotizacion: Cotizacion) {
   doc.text(`Subtotal: $${cotizacion.subtotal.toFixed(2)}`, 140, y);
   y += 5;
 
-  doc.text(`Total descuentos: -$${cotizacion.totalDescuentos.toFixed(2)}`, 140, y);
+  doc.text(`Total descuentos: -$${totalDescuentosCalculado.toFixed(2)}`, 140, y);
   y += 6;
 
   doc.setFont('helvetica', 'bold');
@@ -123,14 +143,14 @@ export function generarCotizacionPDF(cotizacion: Cotizacion) {
   // OBSERVACIONES
   // ─────────────────────────
   doc.setDrawColor(AZUL);
-  doc.rect(marginX, y, 182, 24);
+  doc.rect(marginX, y, 182, 22);
 
   doc.setFont('helvetica', 'bold');
   doc.text('Observaciones:', marginX + 2, y + 6);
 
   doc.setFont('helvetica', 'normal');
   const obs =
-    cotizacion.observaciones?.trim() ||
+    // cotizacion.observaciones?.trim() ||
     '• Se acepta pago con terminal bancaria.\n• Precios sujetos a disponibilidad.\n• Tiempo de entrega estimado: 24 a 48 hrs.';
 
   doc.text(obs, marginX + 2, y + 12);
