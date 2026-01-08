@@ -31,7 +31,7 @@ declare module 'jspdf' {
 export default function NuevaCotizacionPage() {
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
   const [productos, setProductos] = useState<ProductoConId[]>([]);
-  const [clienteSeleccionado, setClienteSeleccionado] = useState<string>('');
+  const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string>('');
   const [items, setItems] = useState<ItemCotizacion[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [descuentos, setDescuentos] = useState<(number | undefined)[]>([undefined, undefined, undefined, undefined]);
@@ -96,12 +96,12 @@ export default function NuevaCotizacionPage() {
   );
   
   const handleGuardarCotizacion = async () => {
-    if (!clienteSeleccionado || items.length === 0) {
+    if (!clienteSeleccionadoId || items.length === 0) {
       alert("Por favor, selecciona un cliente y agrega al menos un producto.");
       return;
     }
     try {
-      const cliente = clientes.find(c => c.id === clienteSeleccionado);
+      const cliente = clientes.find(c => c.id === clienteSeleccionadoId);
       if (!cliente) {
         alert("Cliente no encontrado");
         return;
@@ -124,79 +124,150 @@ export default function NuevaCotizacionPage() {
   };
 
   const generarPDF = () => {
-    const cliente = clientes.find(c => c.id === clienteSeleccionado);
+    const cliente = clientes.find(c => c.id === clienteSeleccionadoId);
     if (!cliente) {
         alert("Selecciona un cliente primero.");
         return;
     }
 
     const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(20);
-    doc.text("Cotización", 14, 22);
+  
+    const pageWidth = doc.internal.pageSize.getWidth();
+  
+    // ---------------------------------------------------------------------------
+    // COLORES LIQUI MOLY
+    // ---------------------------------------------------------------------------
+    const azul: [number, number, number] = [0, 56, 168];
+    const rojo: [number, number, number] = [227, 6, 19];
+  
+    // ---------------------------------------------------------------------------
+    // HEADER (FRANJAS + LOGO TEXTO)
+    // ---------------------------------------------------------------------------
+    doc.setFillColor(...azul);
+    doc.rect(0, 0, pageWidth, 18, 'F');
+  
+    doc.setFillColor(...rojo);
+    doc.rect(0, 18, pageWidth, 4, 'F');
+  
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('LIQUI MOLY', 14, 12);
+  
     doc.setFontSize(10);
-    doc.text("Liqui Moly Sales Hub", 14, 30);
-    
-    // Customer Info
-    doc.setFontSize(12);
-    doc.text("Cliente:", 14, 40);
+    doc.setFont('helvetica', 'normal');
+    doc.text('FOR THE DRIVERS', 14, 17);
+  
+    // ---------------------------------------------------------------------------
+    // TÍTULO
+    // ---------------------------------------------------------------------------
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Cotización', pageWidth - 14, 34, { align: 'right' });
+  
+    // ---------------------------------------------------------------------------
+    // DATOS CLIENTE
+    // ---------------------------------------------------------------------------
     doc.setFontSize(10);
-    doc.text(cliente.nombre, 14, 46);
-    doc.text(cliente.domicilio, 14, 52);
-    doc.text(cliente.ciudad, 14, 58);
-
-    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 140, 46);
-
-    // Table
-    const tableColumn = ["Código", "Producto", "Cantidad", "Precio Unit.", "Total"];
-    const tableRows: any[][] = [];
-
-    items.forEach(item => {
-        const itemData = [
-            item.codigo,
-            item.nombre,
-            item.cantidad,
-            `$${item.precio.toFixed(2)}`,
-            `$${(item.precio * item.cantidad).toFixed(2)}`
-        ];
-        tableRows.push(itemData);
-    });
-
+    doc.setFont('helvetica', 'normal');
+  
+    let y = 46;
+  
+    doc.text('Cliente:', 14, y);
+    doc.setFont('helvetica', 'bold');
+    doc.text(cliente.nombre, 32, y);
+  
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.text('Dirección:', 14, y);
+    doc.text(cliente.domicilio || '—', 32, y);
+  
+    y += 6;
+    doc.text('Fecha:', pageWidth - 14, 46, { align: 'right' });
+    doc.text(new Date().toLocaleDateString(), pageWidth - 14, 52, { align: 'right' });
+  
+    // ---------------------------------------------------------------------------
+    // TABLA DE PRODUCTOS
+    // ---------------------------------------------------------------------------
     autoTable(doc, {
-        head: [tableColumn],
-        body: tableRows,
-        startY: 68,
-        theme: 'grid'
+      startY: 70,
+      head: [['Código', 'Producto', 'Cantidad', 'Precio Unit.', 'Total']],
+      body: items.map((p) => [
+        p.codigo,
+        p.nombre,
+        p.cantidad.toString(),
+        `$${p.precio.toFixed(2)}`,
+        `$${(p.precio * p.cantidad).toFixed(2)}`,
+      ]),
+      theme: 'grid',
+      headStyles: {
+        fillColor: azul,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 4,
+      },
+      columnStyles: {
+        2: { halign: 'center' },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+      },
     });
-
-    // Totals
-    const finalY = (doc as any).lastAutoTable.finalY;
-    let currentY = finalY + 10;
-    
+  
+    const finalY = (doc as any).lastAutoTable.finalY + 8;
+  
+    // ---------------------------------------------------------------------------
+    // TOTALES
+    // ---------------------------------------------------------------------------
     doc.setFontSize(10);
-    doc.text("Subtotal:", 140, currentY);
-    doc.text(`$${subtotal.toFixed(2)}`, 180, currentY, { align: 'right' });
-    currentY += 6;
-    
-    descuentos.forEach((d, i) => {
-        if(d !== undefined && d > 0) {
-            doc.text(`Descuento ${i + 1} (${d}%):`, 140, currentY);
-            currentY += 6;
-        }
+    doc.setFont('helvetica', 'normal');
+  
+    doc.text(`Subtotal:`, pageWidth - 60, finalY);
+    doc.text(`$${subtotal.toFixed(2)}`, pageWidth - 14, finalY, { align: 'right' });
+  
+    doc.text(`Total descuentos:`, pageWidth - 60, finalY + 6);
+    doc.setTextColor(...rojo);
+    doc.text(`-$${totalDescuentos.toFixed(2)}`, pageWidth - 14, finalY + 6, {
+      align: 'right',
     });
-
-    doc.text("Total Descuentos:", 140, currentY);
-    doc.text(`-$${totalDescuentos.toFixed(2)}`, 180, currentY, { align: 'right' });
-    currentY += 6;
-
-
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Total:", 140, currentY);
-    doc.text(`$${total.toFixed(2)}`, 180, currentY, { align: 'right' });
-
-    doc.save(`cotizacion-${cliente.nombre.replace(/\s/g, '_')}.pdf`);
+  
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL:`, pageWidth - 60, finalY + 16);
+    doc.setTextColor(...rojo);
+    doc.text(`$${total.toFixed(2)}`, pageWidth - 14, finalY + 16, {
+      align: 'right',
+    });
+  
+    // ---------------------------------------------------------------------------
+    // FOOTER – TARJETA DEL ASESOR
+    // ---------------------------------------------------------------------------
+    const footerY = doc.internal.pageSize.getHeight() - 40;
+  
+    doc.setDrawColor(...azul);
+    doc.line(14, footerY - 4, pageWidth - 14, footerY - 4);
+  
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('José Ademar Vázquez', 14, footerY);
+  
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('ASESOR DE VENTAS', 14, footerY + 5);
+  
+    doc.text('Tel: (52-55) 5598 1718 | 5598 1719', 14, footerY + 12);
+    doc.text('Cel: 44 3618 8484', 14, footerY + 17);
+    doc.text('Email: ademar.vazquez@liqui-moly.mx', 14, footerY + 22);
+  
+    // ---------------------------------------------------------------------------
+    // GUARDAR
+    // ---------------------------------------------------------------------------
+    doc.save(`cotizacion-${cliente.nombre}.pdf`);
   };
 
   return (
@@ -210,8 +281,8 @@ export default function NuevaCotizacionPage() {
           <div className="bg-white p-4 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-3">Cliente</h2>
             <select
-              value={clienteSeleccionado}
-              onChange={e => setClienteSeleccionado(e.target.value)}
+              value={clienteSeleccionadoId}
+              onChange={e => setClienteSeleccionadoId(e.target.value)}
               className="w-full border p-2 rounded bg-gray-50"
             >
               <option value="">Selecciona un cliente</option>
@@ -327,7 +398,7 @@ export default function NuevaCotizacionPage() {
           <div className="mt-8 flex justify-end gap-4">
             <button
               onClick={generarPDF}
-              disabled={items.length === 0 || !clienteSeleccionado}
+              disabled={items.length === 0 || !clienteSeleccionadoId}
               className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400"
             >
               <FileDown size={18} />
@@ -335,7 +406,7 @@ export default function NuevaCotizacionPage() {
             </button>
             <button
               onClick={handleGuardarCotizacion}
-              disabled={items.length === 0 || !clienteSeleccionado}
+              disabled={items.length === 0 || !clienteSeleccionadoId}
               className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400"
             >
               Guardar Cotización
@@ -346,5 +417,3 @@ export default function NuevaCotizacionPage() {
     </div>
   );
 }
-
-    
