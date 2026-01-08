@@ -123,169 +123,147 @@ export default function NuevaCotizacionPage() {
     }
   };
 
-  const generarPDF = (vigenciaDias = 8, observaciones = '') => {
-    const cliente = clientes.find(c => c.id === clienteSeleccionadoId);
-    if (!cliente) {
-      alert('Selecciona un cliente primero.');
+  const generarPDF = () => {
+    const clienteSeleccionado = clientes.find(c => c.id === clienteSeleccionadoId);
+    if (!clienteSeleccionado) {
+      alert('Por favor, selecciona un cliente para generar el PDF.');
       return;
     }
-  
+
     const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
   
-    // ---------------------------------------------------------------------------
-    // COLORES LIQUI MOLY
-    // ---------------------------------------------------------------------------
-    const azul: [number, number, number] = [0, 56, 168];
-    const rojo: [number, number, number] = [227, 6, 19];
+    // Colores Liqui Moly
+    const AZUL = '#0033A0';
+    const ROJO = '#E30613';
   
-    // ---------------------------------------------------------------------------
-    // HEADER (FRANJAS + LOGO TEXTO)
-    // ---------------------------------------------------------------------------
-    doc.setFillColor(...azul);
-    doc.rect(0, 0, pageWidth, 18, 'F');
+    const marginX = 14;
+    let cursorY = 20;
   
-    doc.setFillColor(...rojo);
-    doc.rect(0, 18, pageWidth, 4, 'F');
+    // ─────────────────────────────
+    // ENCABEZADO LIQUI MOLY
+    // ─────────────────────────────
+    doc.setFillColor(AZUL);
+    doc.rect(0, 0, 210, 18, 'F');
   
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('LIQUI MOLY', 14, 12);
+    doc.setFillColor(ROJO);
+    doc.rect(0, 18, 210, 4, 'F');
   
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('FOR THE DRIVERS', 14, 17);
+    doc.setTextColor('#FFFFFF');
+    doc.setFontSize(12);
+    doc.text('LIQUI MOLY', marginX, 12);
+    doc.setFontSize(8);
+    doc.text('FOR THE DRIVERS', marginX, 16);
   
-    // ---------------------------------------------------------------------------
-    // TÍTULO
-    // ---------------------------------------------------------------------------
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Cotización', pageWidth - 14, 34, { align: 'right' });
+    cursorY = 30;
+    doc.setTextColor('#000000');
   
-    // ---------------------------------------------------------------------------
-    // DATOS DEL ASESOR (ARRIBA)
-    // ---------------------------------------------------------------------------
+    // ─────────────────────────────
+    // DATOS ASESOR
+    // ─────────────────────────────
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
+    doc.text('José Ademar Vázquez', marginX, cursorY);
+    cursorY += 5;
   
-    let headerY = 42;
-  
-    doc.text('José Ademar Vázquez', 14, headerY);
     doc.setFont('helvetica', 'normal');
-    doc.text('ASESOR DE VENTAS', 14, headerY + 5);
+    doc.text('ASESOR DE VENTAS', marginX, cursorY);
+    cursorY += 5;
   
-    doc.text('Tel: (52-55) 5598 1718 | 5598 1719', 14, headerY + 12);
-    doc.text('Cel: 44 3618 8484', 14, headerY + 17);
-    doc.text('Email: ademar.vazquez@liqui-moly.mx', 14, headerY + 22);
+    doc.text('Tel: (52-55) 5598 1718 | 5598 1719', marginX, cursorY);
+    cursorY += 5;
   
-    // ---------------------------------------------------------------------------
-    // DATOS CLIENTE Y FECHAS
-    // ---------------------------------------------------------------------------
+    doc.text('Cel: 44 3618 8484', marginX, cursorY);
+    cursorY += 5;
+  
+    doc.text('Email: ademar.vazquez@liqui-moly.mx', marginX, cursorY);
+    cursorY += 8;
+  
+    // ─────────────────────────────
+    // DATOS CLIENTE + FECHAS
+    // ─────────────────────────────
     const fechaEmision = new Date();
-    const fechaVigencia = new Date();
-    fechaVigencia.setDate(fechaEmision.getDate() + vigenciaDias);
+    const vigenciaDias = 7;
+    const fechaVigencia = new Date(fechaEmision);
+    fechaVigencia.setDate(fechaVigencia.getDate() + vigenciaDias);
   
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-  
-    let clienteY = 70;
-    doc.text('Cliente:', 14, clienteY);
     doc.setFont('helvetica', 'bold');
-    doc.text(cliente.nombre, 32, clienteY);
+    doc.text('Cotización', 150, 30);
   
     doc.setFont('helvetica', 'normal');
-    doc.text('Dirección:', 14, clienteY + 6);
-    doc.text(cliente.domicilio || '—', 32, clienteY + 6);
+    doc.text(`Fecha emisión: ${fechaEmision.toLocaleDateString()}`, 150, 36);
+    doc.text(`Vigencia hasta: ${fechaVigencia.toLocaleDateString()}`, 150, 42);
   
-    doc.setFontSize(10);
+    cursorY += 4;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Cliente: ${clienteSeleccionado?.nombre || ''}`, marginX, cursorY);
+    cursorY += 5;
+  
     doc.setFont('helvetica', 'normal');
+    doc.text(`Dirección: ${clienteSeleccionado?.domicilio || ''}`, marginX, cursorY);
+    cursorY += 10;
   
-    doc.text(`Fecha emisión: ${fechaEmision.toLocaleDateString()}`, pageWidth - 14, 46, { align: 'right' });
-    doc.text(`Vigencia hasta: ${fechaVigencia.toLocaleDateString()}`, pageWidth - 14, 52, { align: 'right' });
-  
-    // ---------------------------------------------------------------------------
-    // TABLA DE PRODUCTOS
-    // ---------------------------------------------------------------------------
+    // ─────────────────────────────
+    // TABLA PRODUCTOS
+    // ─────────────────────────────
     autoTable(doc, {
-      startY: clienteY + 12,
+      startY: cursorY,
       head: [['Código', 'Producto', 'Cantidad', 'Precio Unit.', 'Total']],
       body: items.map((p) => [
         p.codigo,
         p.nombre,
         p.cantidad.toString(),
         `$${p.precio.toFixed(2)}`,
-        `$${(p.precio * p.cantidad).toFixed(2)}`,
+        `$${(p.cantidad * p.precio).toFixed(2)}`
       ]),
-      theme: 'grid',
       headStyles: {
-        fillColor: azul,
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
+        fillColor: AZUL,
+        textColor: '#FFFFFF',
       },
       styles: {
         fontSize: 9,
-        cellPadding: 4,
-      },
-      columnStyles: {
-        2: { halign: 'center' },
-        3: { halign: 'right' },
-        4: { halign: 'right' },
       },
     });
   
-    let finalY = (doc as any).lastAutoTable.finalY;
+    cursorY = (doc as any).lastAutoTable.finalY + 8;
   
-    // ---------------------------------------------------------------------------
-    // OBSERVACIONES
-    // ---------------------------------------------------------------------------
-    const obsText = observaciones || '• Se acepta pago con terminal bancaria.\n• Precios sujetos a disponibilidad.\n• Tiempo de entrega estimado: 24 a 48 hrs.';
-    
-    let obsY = finalY + 8;
-  
-    doc.setDrawColor(...azul);
-    doc.rect(14, obsY, pageWidth - 28, 28);
-  
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('Observaciones:', 16, obsY + 6);
-  
-    doc.setFont('helvetica', 'normal');
-    doc.text(obsText, 16, obsY + 12);
-
-    // Ajustamos la posición de los totales para que no se solapen con las observaciones
-    let totalsY = obsY + 36;
-  
-    // ---------------------------------------------------------------------------
+    // ─────────────────────────────
     // TOTALES
-    // ---------------------------------------------------------------------------
-    doc.setFontSize(10);
+    // ─────────────────────────────
     doc.setFont('helvetica', 'normal');
+    doc.text(`Subtotal: $${subtotal.toFixed(2)}`, 140, cursorY);
+    cursorY += 5;
   
-    doc.text(`Subtotal:`, pageWidth - 60, totalsY);
-    doc.text(`$${subtotal.toFixed(2)}`, pageWidth - 14, totalsY, { align: 'right' });
+    doc.text(`Total descuentos: -$${totalDescuentos.toFixed(2)}`, 140, cursorY);
+    cursorY += 6;
   
-    totalsY += 6;
-    doc.text(`Total descuentos:`, pageWidth - 60, totalsY);
-    doc.setTextColor(...rojo);
-    doc.text(`-$${totalDescuentos.toFixed(2)}`, pageWidth - 14, totalsY, { align: 'right' });
-  
-    totalsY += 10;
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`TOTAL:`, pageWidth - 60, totalsY);
-    doc.setTextColor(...rojo);
-    doc.text(`$${total.toFixed(2)}`, pageWidth - 14, totalsY, { align: 'right' });
+    doc.setTextColor(ROJO);
+    doc.text(`TOTAL: $${total.toFixed(2)}`, 140, cursorY);
+    doc.setTextColor('#000000');
   
-    // ---------------------------------------------------------------------------
+    cursorY += 12;
+  
+    // ─────────────────────────────
+    // OBSERVACIONES
+    // ─────────────────────────────
+    doc.setDrawColor(AZUL);
+    doc.rect(marginX, cursorY, 182, 22);
+  
+    doc.setFont('helvetica', 'bold');
+    doc.text('Observaciones:', marginX + 2, cursorY + 6);
+  
+    doc.setFont('helvetica', 'normal');
+    const observaciones = '';
+    const obsTexto =
+      observaciones?.trim() ||
+      '• Se acepta pago con terminal bancaria.\n• Precios sujetos a disponibilidad.\n• Tiempo de entrega estimado: 24 a 48 hrs.';
+  
+    doc.text(obsTexto, marginX + 2, cursorY + 12);
+  
+    // ─────────────────────────────
     // GUARDAR
-    // ---------------------------------------------------------------------------
-    doc.save(`cotizacion-${cliente.nombre.replace(/\s/g, '_')}.pdf`);
+    // ─────────────────────────────
+    doc.save(`cotizacion-${clienteSeleccionado?.nombre || 'cliente'}.pdf`);
   };
 
   return (
