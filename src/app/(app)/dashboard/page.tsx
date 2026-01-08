@@ -64,14 +64,14 @@ const dashboardCards = [
     icon: Droplet,
   },
   {
-    title: "Calculadora de productos",
-    description: "Obtén recomendaciones de productos por IA.",
+    title: "Fichas Técnicas Liqui Moly",
+    description: "Consulta fichas técnicas",
     href: "/calculadora",
     icon: Calculator,
   },
   {
-    title: "Soporte IA",
-    description: "Asistente inteligente",
+    title: "Asesor Digital",
+    description: "Recomendaciones personalizadas según el problema de tu vehículo",
     href: "/soporte-ia",
     icon: Bot,
   },
