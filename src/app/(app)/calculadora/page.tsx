@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import {
   calcularFuncionesRequeridas,
   obtenerProductosRecomendados
@@ -10,7 +9,6 @@ import {
 import { ProductoLiquiMoly } from '@/lib/calculadora/producto';
 import { obtenerProductosFirestore } from '@/lib/firebase/productos';
 import { adaptarProductoFirestore } from '@/lib/calculadora/adaptadorProductos';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export default function CalculadoraProductos() {
   const [tipoVehiculo, setTipoVehiculo] = useState<'auto' | 'camioneta' | 'moto' | 'camion'>('auto');
@@ -57,25 +55,12 @@ export default function CalculadoraProductos() {
     setRecomendados(productosRecomendados);
   };
 
-  const calculatorImage = PlaceHolderImages.find(img => img.id === 'calculator-hero');
-
   if (loading) {
     return <p className="p-6">Cargando productos...</p>;
   }
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {calculatorImage && (
-        <div className="relative w-full h-64 rounded-lg overflow-hidden mb-6">
-          <Image
-            src={calculatorImage.imageUrl}
-            alt={calculatorImage.description}
-            data-ai-hint={calculatorImage.imageHint}
-            fill
-            className="object-cover"
-          />
-        </div>
-      )}
 
       <h1 className="text-2xl font-bold">Calculadora de Productos</h1>
 
