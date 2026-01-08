@@ -35,6 +35,8 @@ export default function NuevaCotizacionPage() {
   const [items, setItems] = useState<ItemCotizacion[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [descuentos, setDescuentos] = useState<(number | undefined)[]>([undefined, undefined, undefined, undefined]);
+  const [observaciones, setObservaciones] = useState('');
+  const [vigenciaDias, setVigenciaDias] = useState(7);
   const router = useRouter();
 
   useEffect(() => {
@@ -124,12 +126,12 @@ export default function NuevaCotizacionPage() {
   };
 
   const generarPDF = () => {
-    const clienteSeleccionado = clientes.find(c => c.id === clienteSeleccionadoId);
+    const clienteSeleccionado = clientes.find((c) => c.id === clienteSeleccionadoId);
     if (!clienteSeleccionado) {
       alert('Por favor, selecciona un cliente para generar el PDF.');
       return;
     }
-
+    
     const doc = new jsPDF();
   
     // Colores Liqui Moly
@@ -182,9 +184,9 @@ export default function NuevaCotizacionPage() {
     // DATOS CLIENTE + FECHAS
     // ─────────────────────────────
     const fechaEmision = new Date();
-    const vigenciaDias = 7;
+    const diasVigencia = vigenciaDias || 7;
     const fechaVigencia = new Date(fechaEmision);
-    fechaVigencia.setDate(fechaVigencia.getDate() + vigenciaDias);
+    fechaVigencia.setDate(fechaVigencia.getDate() + diasVigencia);
   
     doc.setFont('helvetica', 'bold');
     doc.text('Cotización', 150, 30);
@@ -253,7 +255,6 @@ export default function NuevaCotizacionPage() {
     doc.text('Observaciones:', marginX + 2, cursorY + 6);
   
     doc.setFont('helvetica', 'normal');
-    const observaciones = '';
     const obsTexto =
       observaciones?.trim() ||
       '• Se acepta pago con terminal bancaria.\n• Precios sujetos a disponibilidad.\n• Tiempo de entrega estimado: 24 a 48 hrs.';
