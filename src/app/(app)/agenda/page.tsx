@@ -244,8 +244,8 @@ export default function AgendaPage() {
       return new Date() > fechaLimite; // Vencido si hoy es después de la fecha límite
   });
 
-  const frecuenciaVencidaSet = new Set(clientesVencidos.map(c => c.id));
-  const sinVisitaSemanaSet = new Set(clientesSinVisitaReciente.map(c => c.id));
+  const frecuenciaVencidaSet = new Set(clientesVencidos.map(c => c.id).filter((id): id is string => typeof id === 'string'));
+  const sinVisitaSemanaSet = new Set(clientesSinVisitaReciente.map(c => c.id).filter((id): id is string => typeof id === 'string'));
 
   const urgenciaSets = {
     frecuenciaVencida: frecuenciaVencidaSet,
@@ -450,13 +450,13 @@ export default function AgendaPage() {
                   
                   const delDia = [...delDiaOriginal].sort((a, b) => {
                     const urgenciaDiff =
-                        getUrgenciaScore(a.id, urgenciaSets) -
-                        getUrgenciaScore(b.id, urgenciaSets);
+                        getUrgenciaScore(a.id!, urgenciaSets) -
+                        getUrgenciaScore(b.id!, urgenciaSets);
 
                     if (urgenciaDiff !== 0) return urgenciaDiff;
 
-                    const atrasoA = getDiasAtraso(a.id, ultimaVisitaMap, hoy);
-                    const atrasoB = getDiasAtraso(b.id, ultimaVisitaMap, hoy);
+                    const atrasoA = getDiasAtraso(a.id!, ultimaVisitaMap, hoy);
+                    const atrasoB = getDiasAtraso(b.id!, ultimaVisitaMap, hoy);
 
                     return atrasoB - atrasoA; // más atraso primero
                   });
@@ -505,13 +505,13 @@ export default function AgendaPage() {
                       <CollapsibleContent>
                         <ul className="mt-2 space-y-2 border-l-2 pl-6 ml-3">
                           {delDia.map((cliente) => {
-                             const textoUrgencia = getTextoUrgencia(cliente.id, {
+                             const textoUrgencia = getTextoUrgencia(cliente.id!, {
                                 frecuenciaVencida: urgenciaSets.frecuenciaVencida,
                                 sinVisitaSemana: urgenciaSets.sinVisitaSemana,
                                 ultimaVisitaMap,
                                 hoy,
                              });
-                             const urgenciaScore = getUrgenciaScore(cliente.id, urgenciaSets);
+                             const urgenciaScore = getUrgenciaScore(cliente.id!, urgenciaSets);
                              return (
                              <li
                               key={cliente.id}
@@ -568,3 +568,4 @@ export default function AgendaPage() {
     
 
     
+
