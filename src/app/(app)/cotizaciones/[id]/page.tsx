@@ -41,13 +41,27 @@ export default function CotizacionDetallePage() {
     return <div className="p-6">Cotización no encontrada.</div>;
   }
 
+  const handleExportPDF = () => {
+    // @ts-ignore
+    const totalDescuentos = cotizacion.totalDescuentos ?? cotizacion.subtotal - cotizacion.total;
+
+    generarCotizacionPDF({
+      ...cotizacion,
+      totalDescuentos: totalDescuentos,
+      // @ts-ignore
+      observaciones: cotizacion.observaciones ?? '',
+      // @ts-ignore
+      vigenciaDias: cotizacion.vigenciaDias ?? 7,
+    });
+  }
+
   return (
     <div className="p-6">
       <div className="flex justify-between mb-4">
         <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Volver
         </Button>
-        <Button onClick={() => generarCotizacionPDF(cotizacion)}>
+        <Button onClick={handleExportPDF}>
           <Printer className="mr-2 h-4 w-4" /> Exportar PDF
         </Button>
       </div>
