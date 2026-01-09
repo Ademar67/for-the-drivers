@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ClienteFS } from '@/lib/firestore/clientes';
 
 type NuevaVisita = {
@@ -17,19 +17,31 @@ export default function AgregarVisitaModal({
   onClose,
   onSave,
   clientes,
+  clienteIdInicial,
 }: {
   open: boolean;
   onClose: () => void;
   onSave: (visita: NuevaVisita) => void;
   clientes: ClienteFS[];
+  clienteIdInicial?: string | null;
 }) {
   const [form, setForm] = useState<NuevaVisita>({
-    clienteId: '',
+    clienteId: clienteIdInicial || '',
     fecha: '',
     hora: '',
     tipo: 'visita',
     notas: '',
   });
+  
+  useEffect(() => {
+    if (open) {
+      setForm(prevForm => ({
+        ...prevForm,
+        clienteId: clienteIdInicial || '',
+      }));
+    }
+  }, [open, clienteIdInicial]);
+
 
   if (!open) return null;
 

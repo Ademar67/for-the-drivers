@@ -566,6 +566,3 @@ export default function AgendaPage() {
 }
 
     
-
-    
-
