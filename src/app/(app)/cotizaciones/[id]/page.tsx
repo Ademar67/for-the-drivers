@@ -62,6 +62,13 @@ export default function CotizacionDetallePage() {
     },
     { subtotal: 0, totalDescuentos: 0 }
   );
+  
+  const cotizacionParaPDF = {
+    ...cotizacion,
+    totalDescuentos,
+    observaciones: '', // Puedes añadir un campo para esto en el futuro
+    vigenciaDias: 7, // Puedes hacerlo configurable
+  };
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -70,7 +77,7 @@ export default function CotizacionDetallePage() {
           <Button variant="outline" onClick={() => router.back()}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Volver
           </Button>
-          <Button onClick={() => generarCotizacionPDF(cotizacion)}>
+          <Button onClick={() => generarCotizacionPDF(cotizacionParaPDF)}>
             <Printer className="mr-2 h-4 w-4" /> Exportar PDF
           </Button>
         </div>

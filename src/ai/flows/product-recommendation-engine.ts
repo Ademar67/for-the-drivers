@@ -9,8 +9,10 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
+import { obtenerProductosFirestore } from '@/lib/firebase/productos';
 
+// Schema for the input of the product recommendation flow.
 const ProductRecommendationInputSchema = z.object({
   customerNeeds: z
     .string()
@@ -20,32 +22,50 @@ const ProductRecommendationInputSchema = z.object({
 });
 export type ProductRecommendationInput = z.infer<typeof ProductRecommendationInputSchema>;
 
+// Schema for the output of the product recommendation flow.
 const ProductRecommendationOutputSchema = z.object({
   recommendedProducts: z
-    .string()
+    .array(z.object({
+      id: z.string(),
+      nombre: z.string(),
+      descripcion: z.string(),
+      justificacion: z.string()
+    }))
     .describe('A list of recommended Liqui Moly products based on the customer needs.'),
 });
 export type ProductRecommendationOutput = z.infer<typeof ProductRecommendationOutputSchema>;
 
-export async function recommendProducts(input: ProductRecommendationInput): Promise<ProductRecommendationOutput> {
-  return recommendProductsFlow(input);
-}
 
 const prompt = ai.definePrompt({
   name: 'productRecommendationPrompt',
-  input: {schema: ProductRecommendationInputSchema},
+  input: {schema: z.object({
+      customerNeeds: ProductRecommendationInputSchema.shape.customerNeeds,
+      productList: z.string().describe("A JSON string of all available products.")
+  })},
   output: {schema: ProductRecommendationOutputSchema},
-  prompt: `You are an expert in Liqui Moly products. A customer has the following needs: {{{customerNeeds}}}. Based on these needs, recommend a list of Liqui Moly products that would be suitable for them. `,
+  prompt: `You are an expert in Liqui Moly products. A customer has the following needs: {{{customerNeeds}}}.
+  
+  Based on these needs, recommend a list of suitable Liqui Moly products from the following list:
+  {{{productList}}}
+  
+  For each recommended product, provide its id, name, a brief description, and a justification for why it's recommended.
+  Return the response as a structured JSON object.`,
 });
 
-const recommendProductsFlow = ai.defineFlow(
+export const recommendProducts = ai.defineFlow(
   {
     name: 'recommendProductsFlow',
     inputSchema: ProductRecommendationInputSchema,
     outputSchema: ProductRecommendationOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
+  async (input) => {
+    const products = await obtenerProductosFirestore();
+    const productList = JSON.stringify(products);
+    
+    const {output} = await prompt({
+        ...input,
+        productList,
+    });
     return output!;
   }
 );
