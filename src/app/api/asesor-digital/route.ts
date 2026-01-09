@@ -1,6 +1,4 @@
 
-'use server';
-
 import { NextResponse } from 'next/server';
 import { recommendProducts, ProductRecommendationInput } from '@/ai/flows/product-recommendation-engine';
 
