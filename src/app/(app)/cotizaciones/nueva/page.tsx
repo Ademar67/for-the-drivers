@@ -101,6 +101,11 @@ export default function NuevaCotizacionPage() {
         return;
       }
 
+      if (!cliente.id) {
+        alert("Error: el cliente no tiene un ID válido.");
+        return;
+      }
+
       await crearCotizacion({
         clienteId: cliente.id,
         clienteNombre: cliente.nombre,

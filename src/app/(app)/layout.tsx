@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 
 import { FirebaseProvider } from '@/firebase/core-provider';
+import { app, db, auth } from "@/lib/firebase";
 
 export default function AppLayout({
   children,
@@ -38,7 +39,7 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <FirebaseProvider>
+    <FirebaseProvider firebaseApp={app} auth={auth} firestore={db}>
       <SidebarProvider>
         <div className="flex min-h-screen w-full">
           <Sidebar>

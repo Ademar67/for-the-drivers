@@ -75,10 +75,12 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
                   <SelectValue placeholder="Selecciona un cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  {clientes.map(cliente => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nombre}
-                    </SelectItem>
+                  {clientes
+                    .filter(cliente => cliente.id)
+                    .map(cliente => (
+                      <SelectItem key={cliente.id!} value={cliente.id!}>
+                        {cliente.nombre}
+                      </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
