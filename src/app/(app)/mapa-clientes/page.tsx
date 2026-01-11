@@ -1,30 +1,17 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { initializeApp } from 'firebase/app';
+import { useFirestore } from '@/firebase/provider';
 import {
   addDoc,
   collection,
   doc,
-  getFirestore,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-
-// -----------------------------------------------------------------------------
-// 🔥 Firebase
-// -----------------------------------------------------------------------------
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
 // -----------------------------------------------------------------------------
 // CONSTANTES / TIPOS
@@ -75,6 +62,7 @@ const hoy: DiaSemana | null = hoyIndex === 0 ? null : DIAS_SEMANA[hoyIndex - 1];
 export default function MapaClientesPage() {
   const mapDivRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const db = useFirestore();
 
   const [clientes, setClientes] = useState<Punto[]>([]);
   const [rutasGuardadas, setRutasGuardadas] = useState<RutaGuardada[]>([]);
@@ -97,6 +85,7 @@ export default function MapaClientesPage() {
   // FIRESTORE: CLIENTES
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    if (!db) return;
     const q = query(collection(db, 'clientes'));
     const unsub = onSnapshot(q, (snapshot) => {
       const data: Punto[] = snapshot.docs.map((ds) => {
@@ -117,12 +106,13 @@ export default function MapaClientesPage() {
     });
 
     return () => unsub();
-  }, []);
+  }, [db]);
 
   // ---------------------------------------------------------------------------
   // FIRESTORE: RUTAS
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    if (!db) return;
     const q = query(collection(db, 'rutas'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
       const data: RutaGuardada[] = snapshot.docs.map((ds) => {
@@ -139,7 +129,7 @@ export default function MapaClientesPage() {
     });
 
     return () => unsub();
-  }, []);
+  }, [db]);
 
   // ---------------------------------------------------------------------------
   // GOOGLE MAPS: CARGA SCRIPT + INIT
@@ -191,7 +181,7 @@ export default function MapaClientesPage() {
   };
 
   const abrirInfoWindow = (punto: Punto, marker: google.maps.Marker) => {
-    if (!map) return;
+    if (!map || !db) return;
 
     if (!infoWindowRef.current) {
       infoWindowRef.current = new google.maps.InfoWindow();
@@ -251,6 +241,7 @@ export default function MapaClientesPage() {
     const bounds = new google.maps.LatLngBounds();
 
     clientes.forEach((c) => {
+      if (!c.lat || !c.lng) return;
       const marker = new google.maps.Marker({
         map,
         position: { lat: c.lat, lng: c.lng },
@@ -266,7 +257,9 @@ export default function MapaClientesPage() {
       markersRef.current.set(c.id, marker);
     });
 
-    map.fitBounds(bounds);
+    if (markersRef.current.size > 0) {
+        map.fitBounds(bounds);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, clientes]);
 
@@ -366,7 +359,7 @@ export default function MapaClientesPage() {
   // GUARDAR RUTA
   // ---------------------------------------------------------------------------
   const guardarRuta = async () => {
-    if (rutaSeleccionada.length < 2 || distanciaKm === null || tiempoMin === null) return;
+    if (!db || rutaSeleccionada.length < 2 || distanciaKm === null || tiempoMin === null) return;
 
     setGuardando(true);
     try {

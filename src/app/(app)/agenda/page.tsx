@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
@@ -87,8 +87,7 @@ function getDiasAtraso(
     return Math.floor(diffMs / (1000 * 60 * 60 * 24))
   }
 
-
-export default function AgendaPage() {
+function AgendaView() {
   const searchParams = useSearchParams();
   const clienteIdFromUrl = searchParams.get('clienteId');
   
@@ -565,4 +564,10 @@ export default function AgendaPage() {
   );
 }
 
-    
+export default function AgendaPage() {
+  return (
+    <Suspense fallback={<div>Cargando agenda...</div>}>
+      <AgendaView />
+    </Suspense>
+  );
+}
