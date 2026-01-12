@@ -1,15 +1,34 @@
+
 'use client';
 
 import { useState } from 'react';
-import { Bot, User } from 'lucide-react';
+import { Bot, User, FileText, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+
+interface ProductCardData {
+  name: string;
+  sku?: string;
+  why?: string;
+  howToUse?: string;
+  category?: 'tratamientos' | 'aceites' | 'mantenimiento';
+  techSheetUrl?: string;
+  productUrl?: string;
+}
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  products?: ProductCardData[];
 }
 
 export default function SoporteIAPage() {
@@ -49,6 +68,7 @@ export default function SoporteIAPage() {
       const assistantMessage: Message = {
         role: 'assistant',
         content: data.answer,
+        products: data.products || [],
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -86,15 +106,45 @@ export default function SoporteIAPage() {
                 <AvatarFallback>IA</AvatarFallback>
               </Avatar>
             )}
-            <div
-              className={cn(
-                'max-w-md p-3 rounded-lg',
-                message.role === 'user'
-                  ? 'bg-blue-600 text-white rounded-br-none'
-                  : 'bg-gray-100 text-gray-800 rounded-bl-none'
-              )}
-            >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            <div className="flex flex-col gap-2 max-w-md">
+                <div
+                  className={cn(
+                    'p-3 rounded-lg',
+                    message.role === 'user'
+                      ? 'bg-blue-600 text-white rounded-br-none'
+                      : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                  )}
+                >
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                </div>
+                
+                {message.products && message.products.length > 0 && (
+                    <div className="grid grid-cols-1 gap-2 mt-2">
+                        {message.products.map((product, pIndex) => (
+                            <Card key={pIndex} className="bg-gray-50">
+                                <CardHeader className="p-4">
+                                  <CardTitle className="text-base">{product.name}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4 text-sm text-gray-600 space-y-2">
+                                  {product.why && <p><strong>Por qué:</strong> {product.why}</p>}
+                                  {product.howToUse && <p><strong>Modo de uso:</strong> {product.howToUse}</p>}
+                                </CardContent>
+                                <CardFooter className="p-4 flex gap-2">
+                                    {product.techSheetUrl && (
+                                        <a href={product.techSheetUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'flex items-center gap-1')}>
+                                            <FileText size={14} /> Ficha
+                                        </a>
+                                    )}
+                                     {product.productUrl && (
+                                        <a href={product.productUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'flex items-center gap-1')}>
+                                            <ExternalLink size={14} /> Ver producto
+                                        </a>
+                                    )}
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
+                )}
             </div>
              {message.role === 'user' && (
               <Avatar className="w-8 h-8">
@@ -144,3 +194,5 @@ export default function SoporteIAPage() {
     </div>
   );
 }
+
+const { buttonVariants } = require("@/components/ui/button");
