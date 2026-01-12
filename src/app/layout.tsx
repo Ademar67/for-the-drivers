@@ -53,6 +53,10 @@ export default function RootLayout({
 
   return (
     <html lang="es">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#003A8F" />
+      </head>
       <body>
         {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
         <FirebaseClientProvider>
