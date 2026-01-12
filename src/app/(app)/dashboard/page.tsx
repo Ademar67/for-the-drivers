@@ -1,4 +1,3 @@
-
 import Link from "next/link";
 import {
   Users,
@@ -9,9 +8,9 @@ import {
   Bot,
   MapPin,
   Droplet,
-  Map,
   UserPlus,
   ClipboardList,
+  BookOpen,
 } from "lucide-react";
 
 const dashboardCards = [
@@ -58,10 +57,10 @@ const dashboardCards = [
     icon: FileText,
   },
   {
-    title: "Guias Liqui Moly",
-    description: "Descubre el Producto ideal para cada necesidad.",
+    title: "Guías Liqui Moly",
+    description: "Guías de aceites y tratamientos",
     href: "/guias-liqui-moly",
-    icon: Droplet,
+    icon: BookOpen,
   },
   {
     title: "Fichas Técnicas Liqui Moly",
@@ -71,7 +70,8 @@ const dashboardCards = [
   },
   {
     title: "Asesor Digital",
-    description: "Recomendaciones personalizadas según el problema de tu vehículo",
+    description:
+      "Recomendaciones personalizadas según el problema de tu vehículo",
     href: "/soporte-ia",
     icon: Bot,
   },
