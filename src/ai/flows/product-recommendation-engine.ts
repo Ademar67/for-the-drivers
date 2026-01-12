@@ -11,6 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import { obtenerProductosFirestore } from '@/lib/firebase/productos';
+import { Producto } from '@/lib/firebase-types';
 
 // Schema for the input of the product recommendation flow.
 const ProductRecommendationInputSchema = z.object({
@@ -59,8 +60,10 @@ export const recommendProducts = ai.defineFlow(
     outputSchema: ProductRecommendationOutputSchema,
   },
   async (input) => {
-    const products = await obtenerProductosFirestore();
-    const productList = JSON.stringify(products);
+    const allProducts = await obtenerProductosFirestore();
+    // @ts-ignore
+    const activeProducts = allProducts.filter(p => p.activo);
+    const productList = JSON.stringify(activeProducts);
     
     const {output} = await prompt({
         ...input,
