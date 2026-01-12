@@ -24,6 +24,7 @@ export default function SoporteIAPage() {
 
     const userMessage: Message = { role: 'user', content: query };
     setMessages(prev => [...prev, userMessage]);
+    const currentQuery = query;
     setQuery('');
     setLoading(true);
     setError(null);
@@ -32,7 +33,7 @@ export default function SoporteIAPage() {
       const response = await fetch('/api/asesor-digital', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ consulta: query }),
+        body: JSON.stringify({ consulta: currentQuery }),
       });
 
       if (!response.ok) {
@@ -41,9 +42,13 @@ export default function SoporteIAPage() {
 
       const data = await response.json();
       
+      if (!data || !data.answer) {
+         throw new Error('La respuesta de la API está vacía o no tiene el formato esperado.');
+      }
+
       const assistantMessage: Message = {
         role: 'assistant',
-        content: data.answer || 'No se recibió una respuesta válida.',
+        content: data.answer,
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -134,6 +139,7 @@ export default function SoporteIAPage() {
             {loading ? 'Consultando...' : 'Consultar'}
           </Button>
         </form>
+         {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
       </div>
     </div>
   );
