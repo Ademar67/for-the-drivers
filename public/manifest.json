@@ -1,5 +1,5 @@
 {
-  "name": "For the Drivers",
+  "name": "Centro de Ventas Liqui Moly",
   "short_name": "Liqui Moly",
   "description": "Centro de ventas y asesor digital Liqui Moly",
   "start_url": "/",
@@ -15,7 +15,8 @@
     {
       "src": "/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
