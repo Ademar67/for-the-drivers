@@ -33,11 +33,11 @@ export default function SoporteIAPage() {
       const response = await fetch('/api/asesor-digital', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ consulta: currentQuery }),
+        body: JSON.stringify({ query: currentQuery }),
       });
 
       if (!response.ok) {
-        throw new Error('No se pudo obtener una respuesta del asesor.');
+        throw new Error('No se pudo obtener una respuesta del asesor. Código: ' + response.status);
       }
 
       const data = await response.json();

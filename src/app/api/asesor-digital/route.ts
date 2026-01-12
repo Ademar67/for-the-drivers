@@ -2,21 +2,28 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
-import { recommendProducts, ProductRecommendationInput } from '@/ai/flows/product-recommendation-engine';
+import { askSupportAssistant, AiSupportAssistantInput } from '@/ai/flows/ai-support-assistant';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     
-    const input: ProductRecommendationInput = {
-      customerNeeds: JSON.stringify(body),
-    };
+    // El frontend envía un objeto como: { query: "texto del usuario" }
+    // Lo pasamos directamente al flujo de IA.
+    const input: AiSupportAssistantInput = body;
 
-    const result = await recommendProducts(input);
+    if (!input.query) {
+      return new NextResponse('La consulta (query) es requerida', { status: 400 });
+    }
 
+    const result = await askSupportAssistant(input);
+
+    // El flujo devuelve un objeto como: { answer: "Respuesta de la IA" }
+    // Lo devolvemos directamente al frontend.
     return NextResponse.json(result);
+    
   } catch (error: any) {
     console.error('[ASESOR_DIGITAL_ERROR]', error);
-    return new NextResponse('Internal Error', { status: 500 });
+    return new NextResponse('Error interno del servidor', { status: 500 });
   }
 }
