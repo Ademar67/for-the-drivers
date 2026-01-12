@@ -23,16 +23,20 @@ const ProductRecommendationInputSchema = z.object({
 });
 export type ProductRecommendationInput = z.infer<typeof ProductRecommendationInputSchema>;
 
+const ProductCardSchema = z.object({
+    name: z.string().describe("Nombre del producto"),
+    sku: z.string().optional().describe("código si lo conoces"),
+    why: z.string().optional().describe("por qué aplica al problema"),
+    howToUse: z.string().optional().describe("cómo se usa"),
+    category: z.enum(["tratamientos", "aceites", "mantenimiento"]).optional(),
+    techSheetUrl: z.string().url().optional().describe("url si existe"),
+    productUrl: z.string().url().optional().describe("url si existe")
+});
+
 // Schema for the output of the product recommendation flow.
 const ProductRecommendationOutputSchema = z.object({
-  recommendedProducts: z
-    .array(z.object({
-      id: z.string(),
-      nombre: z.string(),
-      descripcion: z.string(),
-      justificacion: z.string()
-    }))
-    .describe('A list of recommended Liqui Moly products based on the customer needs.'),
+  answer: z.string().describe("texto breve y claro en español"),
+  products: z.array(ProductCardSchema).describe("Lista de productos recomendados. Si no hay productos, devuelve un array vacío.")
 });
 export type ProductRecommendationOutput = z.infer<typeof ProductRecommendationOutputSchema>;
 
@@ -44,13 +48,33 @@ const prompt = ai.definePrompt({
       productList: z.string().describe("A JSON string of all available products.")
   })},
   output: {schema: ProductRecommendationOutputSchema},
-  prompt: `You are an expert in Liqui Moly products. A customer has the following needs: {{{customerNeeds}}}.
+  prompt: `INSTRUCCIONES
+Responde SIEMPRE en JSON válido, sin texto adicional, sin markdown.
+Debes devolver un objeto con esta forma:
+
+{
+  "answer": "texto breve y claro en español",
+  "products": [
+    {
+      "name": "Nombre del producto",
+      "sku": "código si lo conoces",
+      "why": "por qué aplica al problema",
+      "howToUse": "cómo se usa",
+      "category": "tratamientos|aceites|mantenimiento",
+      "techSheetUrl": "url si existe",
+      "productUrl": "url si existe"
+    }
+  ]
+}
+
+Si no hay productos, devuelve "products": [].
+Nunca inventes fichas técnicas. Si no sabes la URL, omite techSheetUrl.
+
+A customer has the following needs: {{{customerNeeds}}}.
   
-  Based on these needs, recommend a list of suitable Liqui Moly products from the following list:
-  {{{productList}}}
-  
-  For each recommended product, provide its id, name, a brief description, and a justification for why it's recommended.
-  Return the response as a structured JSON object.`,
+Based on these needs, recommend a list of suitable Liqui Moly products from the following list:
+{{{productList}}}
+`,
 });
 
 export const recommendProducts = ai.defineFlow(
