@@ -56,3 +56,22 @@
     color: hsl(var(--sidebar-accent-foreground));
   }
 }
+
+@keyframes splashFade {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-splash {
+  animation: splashFade 0.8s ease-out forwards;
+}
