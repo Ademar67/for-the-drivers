@@ -20,7 +20,7 @@ export default function SoporteIAPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    if (!query.trim() || loading) return;
 
     const userMessage: Message = { role: 'user', content: query };
     setMessages(prev => [...prev, userMessage]);
@@ -48,10 +48,11 @@ export default function SoporteIAPage() {
       setMessages(prev => [...prev, assistantMessage]);
 
     } catch (err: any) {
-      setError(err.message || 'Ocurrió un error al consultar al asesor.');
+      const errorMessageContent = err.message || 'Lo siento, no pude procesar tu solicitud en este momento.';
+      setError(errorMessageContent);
       const errorMessage: Message = {
         role: 'assistant',
-        content: err.message || 'Lo siento, no pude procesar tu solicitud en este momento.',
+        content: errorMessageContent,
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -130,7 +131,7 @@ export default function SoporteIAPage() {
             }}
           />
           <Button type="submit" disabled={loading || !query.trim()}>
-            {loading ? 'Enviando...' : 'Enviar'}
+            {loading ? 'Consultando...' : 'Consultar'}
           </Button>
         </form>
       </div>
