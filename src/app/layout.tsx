@@ -1,7 +1,10 @@
+'use client';
 
-import "./globals.css";
-import Image from "next/image";
-import Link from "next/link";
+import { useEffect, useState } from 'react';
+import SplashScreen from '@/components/SplashScreen';
+import './globals.css';
+import Image from 'next/image';
+import Link from 'next/link';
 
 import {
   Sidebar,
@@ -15,7 +18,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar";
+} from '@/components/ui/sidebar';
 
 import {
   Home,
@@ -30,22 +33,28 @@ import {
   Map,
   UserPlus,
   ClipboardList,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { FirebaseClientProvider } from "@/firebase/client-provider";
-
-export const metadata = {
-  title: "Liqui Moly Sales Hub",
-};
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [showSplash, setShowSplash] = useState(false);
+
+  useEffect(() => {
+    const seen = localStorage.getItem('splashSeen');
+    if (!seen) {
+      setShowSplash(true);
+    }
+  }, []);
+
   return (
     <html lang="es">
       <body>
+        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
         <FirebaseClientProvider>
           <SidebarProvider>
             <div className="flex min-h-screen w-full">
@@ -81,7 +90,7 @@ export default function RootLayout({
                         </SidebarMenuButton>
                       </SidebarMenuItem>
 
-                       <SidebarMenuItem>
+                      <SidebarMenuItem>
                         <SidebarMenuButton asChild>
                           <Link href="/prospectos">
                             <UserPlus />
@@ -89,7 +98,7 @@ export default function RootLayout({
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                      
+
                       <SidebarMenuItem>
                         <SidebarMenuButton asChild>
                           <Link href="/agenda">
@@ -98,7 +107,7 @@ export default function RootLayout({
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                      
+
                       <SidebarMenuItem>
                         <SidebarMenuButton asChild>
                           <Link href="/cotizaciones">
@@ -107,8 +116,8 @@ export default function RootLayout({
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                      
-                       <SidebarMenuItem>
+
+                      <SidebarMenuItem>
                         <SidebarMenuButton asChild>
                           <Link href="/mapa-visitas">
                             <Map />
