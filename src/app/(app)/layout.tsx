@@ -28,6 +28,7 @@ import {
   Bot,
   UserPlus,
   ClipboardList,
+  FileSearch
 } from 'lucide-react';
 
 import { FirebaseProvider } from '@/firebase/core-provider';
@@ -139,9 +140,9 @@ export default function AppLayout({
 
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <Link href="/calculadora">
-                        <Calculator />
-                        <span>Calculadora</span>
+                      <Link href="/fichas-tecnicas">
+                        <FileSearch />
+                        <span>Fichas Técnicas</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

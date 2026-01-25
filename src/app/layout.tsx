@@ -33,6 +33,7 @@ import {
   Map,
   UserPlus,
   ClipboardList,
+  FileSearch
 } from 'lucide-react';
 
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -172,9 +173,9 @@ export default function RootLayout({
 
                       <SidebarMenuItem>
                         <SidebarMenuButton asChild>
-                          <Link href="/calculadora">
-                            <Calculator />
-                            <span>Calculadora</span>
+                          <Link href="/fichas-tecnicas">
+                            <FileSearch />
+                            <span>Fichas Técnicas</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
