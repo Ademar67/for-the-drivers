@@ -139,9 +139,9 @@ export default function AppLayout({
 
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <Link href="/calculadora">
+                      <Link href="/fichas-tecnicas">
                         <Calculator />
-                        <span>Calculadora</span>
+                        <span>Fichas Técnicas</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
