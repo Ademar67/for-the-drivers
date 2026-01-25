@@ -65,7 +65,7 @@ const dashboardCards = [
   {
     title: "Fichas Técnicas Liqui Moly",
     description: "Consulta fichas técnicas",
-    href: "/calculadora",
+    href: "/fichas-tecnicas",
     icon: Calculator,
   },
   {
