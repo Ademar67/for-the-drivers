@@ -1,26 +1,27 @@
 import { getFichasTecnicas } from "@/lib/fichas-tecnicas";
-import FichasTecnicasCliente from "./fichas-tecnicas-cliente";
+import FichasCatalogoClient from "./FichasCatalogoClient";
+
+export const runtime = "nodejs";
 
 export default async function FichasTecnicasPage() {
-  const { items } = await getFichasTecnicas();
+  const { items, error, detail } = await getFichasTecnicas();
 
-  // The 'Ficha' type in the client component is simpler, so we format the data here.
-  const formattedItems = items.map((item, index) => ({
-    id: item.slug || `${index}`,
-    title: item.nombre,
-    category: item.categoria,
-    url: item.pdfUrl,
-  }));
-
-  return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Fichas Técnicas</h1>
-        <p className="text-sm text-muted-foreground">
-          Total de fichas: {formattedItems.length}
+  // Si hay error, mostramos mensaje simple (no rompe nada)
+  if (error) {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-4 py-8">
+        <h1 className="text-2xl font-semibold">Fichas Técnicas</h1>
+        <p className="mt-3 text-sm text-red-600">
+          Error cargando fichas: {error}
         </p>
+        {detail ? (
+          <pre className="mt-3 whitespace-pre-wrap rounded-xl border p-3 text-xs text-muted-foreground">
+            {detail}
+          </pre>
+        ) : null}
       </div>
-      <FichasTecnicasCliente initialFichas={formattedItems} />
-    </div>
-  );
+    );
+  }
+
+  return <FichasCatalogoClient items={items} />;
 }

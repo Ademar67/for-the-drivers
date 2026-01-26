@@ -85,9 +85,11 @@ export default function FichasClient({ fichas }: Props) {
       </div>
 
       {/* 🪟 Modal */}
-      {pdfActivo && (
-        <PdfModal url={pdfActivo} onClose={() => setPdfActivo(null)} />
-      )}
+      <PdfModal
+        open={!!pdfActivo}
+        url={pdfActivo ?? undefined}
+        onClose={() => setPdfActivo(null)}
+      />
     </>
   );
 }

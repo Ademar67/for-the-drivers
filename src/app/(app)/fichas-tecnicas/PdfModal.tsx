@@ -6,7 +6,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   title?: string;
-  url?: string; // /fichas/Aceite/xxx.pdf
+  url?: string;
 };
 
 export default function PdfModal({ open, onClose, title, url }: Props) {
