@@ -5,20 +5,20 @@ import type { Ficha } from "@/lib/fichas-tecnicas";
 import PdfModal from "./PdfModal";
 
 type Props = {
-  fichas: Ficha[];
+  items: Ficha[];
 };
 
-export default function FichasClient({ fichas }: Props) {
+export default function FichasCatalogoClient({ items = [] }: Props) {
   const [query, setQuery] = useState("");
   const [categoria, setCategoria] = useState<string>("Todas");
   const [pdfActivo, setPdfActivo] = useState<string | null>(null);
 
   const categorias = useMemo(() => {
-    return ["Todas", ...Array.from(new Set(fichas.map(f => f.categoria)))];
-  }, [fichas]);
+    return ["Todas", ...Array.from(new Set(items.map(f => f.categoria)))];
+  }, [items]);
 
   const filtradas = useMemo(() => {
-    return fichas.filter(f => {
+    return items.filter(f => {
       const matchTexto =
         f.nombre.toLowerCase().includes(query.toLowerCase()) ||
         f.archivo.toLowerCase().includes(query.toLowerCase());
@@ -28,7 +28,7 @@ export default function FichasClient({ fichas }: Props) {
 
       return matchTexto && matchCategoria;
     });
-  }, [fichas, query, categoria]);
+  }, [items, query, categoria]);
 
   return (
     <>
