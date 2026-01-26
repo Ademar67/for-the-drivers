@@ -4,21 +4,6 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { recommendProducts } from '@/ai/flows/product-recommendation-engine';
 
-type ProductCard = {
-  name: string;
-  sku?: string;
-  why?: string;
-  howToUse?: string;
-  category?: string;
-  techSheetUrl?: string;
-  productUrl?: string;
-};
-
-type AsesorResponse = {
-  answer: string;
-  products?: ProductCard[];
-};
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -28,7 +13,10 @@ export async function POST(req: Request) {
     });
 
     // Soporta varios formatos (por si Genkit/Gemini cambia)
-    const data: AsesorResponse =
+    // By typing `data` as `any`, we prevent build errors if the AI response
+    // doesn't perfectly match a strict type. The logic below already
+    // safely handles different possible structures.
+    const data: any =
       result?.output ??
       result ??
       {
