@@ -57,10 +57,10 @@ export async function obtenerCotizaciones(): Promise<Cotizacion[]> {
       clienteNombre: data.clienteNombre,
       fecha: data.fecha as Timestamp,
       subtotal: data.subtotal,
-      descuentos: data.descuentos,
+      descuentos: data.descuentos || [],
       total: data.total,
       estado: data.estado,
-      items: data.items,
+      items: data.items || [],
     } as Cotizacion;
   });
 }
@@ -80,10 +80,10 @@ export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | n
     clienteNombre: data.clienteNombre,
     fecha: data.fecha as Timestamp,
     subtotal: data.subtotal,
-    descuentos: data.descuentos,
+    descuentos: data.descuentos || [],
     total: data.total,
     estado: data.estado,
-    items: data.items,
+    items: data.items || [],
   } as Cotizacion;
 }
 
