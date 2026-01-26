@@ -1,48 +1,26 @@
 import { getFichasTecnicas } from "@/lib/fichas-tecnicas";
+import FichasTecnicasCliente from "./fichas-tecnicas-cliente";
 
 export default async function FichasTecnicasPage() {
-  const { items, error, detail } = await getFichasTecnicas();
+  const { items } = await getFichasTecnicas();
 
-  if (error) {
-    return (
-      <main style={{ padding: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: "bold" }}>Fichas Técnicas</h1>
-        <p style={{ marginTop: 12, color: "crimson" }}>
-          Error cargando fichas: {detail}
-        </p>
-      </main>
-    );
-  }
+  // The 'Ficha' type in the client component is simpler, so we format the data here.
+  const formattedItems = items.map((item, index) => ({
+    id: item.slug || `${index}`,
+    title: item.nombre,
+    category: item.categoria,
+    url: item.pdfUrl,
+  }));
 
   return (
-    <main style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>Fichas Técnicas</h1>
-      <p style={{ marginTop: 8, opacity: 0.7 }}>
-        Total de fichas: {items?.length ?? 0}
-      </p>
-
-      <div style={{ marginTop: 24 }}>
-        {(items || []).map((ficha: any) => (
-          <div
-            key={ficha.pdfUrl}
-            style={{
-              border: "1px solid #ddd",
-              borderRadius: 8,
-              padding: 12,
-              marginBottom: 12,
-            }}
-          >
-            <strong>{ficha.nombre}</strong>
-            <div style={{ fontSize: 14, opacity: 0.7 }}>
-              Categoría: {ficha.categoria}
-            </div>
-
-            <a href={ficha.pdfUrl} target="_blank" rel="noreferrer">
-              Ver PDF
-            </a>
-          </div>
-        ))}
+    <div className="mx-auto w-full max-w-4xl px-4 py-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-semibold tracking-tight">Fichas Técnicas</h1>
+        <p className="text-sm text-muted-foreground">
+          Total de fichas: {formattedItems.length}
+        </p>
       </div>
-    </main>
+      <FichasTecnicasCliente initialFichas={formattedItems} />
+    </div>
   );
 }
