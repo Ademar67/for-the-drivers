@@ -7,6 +7,8 @@ import {
   orderBy,
   Timestamp,
   addDoc,
+  doc,
+  deleteDoc,
 } from 'firebase/firestore';
 
 export type ClienteFS = {
@@ -67,4 +69,12 @@ export async function crearCliente(input: {
     frecuencia: input.frecuencia,
     createdAt: Timestamp.now(),
   });
+}
+
+export async function eliminarCliente(id: string) {
+  if (!id) {
+    throw new Error("Se requiere un ID de cliente para eliminarlo.");
+  }
+  const clienteRef = doc(db, 'clientes', id);
+  await deleteDoc(clienteRef);
 }

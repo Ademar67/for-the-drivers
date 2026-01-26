@@ -3,10 +3,22 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
+import { listenClientes, ClienteFS, eliminarCliente } from '@/lib/firestore/clientes';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import { db } from '@/lib/firebase';
-import { Calendar } from 'lucide-react';
+import { Calendar, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
@@ -16,6 +28,16 @@ export default function ClientesPage() {
     const unsub = listenClientes(setClientes);
     return () => unsub();
   }, []);
+
+  const handleDelete = async (id: string) => {
+    try {
+      await eliminarCliente(id);
+      // La lista se refresca automáticamente gracias al listener onSnapshot
+    } catch (error) {
+      console.error("Error al eliminar el cliente:", error);
+      alert("No se pudo eliminar el cliente.");
+    }
+  };
 
   const exportarCSV = () => {
     if (!clientes || clientes.length === 0) {
@@ -90,13 +112,36 @@ export default function ClientesPage() {
                 <td className="p-3">{c.diaVisita ?? '—'}</td>
                 <td className="p-3">{c.frecuencia ?? '—'}</td>
                 <td className="p-3">
-                  <Link
-                    href={`/agenda?clienteId=${c.id}`}
-                    className="flex items-center gap-2 text-blue-600 hover:underline text-sm"
-                  >
-                    <Calendar className="h-4 w-4" />
-                    Ver Agenda
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/agenda?clienteId=${c.id}`}
+                      className="flex items-center gap-2 text-blue-600 hover:underline text-sm"
+                    >
+                      <Calendar className="h-4 w-4" />
+                      Ver Agenda
+                    </Link>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                         <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(c.id!)} className="bg-red-600 hover:bg-red-700">
+                            Eliminar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </td>
               </tr>
             ))}
