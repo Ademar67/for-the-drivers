@@ -12,6 +12,8 @@ import {
   doc,
   getDoc,
   updateDoc,
+  onSnapshot,
+  deleteDoc,
 } from 'firebase/firestore';
 
 export type Visita = {
@@ -45,6 +47,30 @@ export async function crearVisita(visita: CrearVisitaInput) {
   return docRef.id;
 }
 
+export function listenVisitas(callback: (visitas: Visita[]) => void) {
+  const q = query(collection(db, 'visitas'), orderBy('createdAt', 'desc'));
+
+  return onSnapshot(q, (querySnapshot) => {
+    const visitas = querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      const createdAt = data.createdAt as Timestamp;
+      return {
+        id: doc.id,
+        cliente: data.cliente,
+        clienteId: data.clienteId,
+        fecha: data.fecha,
+        hora: data.hora,
+        tipo: data.tipo,
+        estado: data.estado,
+        notas: data.notas,
+        createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
+      } as Visita;
+    });
+    callback(visitas);
+  });
+}
+
+
 export async function obtenerVisitas(): Promise<Visita[]> {
   const q = query(collection(db, 'visitas'), orderBy('createdAt', 'desc'));
   const querySnapshot = await getDocs(q);
@@ -73,4 +99,12 @@ export async function marcarVisitaRealizada(visitaId: string) {
   await updateDoc(visitaRef, {
     estado: 'realizada',
   });
+}
+
+export async function eliminarVisita(id: string) {
+  if (!id) {
+    throw new Error('Se requiere un ID de visita para eliminarla.');
+  }
+  const visitaRef = doc(db, 'visitas', id);
+  await deleteDoc(visitaRef);
 }

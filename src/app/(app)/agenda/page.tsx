@@ -5,18 +5,29 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
-import { crearVisita, obtenerVisitas, Visita } from '@/lib/firestore/visitas';
+import { crearVisita, listenVisitas, Visita, eliminarVisita } from '@/lib/firestore/visitas';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown, PlusCircle, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ChevronDown, PlusCircle, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import AgregarVisitaModal from '@/components/agenda/agregar-visita-modal';
 import { Badge } from '@/components/ui/badge';
 import { cn } from "@/lib/utils";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 
 const DIAS_SEMANA = [
   'lunes',
@@ -112,23 +123,16 @@ function AgendaView() {
   }
 
   useEffect(() => {
-    const unsub = listenClientes(setClientes);
-    
-    async function loadVisitas() {
-      try {
-        setLoading(true);
-        const visitasFromDb = await obtenerVisitas();
-        setVisitas(visitasFromDb);
-      } catch (error) {
-        console.error("Error al cargar las visitas:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
+    const unsubClientes = listenClientes(setClientes);
+    const unsubVisitas = listenVisitas((visitasFromDb) => {
+      setVisitas(visitasFromDb);
+      setLoading(false);
+    });
 
-    loadVisitas();
-
-    return () => unsub();
+    return () => {
+      unsubClientes();
+      unsubVisitas();
+    };
   }, []);
 
   const handleSaveVisita = async (nuevaVisita: {
@@ -151,10 +155,7 @@ function AgendaView() {
       };
       
       await crearVisita(visitaToSave);
-
-      const visitasFromDb = await obtenerVisitas();
-      setVisitas(visitasFromDb);
-
+      // La lista se actualiza sola gracias al listener
     } catch (error) {
       console.error('ERROR AL GUARDAR VISITA:', error);
       alert(
@@ -275,6 +276,10 @@ function AgendaView() {
         return new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
       });
 
+  const visitasRealizadas = visitasFiltradas
+    .filter(v => v.estado === 'realizada')
+    .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
   const planDeHoy = visitasPendientes.slice(0, PLAN_DIARIO_LIMITE);
 
   const renderVisita = (visita: Visita) => {
@@ -391,6 +396,63 @@ function AgendaView() {
             <p className="text-gray-500 italic">No hay visitas pendientes {nombreClienteFiltrado ? `para ${nombreClienteFiltrado}` : ''}.</p>
           )}
         </div>
+        
+        <div>
+            <h2 className="text-xl font-semibold mb-3 text-gray-800 border-t pt-6">
+              Visitas Realizadas ({visitasRealizadas.length})
+            </h2>
+            {loading ? (
+              <p className="text-gray-500 italic">Cargando visitas...</p>
+            ) : visitasRealizadas.length > 0 ? (
+              <ul className="space-y-3">
+                {visitasRealizadas.map((visita) => (
+                  <li key={visita.id} className="p-4 rounded-lg bg-white/70 shadow-sm border opacity-80">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-bold text-gray-800">{visita.cliente}</div>
+                        <div className="text-sm text-gray-500 capitalize">
+                          {visita.tipo} - {visita.fecha} {visita.hora}
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">{visita.notas}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          Realizada
+                        </Badge>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción no se puede deshacer. La visita para <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => eliminarVisita(visita.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-500 italic">No hay visitas realizadas {nombreClienteFiltrado ? `para ${nombreClienteFiltrado}` : ''}.</p>
+            )}
+        </div>
+
 
         {clientesSinVisitaReciente.length > 0 && !clienteIdFromUrl && (
           <div className="border-t pt-6">

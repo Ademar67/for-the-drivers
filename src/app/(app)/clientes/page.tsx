@@ -1,11 +1,9 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { listenClientes, ClienteFS, eliminarCliente } from '@/lib/firestore/clientes';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
-import { db } from '@/lib/firebase';
 import { Calendar, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -36,70 +34,74 @@ export default function ClientesPage() {
       await eliminarCliente(id);
       // La lista se refresca automáticamente gracias al listener onSnapshot
     } catch (error) {
-      console.error("Error al eliminar el cliente:", error);
-      alert("No se pudo eliminar el cliente.");
+      console.error('Error al eliminar el cliente:', error);
+      alert('No se pudo eliminar el cliente.');
     }
   };
 
+  // ✅ CSV más seguro (escapa comas, comillas y saltos de línea)
+  const escapeCSV = (value: unknown) => {
+    const s = String(value ?? '');
+    const needsQuotes = /[",\n]/.test(s);
+    const escaped = s.replace(/"/g, '""');
+    return needsQuotes ? `"${escaped}"` : escaped;
+  };
+
   const exportarCSV = () => {
-    if (!clientes || clientes.length === 0) {
+    if (!clientes.length) {
       alert('No hay clientes para exportar.');
       return;
     }
 
     const headers = ['Nombre', 'Tipo', 'Ciudad', 'Día visita', 'Frecuencia'];
-    const data = clientes.map((c) => [
-      c.nombre,
-      c.tipo,
-      c.ciudad,
-      c.diaVisita || '—',
-      c.frecuencia || '—',
+
+    const rows = clientes.map((c) => [
+      c.nombre ?? '—',
+      c.tipo ?? '—',
+      c.ciudad ?? '—',
+      c.diaVisita ?? '—',
+      c.frecuencia ?? '—',
     ]);
 
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      [headers.join(','), ...data.map((row) => row.join(','))].join('\n');
+    const csv = [headers, ...rows]
+      .map((row) => row.map(escapeCSV).join(','))
+      .join('\n');
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'clientes.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'clientes.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
-
-  if (!clientes) {
-    return <div className="p-6">Cargando clientes...</div>;
-  }
 
   return (
     <div className="p-6">
-      <div className="flex justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-3">
         <h1 className="text-2xl font-bold">Clientes</h1>
+
         <div className="flex gap-2">
-          <button
-            onClick={exportarCSV}
-            className="bg-green-600 text-white px-4 py-2 rounded"
-          >
+          <Button variant="secondary" onClick={exportarCSV}>
             Exportar a CSV
-          </button>
-          <button
-            onClick={() => setOpen(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            + Agregar cliente
-          </button>
+          </Button>
+
+          <Button onClick={() => setOpen(true)}>+ Agregar cliente</Button>
         </div>
       </div>
 
-      {/* Mobile View: Cards */}
+      {/* ✅ Mobile View: Cards */}
       <div className="md:hidden space-y-4">
         {clientes.map((c) => (
           <div key={c.id} className="bg-white p-4 rounded-lg border shadow-sm">
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start gap-3">
               <h3 className="text-lg font-bold text-gray-800">{c.nombre}</h3>
-              <Badge variant={c.tipo === 'cliente' ? 'secondary' : 'outline'}
+
+              <Badge
+                variant={c.tipo === 'cliente' ? 'secondary' : 'outline'}
                 className={cn(
                   'capitalize',
                   c.tipo === 'prospecto' && 'border-green-500 text-green-700',
@@ -109,47 +111,60 @@ export default function ClientesPage() {
                 {c.tipo}
               </Badge>
             </div>
+
             <div className="mt-3 space-y-1 text-sm text-gray-600">
-              <p><span className="font-medium text-gray-500">Ciudad:</span> {c.ciudad}</p>
-              <p><span className="font-medium text-gray-500">Día visita:</span> {c.diaVisita ?? '—'}</p>
-              <p><span className="font-medium text-gray-500">Frecuencia:</span> {c.frecuencia ?? '—'}</p>
+              <p>
+                <span className="font-medium text-gray-500">Ciudad:</span> {c.ciudad}
+              </p>
+              <p>
+                <span className="font-medium text-gray-500">Día visita:</span> {c.diaVisita ?? '—'}
+              </p>
+              <p>
+                <span className="font-medium text-gray-500">Frecuencia:</span> {c.frecuencia ?? '—'}
+              </p>
             </div>
+
             <div className="mt-4 flex items-center justify-end gap-2 border-t pt-3">
-               <Link
-                  href={`/agenda?clienteId=${c.id}`}
-                  className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium"
-                >
-                  <Calendar className="h-4 w-4" />
-                  Agenda
-                </Link>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                     <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-8 w-8">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(c.id!)} className="bg-red-600 hover:bg-red-700">
-                        Eliminar
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+              <Link
+                href={`/agenda?clienteId=${c.id}`}
+                className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium"
+              >
+                <Calendar className="h-4 w-4" />
+                Agenda
+              </Link>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-8 w-8">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDelete(c.id!)}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Eliminar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         ))}
       </div>
 
-
-      {/* Desktop View: Table */}
+      {/* ✅ Desktop View: Table */}
       <div className="hidden md:block rounded-md border">
         <table className="w-full">
           <thead>
@@ -162,6 +177,7 @@ export default function ClientesPage() {
               <th className="p-3 text-left">Acciones</th>
             </tr>
           </thead>
+
           <tbody>
             {clientes.map((c) => (
               <tr key={c.id} className="border-t">
@@ -179,12 +195,14 @@ export default function ClientesPage() {
                       <Calendar className="h-4 w-4" />
                       Ver Agenda
                     </Link>
+
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
+
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
@@ -192,9 +210,13 @@ export default function ClientesPage() {
                             Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
                           </AlertDialogDescription>
                         </AlertDialogHeader>
+
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(c.id!)} className="bg-red-600 hover:bg-red-700">
+                          <AlertDialogAction
+                            onClick={() => handleDelete(c.id!)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
                             Eliminar
                           </AlertDialogAction>
                         </AlertDialogFooter>
