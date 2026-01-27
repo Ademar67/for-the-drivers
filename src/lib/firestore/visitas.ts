@@ -103,8 +103,9 @@ export async function marcarVisitaRealizada(visitaId: string) {
 
 export async function eliminarVisita(id: string) {
   if (!id) {
-    throw new Error('Se requiere un ID de visita para eliminarla.');
+    throw new Error("Se requiere un ID de visita para eliminarla.");
   }
-  const visitaRef = doc(db, 'visitas', id);
+
+  const visitaRef = doc(db, "visitas", id);
   await deleteDoc(visitaRef);
-}
+};
