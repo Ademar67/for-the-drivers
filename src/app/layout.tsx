@@ -1,10 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import SplashScreen from '@/components/SplashScreen';
-import './globals.css';
-import Image from 'next/image';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import SplashScreen from "@/components/SplashScreen";
+import "./globals.css";
+import Link from "next/link";
 
 import {
   Sidebar,
@@ -18,8 +17,8 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
-  useSidebar, // Import the hook
-} from '@/components/ui/sidebar';
+  useSidebar,
+} from "@/components/ui/sidebar";
 
 import {
   Home,
@@ -29,30 +28,27 @@ import {
   FileText,
   MapPin,
   BookOpen,
-  Calculator,
   Bot,
   Map,
   UserPlus,
   ClipboardList,
-  FileSearch
-} from 'lucide-react';
+  FileSearch,
+} from "lucide-react";
 
-import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { FirebaseClientProvider } from "@/firebase/client-provider";
 
 function SidebarNavigation() {
   const { isMobile, setOpenMobile } = useSidebar();
 
   const handleLinkClick = () => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
+    if (isMobile) setOpenMobile(false);
   };
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/dashboard">
+        <SidebarMenuButton asChild>
+          <Link href="/dashboard" onClick={handleLinkClick}>
             <Home />
             <span>Dashboard</span>
           </Link>
@@ -60,8 +56,8 @@ function SidebarNavigation() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/clientes">
+        <SidebarMenuButton asChild>
+          <Link href="/clientes" onClick={handleLinkClick}>
             <Users />
             <span>Clientes</span>
           </Link>
@@ -69,8 +65,8 @@ function SidebarNavigation() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/prospectos">
+        <SidebarMenuButton asChild>
+          <Link href="/prospectos" onClick={handleLinkClick}>
             <UserPlus />
             <span>Prospectos</span>
           </Link>
@@ -78,8 +74,8 @@ function SidebarNavigation() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/agenda">
+        <SidebarMenuButton asChild>
+          <Link href="/agenda" onClick={handleLinkClick}>
             <Calendar />
             <span>Agenda</span>
           </Link>
@@ -87,8 +83,8 @@ function SidebarNavigation() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/cotizaciones">
+        <SidebarMenuButton asChild>
+          <Link href="/cotizaciones" onClick={handleLinkClick}>
             <ClipboardList />
             <span>Cotizaciones</span>
           </Link>
@@ -96,8 +92,8 @@ function SidebarNavigation() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/mapa-visitas">
+        <SidebarMenuButton asChild>
+          <Link href="/mapa-visitas" onClick={handleLinkClick}>
             <Map />
             <span>Mapa de Visitas</span>
           </Link>
@@ -105,8 +101,8 @@ function SidebarNavigation() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/productos">
+        <SidebarMenuButton asChild>
+          <Link href="/productos" onClick={handleLinkClick}>
             <Package />
             <span>Productos</span>
           </Link>
@@ -114,8 +110,8 @@ function SidebarNavigation() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/facturas">
+        <SidebarMenuButton asChild>
+          <Link href="/facturas" onClick={handleLinkClick}>
             <FileText />
             <span>Cobranza</span>
           </Link>
@@ -123,8 +119,8 @@ function SidebarNavigation() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/mapa-clientes">
+        <SidebarMenuButton asChild>
+          <Link href="/mapa-clientes" onClick={handleLinkClick}>
             <MapPin />
             <span>Mapa de Clientes</span>
           </Link>
@@ -132,8 +128,8 @@ function SidebarNavigation() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/guias-liqui-moly">
+        <SidebarMenuButton asChild>
+          <Link href="/guias-liqui-moly" onClick={handleLinkClick}>
             <BookOpen />
             <span>Guías Liqui Moly</span>
           </Link>
@@ -141,8 +137,8 @@ function SidebarNavigation() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/fichas-tecnicas">
+        <SidebarMenuButton asChild>
+          <Link href="/fichas-tecnicas" onClick={handleLinkClick}>
             <FileSearch />
             <span>Fichas Técnicas</span>
           </Link>
@@ -150,8 +146,8 @@ function SidebarNavigation() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild onClick={handleLinkClick}>
-          <Link href="/soporte-ia">
+        <SidebarMenuButton asChild>
+          <Link href="/soporte-ia" onClick={handleLinkClick}>
             <Bot />
             <span>Soporte IA</span>
           </Link>
@@ -161,19 +157,12 @@ function SidebarNavigation() {
   );
 }
 
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [showSplash, setShowSplash] = useState(false);
 
   useEffect(() => {
-    const seen = localStorage.getItem('splashSeen');
-    if (!seen) {
-      setShowSplash(true);
-    }
+    const seen = localStorage.getItem("splashSeen");
+    if (!seen) setShowSplash(true);
   }, []);
 
   return (
@@ -184,17 +173,21 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Liqui Moly" />
-        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+        {/* ✅ usa un archivo que sí existe */}
+        <link rel="apple-touch-icon" href="/logo-liqui-moly.png" />
       </head>
+
       <body>
         {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+
         <FirebaseClientProvider>
           <SidebarProvider>
             <div className="flex min-h-screen w-full">
               <Sidebar>
                 <SidebarHeader>
+                  {/* ✅ usa un archivo que sí existe */}
                   <img
-                    src="/icon-192x192.png"
+                    src="/logo-liqui-moly.png"
                     alt="Liqui Moly"
                     className="h-10 w-10 rounded-sm"
                   />
