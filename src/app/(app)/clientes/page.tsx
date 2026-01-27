@@ -19,6 +19,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
@@ -91,7 +93,64 @@ export default function ClientesPage() {
         </div>
       </div>
 
-      <div className="rounded-md border">
+      {/* Mobile View: Cards */}
+      <div className="md:hidden space-y-4">
+        {clientes.map((c) => (
+          <div key={c.id} className="bg-white p-4 rounded-lg border shadow-sm">
+            <div className="flex justify-between items-start">
+              <h3 className="text-lg font-bold text-gray-800">{c.nombre}</h3>
+              <Badge variant={c.tipo === 'cliente' ? 'secondary' : 'outline'}
+                className={cn(
+                  'capitalize',
+                  c.tipo === 'prospecto' && 'border-green-500 text-green-700',
+                  c.tipo === 'inactivo' && 'bg-gray-100 text-gray-500'
+                )}
+              >
+                {c.tipo}
+              </Badge>
+            </div>
+            <div className="mt-3 space-y-1 text-sm text-gray-600">
+              <p><span className="font-medium text-gray-500">Ciudad:</span> {c.ciudad}</p>
+              <p><span className="font-medium text-gray-500">Día visita:</span> {c.diaVisita ?? '—'}</p>
+              <p><span className="font-medium text-gray-500">Frecuencia:</span> {c.frecuencia ?? '—'}</p>
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2 border-t pt-3">
+               <Link
+                  href={`/agenda?clienteId=${c.id}`}
+                  className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Agenda
+                </Link>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                     <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-8 w-8">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(c.id!)} className="bg-red-600 hover:bg-red-700">
+                        Eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+            </div>
+          </div>
+        ))}
+      </div>
+
+
+      {/* Desktop View: Table */}
+      <div className="hidden md:block rounded-md border">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-100 border-b">
@@ -107,7 +166,7 @@ export default function ClientesPage() {
             {clientes.map((c) => (
               <tr key={c.id} className="border-t">
                 <td className="p-3">{c.nombre}</td>
-                <td className="p-3">{c.tipo}</td>
+                <td className="p-3 capitalize">{c.tipo}</td>
                 <td className="p-3">{c.ciudad}</td>
                 <td className="p-3">{c.diaVisita ?? '—'}</td>
                 <td className="p-3">{c.frecuencia ?? '—'}</td>
