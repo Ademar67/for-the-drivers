@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar, // Import the hook
 } from '@/components/ui/sidebar';
 
 import {
@@ -37,6 +38,129 @@ import {
 } from 'lucide-react';
 
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+
+function SidebarNavigation() {
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/dashboard">
+            <Home />
+            <span>Dashboard</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/clientes">
+            <Users />
+            <span>Clientes</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/prospectos">
+            <UserPlus />
+            <span>Prospectos</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/agenda">
+            <Calendar />
+            <span>Agenda</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/cotizaciones">
+            <ClipboardList />
+            <span>Cotizaciones</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/mapa-visitas">
+            <Map />
+            <span>Mapa de Visitas</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/productos">
+            <Package />
+            <span>Productos</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/facturas">
+            <FileText />
+            <span>Cobranza</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/mapa-clientes">
+            <MapPin />
+            <span>Mapa de Clientes</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/guias-liqui-moly">
+            <BookOpen />
+            <span>Guías Liqui Moly</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/fichas-tecnicas">
+            <FileSearch />
+            <span>Fichas Técnicas</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild onClick={handleLinkClick}>
+          <Link href="/soporte-ia">
+            <Bot />
+            <span>Soporte IA</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
 
 export default function RootLayout({
   children,
@@ -79,116 +203,7 @@ export default function RootLayout({
                 <SidebarContent>
                   <SidebarGroup>
                     <SidebarGroupLabel>Menú</SidebarGroupLabel>
-
-                    <SidebarMenu>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/dashboard">
-                            <Home />
-                            <span>Dashboard</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/clientes">
-                            <Users />
-                            <span>Clientes</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/prospectos">
-                            <UserPlus />
-                            <span>Prospectos</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/agenda">
-                            <Calendar />
-                            <span>Agenda</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/cotizaciones">
-                            <ClipboardList />
-                            <span>Cotizaciones</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/mapa-visitas">
-                            <Map />
-                            <span>Mapa de Visitas</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/productos">
-                            <Package />
-                            <span>Productos</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/facturas">
-                            <FileText />
-                            <span>Cobranza</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/mapa-clientes">
-                            <MapPin />
-                            <span>Mapa de Clientes</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/guias-liqui-moly">
-                            <BookOpen />
-                            <span>Guías Liqui Moly</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/fichas-tecnicas">
-                            <FileSearch />
-                            <span>Fichas Técnicas</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                          <Link href="/soporte-ia">
-                            <Bot />
-                            <span>Soporte IA</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    </SidebarMenu>
+                    <SidebarNavigation />
                   </SidebarGroup>
                 </SidebarContent>
 
