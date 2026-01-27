@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
-import { crearVisita, listenVisitas, Visita, eliminarVisita } from '@/lib/firestore/visitas';
+import { crearVisita, listenVisitas, Visita, eliminarVisita, marcarVisitaRealizada } from '@/lib/firestore/visitas';
 import {
   Collapsible,
   CollapsibleContent,
@@ -108,20 +108,6 @@ function AgendaView() {
   const [loading, setLoading] = useState(true);
   const [openCrearCliente, setOpenCrearCliente] = useState(false);
   const [openAgregarVisita, setOpenAgregarVisita] = useState(false);
-  const [hechosHoy, setHechosHoy] = useState<Set<string>>(new Set());
-
-
-  function toggleHechoHoy(id: string) {
-    setHechosHoy(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
 
   useEffect(() => {
     const unsubClientes = listenClientes(setClientes);
@@ -167,15 +153,6 @@ function AgendaView() {
     }
   };
   
-    const handleMarcarRealizada = async (visitaId: string) => {
-    try {
-      // No implementado aun, pero no causa error
-    } catch (error) {
-      console.error("Error al marcar como realizada:", error);
-      alert("No se pudo actualizar la visita.");
-    }
-  };
-
   const nombreClienteFiltrado = clienteIdFromUrl
     ? clientes.find(c => c.id === clienteIdFromUrl)?.nombre
     : null;
@@ -292,7 +269,6 @@ function AgendaView() {
       ultimaVisitaMap,
       hoy,
     });
-    const estaHecho = hechosHoy.has(visita.id);
 
     return (
       <li
@@ -301,8 +277,7 @@ function AgendaView() {
           'p-4 rounded-lg bg-white shadow-sm hover:shadow-md transition-all border',
           urgenciaScore === 0 && 'border-l-4 border-l-red-500',
           urgenciaScore === 1 && 'border-l-4 border-l-orange-400',
-          esVisitaDeHoy && urgenciaScore > 1 && 'border-l-4 border-l-green-500',
-          estaHecho && 'opacity-50 line-through'
+          esVisitaDeHoy && urgenciaScore > 1 && 'border-l-4 border-l-green-500'
         )}
       >
         <div className="flex justify-between items-start">
@@ -328,8 +303,8 @@ function AgendaView() {
                 {visita.estado}
               </span>
                <button 
-                 onClick={() => toggleHechoHoy(visita.id)}
-                 title={estaHecho ? 'Desmarcar' : 'Marcar como hecho hoy'}
+                 onClick={() => marcarVisitaRealizada(visita.id)}
+                 title="Marcar como realizada"
                  className="p-1 rounded-full text-green-600 hover:bg-green-100 transition-colors"
                >
                 <CheckCircle className="h-5 w-5" />
