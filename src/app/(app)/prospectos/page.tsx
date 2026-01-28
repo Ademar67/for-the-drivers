@@ -6,9 +6,10 @@ import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
 import { obtenerVisitas, Visita } from '@/lib/firestore/visitas';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { Calendar } from 'lucide-react';
+import { Calendar, StickyNote } from 'lucide-react';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 const PROSPECTO_NUEVO_OK = 7;
 const PROSPECTO_NUEVO_RIESGO = 21;
@@ -56,6 +57,7 @@ export default function ProspectosPage() {
   const [visitas, setVisitas] = useState<Visita[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [notaSeleccionada, setNotaSeleccionada] = useState<string | null>(null);
 
   useEffect(() => {
     const unsub = listenClientes((clientes) => {
@@ -107,28 +109,39 @@ export default function ProspectosPage() {
                 });
 
                 return (
-                    <div key={prospecto.id} className="p-4 rounded-lg border bg-white shadow-sm">
-                        <div className="flex justify-between items-start">
-                            <h3 className="font-bold text-gray-800">{prospecto.nombre}</h3>
-                            <span
-                                className={cn(
-                                'text-[10px] font-semibold px-2 py-0.5 rounded-full',
-                                salud.estado === 'activo' && 'bg-green-100 text-green-700',
-                                salud.estado === 'riesgo' && 'bg-orange-100 text-orange-700',
-                                salud.estado === 'perdido' && 'bg-red-100 text-red-700'
-                                )}
-                            >
-                                {salud.estado.toUpperCase()}
-                            </span>
+                    <div key={prospecto.id} className="p-4 rounded-lg border bg-white shadow-sm flex flex-col">
+                        <div className="flex-grow">
+                          <div className="flex justify-between items-start">
+                              <h3 className="font-bold text-gray-800">{prospecto.nombre}</h3>
+                              <span
+                                  className={cn(
+                                  'text-[10px] font-semibold px-2 py-0.5 rounded-full',
+                                  salud.estado === 'activo' && 'bg-green-100 text-green-700',
+                                  salud.estado === 'riesgo' && 'bg-orange-100 text-orange-700',
+                                  salud.estado === 'perdido' && 'bg-red-100 text-red-700'
+                                  )}
+                              >
+                                  {salud.estado.toUpperCase()}
+                              </span>
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">{salud.texto}</p>
+                          <div className="text-xs text-gray-400 mt-2">
+                              Ciudad: {prospecto.ciudad}
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-500 mt-1">{salud.texto}</p>
-                        <div className="text-xs text-gray-400 mt-2">
-                            Ciudad: {prospecto.ciudad}
-                        </div>
-                         <div className="mt-4 flex justify-end">
+                         <div className="mt-4 flex justify-end items-center gap-4 border-t pt-3">
+                             <Button
+                                variant="ghost"
+                                size="sm"
+                                className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                                onClick={() => setNotaSeleccionada(prospecto.nota || '')}
+                              >
+                                <StickyNote className="h-4 w-4" />
+                                Ver Nota
+                              </Button>
                              <Link
                                 href={`/agenda?clienteId=${prospecto.id}`}
-                                className="flex items-center gap-2 text-blue-600 hover:underline text-sm"
+                                className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium"
                             >
                                 <Calendar className="h-4 w-4" />
                                 Ver Agenda
@@ -141,6 +154,25 @@ export default function ProspectosPage() {
       ) : (
          <p className="text-gray-500 italic">No hay prospectos.</p>
       )}
+
+      <Dialog open={notaSeleccionada !== null} onOpenChange={(open) => !open && setNotaSeleccionada(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nota del Prospecto</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+             <p className="text-sm text-gray-700 whitespace-pre-wrap">
+              {notaSeleccionada || "Este prospecto no tiene ninguna nota."}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setNotaSeleccionada(null)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <CrearClienteModal open={open} onClose={() => setOpen(false)} />
     </div>
   );

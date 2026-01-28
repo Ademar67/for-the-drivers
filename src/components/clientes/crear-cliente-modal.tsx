@@ -18,6 +18,7 @@ export default function CrearClienteModal({
     tipo: 'prospecto' as 'prospecto' | 'cliente' | 'inactivo',
     ciudad: '',
     domicilio: '',
+    nota: '',
     diaVisita: 'lunes',
     frecuencia: 'semanal',
   });
@@ -34,6 +35,7 @@ export default function CrearClienteModal({
         domicilio: form.domicilio,
         diaVisita: form.diaVisita,
         frecuencia: form.frecuencia,
+        nota: form.nota,
       });
       
       onClose();
@@ -43,6 +45,7 @@ export default function CrearClienteModal({
         tipo: 'prospecto',
         ciudad: '',
         domicilio: '',
+        nota: '',
         diaVisita: 'lunes',
         frecuencia: 'semanal',
       });
@@ -83,6 +86,14 @@ export default function CrearClienteModal({
           className="w-full border p-2 rounded"
           value={form.domicilio}
           onChange={(e) => setForm({ ...form, domicilio: e.target.value })}
+        />
+
+        <textarea
+          placeholder="Nota de la visita"
+          className="w-full border p-2 rounded"
+          rows={3}
+          value={form.nota}
+          onChange={(e) => setForm({ ...form, nota: e.target.value })}
         />
 
         <select

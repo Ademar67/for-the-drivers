@@ -20,6 +20,7 @@ export type ClienteFS = {
   diaVisita: string | null;
   frecuencia: string | null;
   createdAt: Timestamp;
+  nota?: string;
 };
 
 // Escuchar clientes en tiempo real
@@ -37,7 +38,8 @@ export function listenClientes(callback: (clientes: ClienteFS[]) => void) {
         tipo: data.tipo ?? 'prospecto',
         diaVisita: data.diaVisita ?? null,
         frecuencia: data.frecuencia ?? null,
-        createdAt: data.createdAt
+        createdAt: data.createdAt,
+        nota: data.nota ?? ''
       };
     }) as ClienteFS[];
     callback(clientes);
@@ -47,10 +49,11 @@ export function listenClientes(callback: (clientes: ClienteFS[]) => void) {
 export async function crearCliente(input: {
   nombre: string;
   ciudad: string;
-  domicilio: string,
+  domicilio: string;
   tipo: 'cliente' | 'prospecto' | 'inactivo';
   diaVisita: string | null;
   frecuencia: string | null;
+  nota: string;
 }) {
   if (!input.nombre || !input.nombre.trim()) {
     throw new Error('El nombre es obligatorio');
@@ -67,6 +70,7 @@ export async function crearCliente(input: {
     tipo: input.tipo,
     diaVisita: input.diaVisita,
     frecuencia: input.frecuencia,
+    nota: input.nota.trim(),
     createdAt: Timestamp.now(),
   });
 }
