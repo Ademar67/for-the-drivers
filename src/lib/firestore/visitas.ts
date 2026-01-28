@@ -1,115 +1,81 @@
-
-'use client';
-import { db } from '@/lib/firebase';
 import {
-  collection,
   addDoc,
-  getDocs,
-  query,
-  orderBy,
-  Timestamp,
-  serverTimestamp,
-  doc,
-  getDoc,
-  updateDoc,
-  onSnapshot,
+  collection,
   deleteDoc,
-} from 'firebase/firestore';
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+export type VisitaTipo = "visita" | "cotizacion" | "cobranza" | "seguimiento";
+export type VisitaEstado = "pendiente" | "realizada";
 
 export type Visita = {
-  id: string;
-  cliente: string;
+  id?: string;
   clienteId: string;
+  cliente: string;
+
+  // Nota: en tu UI "fecha" la tratas como string YYYY-MM-DD
   fecha: string;
   hora: string;
-  tipo: 'visita' | 'cotizacion' | 'cobranza' | 'seguimiento';
-  estado: 'pendiente' | 'realizada';
-  notas: string;
-  createdAt: string;
-  fechaRealizada?: Timestamp;
+
+  tipo: VisitaTipo;
+  notas?: string;
+
+  estado: VisitaEstado;
+
+  createdAt?: any;
+  updatedAt?: any;
+
+  fechaRealizada?: any;
 };
 
-type CrearVisitaInput = {
-  cliente: string;
-  clienteId: string;
-  fecha: string;
-  hora: string;
-  tipo: 'visita' | 'cotizacion' | 'cobranza' | 'seguimiento';
-  estado: 'pendiente' | 'realizada';
-  notas: string;
-};
-
-export async function crearVisita(visita: CrearVisitaInput) {
-  const docRef = await addDoc(collection(db, 'visitas'), {
+export async function crearVisita(visita: Omit<Visita, "id">) {
+  await addDoc(collection(db, "visitas"), {
     ...visita,
     createdAt: serverTimestamp(),
-  });
-  return docRef.id;
-}
-
-export function listenVisitas(callback: (visitas: Visita[]) => void) {
-  const q = query(collection(db, 'visitas'), orderBy('createdAt', 'desc'));
-
-  return onSnapshot(q, (querySnapshot) => {
-    const visitas = querySnapshot.docs.map((doc) => {
-      const data = doc.data();
-      const createdAt = data.createdAt as Timestamp;
-      const fechaRealizada = data.fechaRealizada as Timestamp;
-      return {
-        id: doc.id,
-        cliente: data.cliente,
-        clienteId: data.clienteId,
-        fecha: data.fecha,
-        hora: data.hora,
-        tipo: data.tipo,
-        estado: data.estado,
-        notas: data.notas,
-        createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
-        fechaRealizada: fechaRealizada,
-      } as Visita;
-    });
-    callback(visitas);
+    updatedAt: serverTimestamp(),
   });
 }
 
+export function listenVisitas(setVisitas: (visitas: Visita[]) => void) {
+  const q = query(collection(db, "visitas"), orderBy("fecha", "desc"));
 
-export async function obtenerVisitas(): Promise<Visita[]> {
-  const q = query(collection(db, 'visitas'), orderBy('createdAt', 'desc'));
-  const querySnapshot = await getDocs(q);
-  
-  const visitas = querySnapshot.docs.map(doc => {
-    const data = doc.data();
-    const createdAt = data.createdAt as Timestamp;
-    return {
-      id: doc.id,
-      cliente: data.cliente,
-      clienteId: data.clienteId,
-      fecha: data.fecha,
-      hora: data.hora,
-      tipo: data.tipo,
-      estado: data.estado,
-      notas: data.notas,
-      createdAt: createdAt.toDate().toISOString(),
-    } as Visita;
+  return onSnapshot(q, (snap) => {
+    const data: Visita[] = snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<Visita, "id">),
+    }));
+    setVisitas(data);
   });
-
-  return visitas;
 }
 
-export async function marcarVisitaRealizada(visitaId: string, notas: string) {
-  const visitaRef = doc(db, 'visitas', visitaId);
-  await updateDoc(visitaRef, {
-    estado: 'realizada',
-    notas: notas,
+export async function obtenerVisitas() {
+  const q = query(collection(db, "visitas"), orderBy("fecha", "desc"));
+  const snap = await getDocs(q);
+
+  return snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Visita, "id">),
+  })) as Visita[];
+}
+
+export async function eliminarVisita(id?: string) {
+  if (!id) throw new Error("Se requiere un ID de visita para eliminarla.");
+  await deleteDoc(doc(db, "visitas", id));
+}
+
+export async function marcarVisitaRealizada(id: string, nota?: string) {
+  if (!id) throw new Error("Se requiere un ID de visita para marcarla.");
+  await updateDoc(doc(db, "visitas", id), {
+    estado: "realizada",
+    notas: nota ?? "",
     fechaRealizada: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
 }
-
-export async function eliminarVisita(id: string) {
-  if (!id) {
-    throw new Error("Se requiere un ID de visita para eliminarla.");
-  }
-
-  const visitaRef = doc(db, "visitas", id);
-  await deleteDoc(visitaRef);
-};
