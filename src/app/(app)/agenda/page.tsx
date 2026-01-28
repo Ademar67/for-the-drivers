@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -28,7 +27,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+
 
 const DIAS_SEMANA = [
   'lunes',
@@ -108,6 +117,8 @@ function AgendaView() {
   const [loading, setLoading] = useState(true);
   const [openCrearCliente, setOpenCrearCliente] = useState(false);
   const [openAgregarVisita, setOpenAgregarVisita] = useState(false);
+  const [visitaParaMarcar, setVisitaParaMarcar] = useState<Visita | null>(null);
+  const [notaVisita, setNotaVisita] = useState('');
 
   useEffect(() => {
     const unsubClientes = listenClientes(setClientes);
@@ -151,6 +162,21 @@ function AgendaView() {
           : 'Error desconocido al guardar visita'
       );
     }
+  };
+
+  const handleOpenMarcarRealizada = (visita: Visita) => {
+    setVisitaParaMarcar(visita);
+    setNotaVisita(visita.notas || ''); // Pre-fill with existing notes
+  };
+
+  const handleConfirmarRealizada = async () => {
+    if (!visitaParaMarcar) return;
+    
+    await marcarVisitaRealizada(visitaParaMarcar.id, notaVisita);
+
+    // Reset and close modal
+    setVisitaParaMarcar(null);
+    setNotaVisita('');
   };
   
   const nombreClienteFiltrado = clienteIdFromUrl
@@ -303,7 +329,7 @@ function AgendaView() {
                 {visita.estado}
               </span>
                <button 
-                 onClick={() => marcarVisitaRealizada(visita.id)}
+                 onClick={() => handleOpenMarcarRealizada(visita)}
                  title="Marcar como realizada"
                  className="p-1 rounded-full text-green-600 hover:bg-green-100 transition-colors"
                >
@@ -598,6 +624,28 @@ function AgendaView() {
         clientes={clientes}
         clienteIdInicial={clienteIdFromUrl}
       />
+      <Dialog open={!!visitaParaMarcar} onOpenChange={(isOpen) => !isOpen && setVisitaParaMarcar(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Marcar visita como realizada</DialogTitle>
+                <DialogDescription>
+                    Agrega o actualiza la nota de la visita para <strong>{visitaParaMarcar?.cliente}</strong>.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <Textarea
+                    placeholder="Escribe aquí las notas de la visita..."
+                    value={notaVisita}
+                    onChange={(e) => setNotaVisita(e.target.value)}
+                    rows={5}
+                />
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setVisitaParaMarcar(null)}>Cancelar</Button>
+                <Button onClick={handleConfirmarRealizada}>Guardar y Marcar como Realizada</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
