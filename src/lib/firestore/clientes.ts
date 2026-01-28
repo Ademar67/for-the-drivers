@@ -10,6 +10,7 @@ import {
   doc,
   deleteDoc,
   updateDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 
 export type ClienteFS = {
@@ -84,12 +85,16 @@ export async function eliminarCliente(id: string) {
   await deleteDoc(clienteRef);
 }
 
-export async function cambiarTipoCliente(id: string, nuevoTipo: 'cliente' | 'prospecto' | 'inactivo') {
-  if (!id) {
-    throw new Error("Se requiere un ID de cliente para cambiar su tipo.");
-  }
-  const clienteRef = doc(db, 'clientes', id);
-  await updateDoc(clienteRef, {
-    tipo: nuevoTipo
+export async function cambiarTipoCliente(
+  id: string,
+  tipo: "prospecto" | "cliente" | "inactivo"
+) {
+  if (!id) throw new Error("Falta id del cliente/prospecto");
+
+  const ref = doc(db, "clientes", id);
+
+  await updateDoc(ref, {
+    tipo,
+    updatedAt: serverTimestamp(),
   });
 }
