@@ -335,7 +335,7 @@ function AgendaView() {
                 </button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full text-red-500 hover:bg-red-100">
+                    <Button title="Eliminar visita" variant="ghost" size="icon" className="h-11 w-11 rounded-full text-red-500 hover:bg-red-100">
                       <Trash2 className="h-5 w-5" />
                     </Button>
                   </AlertDialogTrigger>
@@ -460,7 +460,7 @@ function AgendaView() {
 
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-11 w-11 rounded-full hover:bg-red-100 active:scale-95">
+                              <Button title="Eliminar visita" variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-11 w-11 rounded-full hover:bg-red-100 active:scale-95">
                                 <Trash2 className="h-5 w-5" />
                               </Button>
                             </AlertDialogTrigger>
