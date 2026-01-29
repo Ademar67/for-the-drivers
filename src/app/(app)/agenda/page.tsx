@@ -306,9 +306,9 @@ function AgendaView() {
           esVisitaDeHoy && urgenciaScore > 1 && 'border-l-4 border-l-green-500'
         )}
       >
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-start gap-3">
           <div className="flex-1">
-            <div className="font-bold text-gray-900 flex items-center">
+            <div className="font-bold text-lg text-gray-900 flex items-center">
               {visita.cliente}
               {urgenciaScore === 0 && (
                 <span className="ml-2 text-[10px] font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
@@ -319,22 +319,25 @@ function AgendaView() {
             <div className="text-sm text-gray-600 capitalize">
               {visita.tipo} - {visita.fecha} {visita.hora}
             </div>
-            <p className="text-sm text-gray-500 mt-1">{visita.notas}</p>
+            <p className="text-sm text-gray-500 mt-1 line-clamp-2">{visita.notas}</p>
             {textoUrgencia && <p className="text-xs text-red-600 font-medium mt-1">{textoUrgencia}</p>}
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+            <Badge
+              variant="secondary"
+              className="hidden sm:inline-flex bg-yellow-100 text-yellow-800"
+            >
               {visita.estado}
-            </span>
+            </Badge>
 
             {visita.estado === 'pendiente' && (
               <button
                 onClick={() => handleOpenMarcarRealizada(visita)}
                 title="Marcar como realizada"
-                className="p-1 rounded-full text-green-600 hover:bg-green-100 transition-colors"
+                className="flex items-center justify-center h-11 w-11 rounded-full text-green-600 hover:bg-green-100 transition-colors active:scale-95"
               >
-                <CheckCircle className="h-5 w-5" />
+                <CheckCircle className="h-6 w-6" />
               </button>
             )}
           </div>
@@ -344,7 +347,7 @@ function AgendaView() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 pb-24 md:pb-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">
@@ -354,19 +357,16 @@ function AgendaView() {
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={() => setOpenCrearCliente(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-          >
+          <Button onClick={() => setOpenCrearCliente(true)}>
             + Nuevo Cliente
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setOpenAgregarVisita(true)}
-            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+            className="hidden md:flex items-center"
           >
-            <PlusCircle className="inline-block mr-2 h-5 w-5" />
+            <PlusCircle className="mr-2 h-5 w-5" />
             Agregar visita
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -379,86 +379,102 @@ function AgendaView() {
         </section>
       )}
 
-      <div className="space-y-8">
-        <div>
-          <h2 className="text-xl font-semibold mb-3 text-gray-800 border-t pt-6">
-            Visitas Pendientes ({visitasPendientes.length})
-          </h2>
+      <div className="space-y-2">
+        <Collapsible defaultOpen>
+          <CollapsibleTrigger className="w-full py-2">
+            <div className="flex items-center justify-between border-t pt-6">
+              <h2 className="text-xl font-semibold text-gray-800">
+                Visitas Pendientes ({visitasPendientes.length})
+              </h2>
+              <ChevronDown className="h-5 w-5 transition-transform data-[state=open]:rotate-180" />
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="pt-3">
+              {loading ? (
+                <p className="text-gray-500 italic">Cargando visitas...</p>
+              ) : visitasPendientes.length > 0 ? (
+                <ul className="space-y-3">{visitasPendientes.map(renderVisita)}</ul>
+              ) : (
+                <p className="text-gray-500 italic">
+                  No hay visitas pendientes {nombreClienteFiltrado ? `para ${nombreClienteFiltrado}` : ''}.
+                </p>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
-          {loading ? (
-            <p className="text-gray-500 italic">Cargando visitas...</p>
-          ) : visitasPendientes.length > 0 ? (
-            <ul className="space-y-3">{visitasPendientes.map(renderVisita)}</ul>
-          ) : (
-            <p className="text-gray-500 italic">
-              No hay visitas pendientes {nombreClienteFiltrado ? `para ${nombreClienteFiltrado}` : ''}.
-            </p>
-          )}
-        </div>
+        <Collapsible>
+          <CollapsibleTrigger className="w-full py-2">
+            <div className="flex items-center justify-between border-t pt-6">
+              <h2 className="text-xl font-semibold text-gray-800">
+                Visitas Realizadas ({visitasRealizadas.length})
+              </h2>
+              <ChevronDown className="h-5 w-5 transition-transform data-[state=open]:rotate-180" />
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="pt-3">
+              {loading ? (
+                <p className="text-gray-500 italic">Cargando visitas...</p>
+              ) : visitasRealizadas.length > 0 ? (
+                <ul className="space-y-3">
+                  {visitasRealizadas.map((visita) => (
+                    <li key={visita.id} className="p-4 rounded-lg bg-white/70 shadow-sm border opacity-80">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex-1">
+                          <div className="font-bold text-lg text-gray-800">{visita.cliente}</div>
+                          <div className="text-sm text-gray-500 capitalize">
+                            {visita.tipo} - {visita.fecha} {visita.hora}
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1 line-clamp-2">{visita.notas}</p>
+                        </div>
 
-        <div>
-          <h2 className="text-xl font-semibold mb-3 text-gray-800 border-t pt-6">
-            Visitas Realizadas ({visitasRealizadas.length})
-          </h2>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="hidden sm:inline-flex bg-green-100 text-green-800">
+                            Realizada
+                          </Badge>
 
-          {loading ? (
-            <p className="text-gray-500 italic">Cargando visitas...</p>
-          ) : visitasRealizadas.length > 0 ? (
-            <ul className="space-y-3">
-              {visitasRealizadas.map((visita) => (
-                <li key={visita.id} className="p-4 rounded-lg bg-white/70 shadow-sm border opacity-80">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-bold text-gray-800">{visita.cliente}</div>
-                      <div className="text-sm text-gray-500 capitalize">
-                        {visita.tipo} - {visita.fecha} {visita.hora}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-11 w-11 rounded-full hover:bg-red-100 active:scale-95">
+                                <Trash2 className="h-5 w-5" />
+                              </Button>
+                            </AlertDialogTrigger>
+
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción no se puede deshacer. La visita para{' '}
+                                  <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => visita.id && eliminarVisita(visita.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-500 mt-1 whitespace-pre-wrap">{visita.notas}</p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                        Realizada
-                      </Badge>
-
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta acción no se puede deshacer. La visita para{' '}
-                              <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => visita.id && eliminarVisita(visita.id)}
-                              className="bg-red-600 hover:bg-red-700"
-                            >
-                              Eliminar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500 italic">
-              No hay visitas realizadas {nombreClienteFiltrado ? `para ${nombreClienteFiltrado}` : ''}.
-            </p>
-          )}
-        </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500 italic">
+                  No hay visitas realizadas {nombreClienteFiltrado ? `para ${nombreClienteFiltrado}` : ''}.
+                </p>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {clientesSinVisitaReciente.length > 0 && !clienteIdFromUrl && (
           <div className="border-t pt-6">
@@ -641,6 +657,17 @@ function AgendaView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Barra de acción fija para móvil */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white p-3 md:hidden">
+        <Button
+          onClick={() => setOpenAgregarVisita(true)}
+          className="h-12 w-full text-lg"
+        >
+          <PlusCircle className="mr-2 h-5 w-5" />
+          Agregar visita
+        </Button>
+      </div>
     </div>
   );
 }

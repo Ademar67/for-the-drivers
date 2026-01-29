@@ -121,12 +121,9 @@ export default function ProspectosPage() {
     <div className="p-6">
       <div className="flex justify-between mb-4">
         <h1 className="text-2xl font-bold">Prospectos</h1>
-        <button
-          onClick={() => setOpen(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
+        <Button onClick={() => setOpen(true)}>
           + Agregar Prospecto
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -147,7 +144,7 @@ export default function ProspectosPage() {
               >
                 <div className="flex-grow">
                   <div className="flex justify-between items-start">
-                    <h3 className="font-bold text-gray-800">{prospecto.nombre}</h3>
+                    <h3 className="font-bold text-lg text-gray-800">{prospecto.nombre}</h3>
                     <span
                       className={cn(
                         'text-[10px] font-semibold px-2 py-0.5 rounded-full',
@@ -165,31 +162,31 @@ export default function ProspectosPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap justify-end items-center gap-2 border-t pt-3">
+                <div className="mt-4 flex flex-col md:flex-row gap-2 border-t pt-3">
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                    variant="outline"
+                    size="lg"
+                    className="w-full md:w-auto"
                     onClick={() => setNotaSeleccionada(prospecto.nota || '')}
                   >
                     <StickyNote className="h-4 w-4" />
                     Ver Nota
                   </Button>
 
-                  <Link
-                    href={`/agenda?clienteId=${prospecto.id}`}
-                    className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium px-2 py-1"
-                  >
-                    <Calendar className="h-4 w-4" />
-                    Ver Agenda
-                  </Link>
+                  <Button asChild variant="outline" size="lg" className="w-full md:w-auto">
+                    <Link
+                      href={`/agenda?clienteId=${prospecto.id}`}
+                    >
+                      <Calendar className="h-4 w-4" />
+                      Agenda
+                    </Link>
+                  </Button>
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-2"
+                        size="lg"
+                        className="w-full md:w-auto text-base"
                         disabled={convirtiendoId === prospecto.id}
                       >
                         <CheckCircle2 className="h-4 w-4" />

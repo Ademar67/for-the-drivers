@@ -124,20 +124,22 @@ export default function ClientesPage() {
               </p>
             </div>
 
-            <div className="mt-4 flex items-center justify-end gap-2 border-t pt-3">
-              <Link
-                href={`/agenda?clienteId=${c.id}`}
-                className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium"
-              >
-                <Calendar className="h-4 w-4" />
-                Agenda
-              </Link>
+            <div className="mt-4 flex flex-col sm:flex-row gap-2 border-t pt-3">
+              <Button asChild variant="outline" size="lg" className="w-full">
+                  <Link
+                    href={`/agenda?clienteId=${c.id}`}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Agenda
+                  </Link>
+              </Button>
 
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-8 w-8">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                   <Button variant="destructive" size="lg" className="w-full">
+                      <Trash2 className="h-4 w-4" />
+                      Eliminar
+                    </Button>
                 </AlertDialogTrigger>
 
                 <AlertDialogContent>
