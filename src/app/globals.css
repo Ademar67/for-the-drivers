@@ -4,30 +4,51 @@
 
 @layer base {
   :root {
-    /* Base */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --background: 220 20% 97%; /* Light cool gray */
+    --foreground: 220 10% 20%;
 
-    /* Borders */
-    --border: 240 6% 90%;
-    --input: 240 5% 85%;
-    --ring: 240 5% 65%;
+    /* Card */
+    --card: 0 0% 100%;
+    --card-foreground: 220 10% 15%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 10% 15%;
+    
+    /* Primary (Buttons, etc.) - Liqui Moly Blue */
+    --primary: 215 90% 50%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary */
+    --secondary: 215 30% 92%;
+    --secondary-foreground: 215 90% 40%;
+    
+    /* Muted */
+    --muted: 220 15% 94%;
+    --muted-foreground: 220 10% 45%;
+
+    /* Accent */
+    --accent: 220 20% 95%;
+    --accent-foreground: 220 10% 15%;
+    
+    /* Destructive (Delete, etc.) - Liqui Moly Red */
+    --destructive: 4 90% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border */
+    --border: 215 20% 88%;
+    --input: 215 20% 88%;
+    --ring: 215 90% 50%; /* Liqui Moly Blue for focus rings */
+    
+    --radius: 0.5rem;
 
     /* Sidebar */
-    --sidebar: 240 5% 96%;
-    --sidebar-foreground: 240 5% 20%;
-    --sidebar-border: 240 5% 84%;
-    --sidebar-ring: 240 5% 70%;
-    --sidebar-accent: 240 5% 90%;
-    --sidebar-accent-foreground: 240 5% 20%;
-
-    /* Muted / text */
-    --muted: 240 5% 95%;
-    --muted-foreground: 240 4% 46%;
-
-    /* Cards */
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --sidebar: 215 100% 20%; 
+    --sidebar-foreground: 220 20% 98%;
+    --sidebar-border: 215 80% 30%;
+    --sidebar-ring: 215 90% 60%;
+    --sidebar-accent: 215 90% 40%; /* A brighter blue for hover/active */
+    --sidebar-accent-foreground: 0 0% 100%;
   }
 
   body {

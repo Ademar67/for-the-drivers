@@ -7,11 +7,16 @@ import {
   Calculator,
   Bot,
   MapPin,
-  Droplet,
   UserPlus,
   ClipboardList,
   BookOpen,
 } from "lucide-react";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card";
 
 const dashboardCards = [
   {
@@ -79,35 +84,30 @@ const dashboardCards = [
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-gray-900">
-        Panel de Control
-      </h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold">Panel de Control</h1>
+        <p className="text-muted-foreground">Accede a todas las herramientas de gestión de ventas.</p>
+      </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {dashboardCards.map((card) => (
-          <Link
-            key={card.href}
-            href={card.href}
-            className="
-              group rounded-xl border bg-white p-6 shadow-sm
-              transition-all duration-200
-              hover:-translate-y-1 hover:shadow-lg hover:border-blue-600 hover:bg-blue-50
-              focus:outline-none focus:ring-2 focus:ring-blue-600
-            "
-          >
-            <div className="flex flex-col gap-4">
-              <card.icon className="h-10 w-10 text-blue-600 group-hover:scale-110 transition" />
-
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {card.title}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {card.description}
-                </p>
-              </div>
-            </div>
+          <Link key={card.href} href={card.href} className="block">
+             <Card className="h-full transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl hover:ring-2 hover:ring-primary/50">
+                <CardHeader>
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-primary/10 text-primary">
+                        <card.icon className="h-6 w-6" />
+                    </div>
+                    <CardTitle className="text-lg">{card.title}</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {card.description}
+                  </p>
+                </CardContent>
+              </Card>
           </Link>
         ))}
       </div>
