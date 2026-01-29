@@ -476,7 +476,7 @@ export default function MapaClientesPage() {
   // UI
   // ---------------------------------------------------------------------------
   return (
-    <div className="flex h-screen w-full">
+    <div className="flex h-[calc(100vh-6rem)] w-full">
       {/* PANEL IZQUIERDO */}
       <div className="w-[420px] border-r bg-white p-4 overflow-y-auto">
         <div className="flex items-center gap-2 mb-4">
@@ -635,7 +635,7 @@ export default function MapaClientesPage() {
 
       {/* MAPA */}
       <div className="flex-1">
-        <div ref={mapDivRef} className="w-full h-full" style={{ minHeight: '100vh' }} />
+        <div ref={mapDivRef} className="w-full h-full" />
       </div>
     </div>
   );
