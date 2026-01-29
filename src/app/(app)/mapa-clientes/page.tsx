@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -242,7 +241,8 @@ export default function MapaClientesPage() {
     const bounds = new google.maps.LatLngBounds();
 
     clientes.forEach((c) => {
-      if (!c.lat || !c.lng) return;
+      if (typeof c.lat !== 'number' || typeof c.lng !== 'number' || isNaN(c.lat) || isNaN(c.lng)) return;
+      
       const marker = new google.maps.Marker({
         map,
         position: { lat: c.lat, lng: c.lng },
