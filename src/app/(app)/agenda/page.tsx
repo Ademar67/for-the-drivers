@@ -80,7 +80,7 @@ function getTextoUrgencia(
   if (data.frecuenciaVencida.has(clienteId)) {
     const ultimaVisita = data.ultimaVisitaMap.get(clienteId);
 
-    if (!ultimaVisita) return 'Nunca visitado';
+    if (!ultimaVisita) return null;
 
     const diffMs = data.hoy.getTime() - ultimaVisita.getTime();
     const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
