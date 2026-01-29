@@ -39,7 +39,6 @@ export default function ClientesPage() {
     }
   };
 
-  // ✅ CSV más seguro (escapa comas, comillas y saltos de línea)
   const escapeCSV = (value: unknown) => {
     const s = String(value ?? '');
     const needsQuotes = /[",\n]/.test(s);

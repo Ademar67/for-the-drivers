@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { listenClientes, ClienteFS, cambiarTipoCliente } from '@/lib/firestore/clientes';
+import { listenClientes, ClienteFS, cambiarTipoCliente, eliminarCliente } from '@/lib/firestore/clientes';
 import { obtenerVisitas, Visita } from '@/lib/firestore/visitas';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { Calendar, CheckCircle2, StickyNote } from 'lucide-react';
+import { Calendar, CheckCircle2, StickyNote, Trash2 } from 'lucide-react';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import {
   Dialog,
@@ -108,7 +108,6 @@ export default function ProspectosPage() {
     try {
       setConvirtiendoId(id);
       await cambiarTipoCliente(id, 'cliente');
-      // La lista se actualiza sola por listenClientes
     } catch (error) {
       console.error('Error al convertir a cliente:', error);
       alert('No se pudo convertir a cliente.');
@@ -116,6 +115,16 @@ export default function ProspectosPage() {
       setConvirtiendoId(null);
     }
   };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await eliminarCliente(id);
+    } catch (error) {
+       console.error('Error al eliminar prospecto:', error);
+       alert('No se pudo eliminar el prospecto.');
+    }
+  };
+
 
   return (
     <div className="p-6">
@@ -131,9 +140,10 @@ export default function ProspectosPage() {
       ) : prospectos.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {prospectos.map((prospecto) => {
+            if (!prospecto.id) return null;
             const salud = getSaludProspecto({
               fechaCreacion: prospecto.createdAt.toDate(),
-              ultimaVisita: ultimaVisitaMap.get(prospecto.id!),
+              ultimaVisita: ultimaVisitaMap.get(prospecto.id),
               hoy: new Date(),
             });
 
@@ -162,18 +172,18 @@ export default function ProspectosPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-col md:flex-row gap-2 border-t pt-3">
+                <div className="mt-4 grid grid-cols-2 gap-2 border-t pt-3">
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-full md:w-auto"
+                    className="w-full"
                     onClick={() => setNotaSeleccionada(prospecto.nota || '')}
                   >
                     <StickyNote className="h-4 w-4" />
-                    Ver Nota
+                    Nota
                   </Button>
 
-                  <Button asChild variant="outline" size="lg" className="w-full md:w-auto">
+                  <Button asChild variant="outline" size="lg" className="w-full">
                     <Link
                       href={`/agenda?clienteId=${prospecto.id}`}
                     >
@@ -186,14 +196,13 @@ export default function ProspectosPage() {
                     <AlertDialogTrigger asChild>
                       <Button
                         size="lg"
-                        className="w-full md:w-auto text-base"
+                        className="w-full col-span-2"
                         disabled={convirtiendoId === prospecto.id}
                       >
                         <CheckCircle2 className="h-4 w-4" />
                         {convirtiendoId === prospecto.id ? 'Convirtiendo...' : 'Pasar a Cliente'}
                       </Button>
                     </AlertDialogTrigger>
-
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Convertir a cliente</AlertDialogTitle>
@@ -206,10 +215,36 @@ export default function ProspectosPage() {
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() => convertirACliente(prospecto.id!)}
+                          onClick={() => prospecto.id && convertirACliente(prospecto.id)}
                           className="bg-green-600 hover:bg-green-700"
                         >
                           Sí, convertir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                       <Button variant="destructive" size="lg" className="w-full col-span-2">
+                        <Trash2 className="h-4 w-4" />
+                          Eliminar Prospecto
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar prospecto?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción es permanente. Se eliminará a <b>{prospecto.nombre}</b> de la lista de prospectos.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => prospecto.id && handleDelete(prospecto.id)}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Sí, eliminar
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

@@ -324,21 +324,44 @@ function AgendaView() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Badge
-              variant="secondary"
-              className="hidden sm:inline-flex bg-yellow-100 text-yellow-800"
-            >
-              {visita.estado}
-            </Badge>
-
-            {visita.estado === 'pendiente' && (
-              <button
-                onClick={() => handleOpenMarcarRealizada(visita)}
-                title="Marcar como realizada"
-                className="flex items-center justify-center h-11 w-11 rounded-full text-green-600 hover:bg-green-100 transition-colors active:scale-95"
-              >
-                <CheckCircle className="h-6 w-6" />
-              </button>
+            {visita.estado === 'pendiente' ? (
+              <>
+                <button
+                  onClick={() => handleOpenMarcarRealizada(visita)}
+                  title="Marcar como realizada"
+                  className="flex items-center justify-center h-11 w-11 rounded-full text-green-600 hover:bg-green-100 transition-colors active:scale-95"
+                >
+                  <CheckCircle className="h-6 w-6" />
+                </button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full text-red-500 hover:bg-red-100">
+                      <Trash2 className="h-5 w-5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta acción no se puede deshacer. La visita pendiente para <strong>{visita.cliente}</strong> será eliminada.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => visita.id && eliminarVisita(visita.id)}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            ) : (
+               <Badge variant="secondary" className="hidden sm:inline-flex bg-green-100 text-green-800">
+                  Realizada
+               </Badge>
             )}
           </div>
         </div>
@@ -356,13 +379,13 @@ function AgendaView() {
           {clienteIdFromUrl && <p className="text-sm text-gray-500 mt-1">Mostrando agenda del cliente seleccionado</p>}
         </div>
 
-        <div className="flex gap-2">
+        <div className="hidden md:flex gap-2">
           <Button onClick={() => setOpenCrearCliente(true)}>
             + Nuevo Cliente
           </Button>
           <Button
             onClick={() => setOpenAgregarVisita(true)}
-            className="hidden md:flex items-center"
+            className="flex items-center"
           >
             <PlusCircle className="mr-2 h-5 w-5" />
             Agregar visita
@@ -644,14 +667,15 @@ function AgendaView() {
               value={notaVisita}
               onChange={(e) => setNotaVisita(e.target.value)}
               rows={5}
+              className="w-full"
             />
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setVisitaParaMarcar(null)} disabled={guardandoRealizada}>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setVisitaParaMarcar(null)} disabled={guardandoRealizada} className="w-full sm:w-auto">
               Cancelar
             </Button>
-            <Button onClick={handleConfirmarRealizada} disabled={guardandoRealizada}>
+            <Button onClick={handleConfirmarRealizada} disabled={guardandoRealizada} className="w-full sm:w-auto">
               {guardandoRealizada ? 'Guardando...' : 'Guardar y Marcar como Realizada'}
             </Button>
           </DialogFooter>
@@ -660,13 +684,18 @@ function AgendaView() {
       
       {/* Barra de acción fija para móvil */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white p-3 md:hidden">
-        <Button
-          onClick={() => setOpenAgregarVisita(true)}
-          className="h-12 w-full text-lg"
-        >
-          <PlusCircle className="mr-2 h-5 w-5" />
-          Agregar visita
-        </Button>
+        <div className="flex gap-2">
+           <Button onClick={() => setOpenCrearCliente(true)} variant="outline" className="h-12 flex-1 text-base">
+                + Nuevo Cliente
+            </Button>
+            <Button
+              onClick={() => setOpenAgregarVisita(true)}
+              className="h-12 flex-1 text-base"
+            >
+              <PlusCircle className="mr-2 h-5 w-5" />
+              Agregar visita
+            </Button>
+        </div>
       </div>
     </div>
   );
