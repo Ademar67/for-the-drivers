@@ -11,7 +11,6 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import { obtenerProductosFirestore } from '@/lib/firebase/productos';
-import { Producto } from '@/lib/firebase-types';
 
 // Schema for the input of the product recommendation flow.
 const ProductRecommendationInputSchema = z.object({
@@ -23,20 +22,22 @@ const ProductRecommendationInputSchema = z.object({
 });
 export type ProductRecommendationInput = z.infer<typeof ProductRecommendationInputSchema>;
 
-const ProductCardSchema = z.object({
-    name: z.string().describe("Nombre del producto"),
-    sku: z.string().optional().describe("código si lo conoces"),
-    why: z.string().optional().describe("por qué aplica al problema"),
-    howToUse: z.string().optional().describe("cómo se usa"),
-    category: z.enum(["tratamientos", "aceites", "mantenimiento"]).optional(),
-    techSheetUrl: z.string().url().optional().describe("url si existe"),
-    productUrl: z.string().url().optional().describe("url si existe")
+// Schema for the output of the product recommendation flow.
+const ProductoRecomendadoSchema = z.object({
+  nombre: z.string(),
+  tipo: z.string(),
+  descripcion: z.string(),
+  como_usar: z.string(),
+  cuando_usar: z.array(z.string()),
+  cuando_no_usar: z.array(z.string()),
 });
 
-// Schema for the output of the product recommendation flow.
 const ProductRecommendationOutputSchema = z.object({
-  answer: z.string().describe("texto breve y claro en español"),
-  products: z.array(ProductCardSchema).describe("Lista de productos recomendados. Si no hay productos, devuelve un array vacío.")
+  categoria: z.string(),
+  sintoma: z.string(),
+  diagnostico_orientativo: z.string(),
+  productos_recomendados: z.array(ProductoRecomendadoSchema),
+  advertencia: z.string(),
 });
 export type ProductRecommendationOutput = z.infer<typeof ProductRecommendationOutputSchema>;
 
@@ -48,31 +49,28 @@ const prompt = ai.definePrompt({
       productList: z.string().describe("A JSON string of all available products.")
   })},
   output: {schema: ProductRecommendationOutputSchema},
-  prompt: `INSTRUCCIONES
-Responde SIEMPRE en JSON válido, sin texto adicional, sin markdown.
-Debes devolver un objeto con esta forma:
+  prompt: `Actúa como un Asesor Técnico Digital de Liqui Moly México.
 
-{
-  "answer": "texto breve y claro en español",
-  "products": [
-    {
-      "name": "Nombre del producto",
-      "sku": "código si lo conoces",
-      "why": "por qué aplica al problema",
-      "howToUse": "cómo se usa",
-      "category": "tratamientos|aceites|mantenimiento",
-      "techSheetUrl": "url si existe",
-      "productUrl": "url si existe"
-    }
-  ]
-}
+Tu función es recomendar productos Liqui Moly basándote únicamente en síntomas del vehículo.
 
-Si no hay productos, devuelve "products": [].
-Nunca inventes fichas técnicas. Si no sabes la URL, omite techSheetUrl.
+REGLAS ESTRICTAS (OBLIGATORIAS)
+- SOLO recomienda productos Liqui Moly comercializados en México.
+- SOLO utiliza la información contenida en los trípticos oficiales proporcionados.
+- NO inventes productos, SKUs, aplicaciones ni beneficios.
+- NO recomiendes marcas distintas a Liqui Moly.
+- NO prometas reparaciones mecánicas.
+- Si el caso NO es apto para tratamiento químico, indícalo claramente.
+- Responde EXCLUSIVAMENTE en JSON válido.
+- NO agregues texto fuera del JSON.
 
-A customer has the following needs: {{{customerNeeds}}}.
-  
-Based on these needs, recommend a list of suitable Liqui Moly products from the following list:
+CATEGORÍAS VÁLIDAS: aceites, aditivos, mantenimiento
+
+A partir del siguiente caso descrito por el usuario, analiza la descripción, y luego genera la recomendación en el formato JSON especificado. En el JSON de salida, los campos "categoria" y "sintoma" deben ser tu interpretación del caso del usuario.
+
+CASO DEL USUARIO:
+"{{{customerNeeds}}}"
+
+PRODUCTOS DISPONIBLES (utiliza esta lista como fuente de verdad):
 {{{productList}}}
 `,
 });

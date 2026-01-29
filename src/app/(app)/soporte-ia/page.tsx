@@ -6,7 +6,7 @@ import { Bot, User, FileText, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -16,13 +16,12 @@ import {
 } from '@/components/ui/card';
 
 interface ProductCardData {
-  name: string;
-  sku?: string;
-  why?: string;
-  howToUse?: string;
-  category?: 'tratamientos' | 'aceites' | 'mantenimiento';
-  techSheetUrl?: string;
-  productUrl?: string;
+  nombre: string;
+  tipo: string;
+  descripcion: string;
+  como_usar: string;
+  cuando_usar: string[];
+  cuando_no_usar: string[];
 }
 
 interface Message {
@@ -61,14 +60,16 @@ export default function SoporteIAPage() {
 
       const data = await response.json();
       
-      if (!data || !data.answer) {
+      if (!data || !data.diagnostico_orientativo) {
          throw new Error('La respuesta de la API está vacía o no tiene el formato esperado.');
       }
 
+      const assistantMessageContent = `${data.diagnostico_orientativo}${data.advertencia ? `\n\nAdvertencia: ${data.advertencia}` : ''}`;
+
       const assistantMessage: Message = {
         role: 'assistant',
-        content: data.answer,
-        products: data.products || [],
+        content: assistantMessageContent,
+        products: data.productos_recomendados || [],
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -119,28 +120,34 @@ export default function SoporteIAPage() {
                 </div>
                 
                 {message.products && message.products.length > 0 && (
-                    <div className="grid grid-cols-1 gap-2 mt-2">
+                    <div className="grid grid-cols-1 gap-3 mt-2">
                         {message.products.map((product, pIndex) => (
                             <Card key={pIndex} className="bg-gray-50">
                                 <CardHeader className="p-4">
-                                  <CardTitle className="text-base">{product.name}</CardTitle>
+                                  <CardTitle className="text-base">{product.nombre}</CardTitle>
+                                  <p className="text-sm text-muted-foreground">{product.tipo}</p>
                                 </CardHeader>
-                                <CardContent className="p-4 text-sm text-gray-600 space-y-2">
-                                  {product.why && <p><strong>Por qué:</strong> {product.why}</p>}
-                                  {product.howToUse && <p><strong>Modo de uso:</strong> {product.howToUse}</p>}
+                                <CardContent className="p-4 pt-0 text-sm text-gray-600 space-y-3">
+                                  <p><strong>Descripción:</strong> {product.descripcion}</p>
+                                  <p><strong>Modo de uso:</strong> {product.como_usar}</p>
+                                  
+                                  {product.cuando_usar && product.cuando_usar.length > 0 && (
+                                    <div>
+                                        <strong className='text-gray-700'>Cuándo usar:</strong>
+                                        <ul className="list-disc list-inside mt-1 space-y-1">
+                                            {product.cuando_usar.map((item, i) => <li key={i}>{item}</li>)}
+                                        </ul>
+                                    </div>
+                                  )}
+                                   {product.cuando_no_usar && product.cuando_no_usar.length > 0 && (
+                                    <div>
+                                        <strong className='text-gray-700'>Cuándo NO usar:</strong>
+                                        <ul className="list-disc list-inside mt-1 space-y-1">
+                                            {product.cuando_no_usar.map((item, i) => <li key={i}>{item}</li>)}
+                                        </ul>
+                                    </div>
+                                  )}
                                 </CardContent>
-                                <CardFooter className="p-4 flex gap-2">
-                                    {product.techSheetUrl && (
-                                        <a href={product.techSheetUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'flex items-center gap-1')}>
-                                            <FileText size={14} /> Ficha
-                                        </a>
-                                    )}
-                                     {product.productUrl && (
-                                        <a href={product.productUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'flex items-center gap-1')}>
-                                            <ExternalLink size={14} /> Ver producto
-                                        </a>
-                                    )}
-                                </CardFooter>
                             </Card>
                         ))}
                     </div>
@@ -194,5 +201,3 @@ export default function SoporteIAPage() {
     </div>
   );
 }
-
-const { buttonVariants } = require("@/components/ui/button");
