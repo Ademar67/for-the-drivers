@@ -98,7 +98,16 @@ export default function ClientesPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500 italic text-center mt-8">Cargando clientes...</p>
+        <div className="flex justify-center items-center h-64">
+          <Image
+            src="/logo-liqui-moly.png"
+            alt="Cargando..."
+            width={128}
+            height={128}
+            className="animate-pulse"
+            priority
+          />
+        </div>
       ) : clientes.length === 0 ? (
          <p className="text-gray-500 italic text-center mt-8">No hay clientes registrados.</p>
       ) : (
