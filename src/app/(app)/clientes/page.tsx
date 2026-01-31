@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { listenClientes, ClienteFS, eliminarCliente } from '@/lib/firestore/clientes';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import { Calendar, Trash2 } from 'lucide-react';
@@ -97,7 +98,17 @@ export default function ClientesPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500 italic">Cargando clientes...</p>
+        <div className="flex flex-col items-center justify-center pt-20">
+            <Image
+              src="/logo-liqui-moly.png"
+              alt="Cargando..."
+              width={120}
+              height={120}
+              className="animate-pulse"
+              priority
+            />
+            <p className="text-muted-foreground mt-4">Cargando clientes...</p>
+        </div>
       ) : clientes.length === 0 ? (
          <p className="text-gray-500 italic text-center mt-8">No hay clientes registrados.</p>
       ) : (
