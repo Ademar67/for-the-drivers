@@ -323,7 +323,7 @@ function AgendaView() {
             {textoUrgencia && <p className="text-xs text-red-600 font-medium mt-1">{textoUrgencia}</p>}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2">
             {visita.estado === 'pendiente' ? (
               <>
                 <button
@@ -359,15 +359,124 @@ function AgendaView() {
                 </AlertDialog>
               </>
             ) : (
-               <Badge variant="secondary" className="hidden sm:inline-flex bg-green-100 text-green-800">
+               <Badge variant="secondary" className="bg-green-100 text-green-800">
                   Realizada
                </Badge>
             )}
           </div>
         </div>
+
+        {/* Mobile Actions */}
+        {visita.estado === 'pendiente' && (
+            <div className="md:hidden flex gap-2 w-full border-t mt-4 pt-3">
+                <Button onClick={() => handleOpenMarcarRealizada(visita)} size="sm" className="flex-1 bg-green-600 hover:bg-green-700">
+                    <CheckCircle className="mr-2 h-4 w-4"/> Marcar Realizada
+                </Button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" className="flex-1">
+                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción no se puede deshacer. La visita pendiente para <strong>{visita.cliente}</strong> será eliminada.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => visita.id && eliminarVisita(visita.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Eliminar
+                        </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
+        )}
       </li>
     );
   };
+
+  const renderVisitaRealizada = (visita: Visita) => (
+    <li key={visita.id} className="p-4 rounded-lg bg-white/70 shadow-sm border opacity-80">
+      <div className="flex justify-between items-start gap-3">
+        <div className="flex-1">
+          <div className="font-bold text-lg text-gray-800">{visita.cliente}</div>
+          <div className="text-sm text-gray-500 capitalize">
+            {visita.tipo} - {visita.fecha} {visita.hora}
+          </div>
+          <p className="text-sm text-gray-500 mt-1 line-clamp-2">{visita.notas}</p>
+        </div>
+
+        <div className="hidden sm:flex items-center gap-2">
+          <Badge variant="secondary" className="bg-green-100 text-green-800">
+            Realizada
+          </Badge>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button title="Eliminar visita" variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-11 w-11 rounded-full hover:bg-red-100 active:scale-95">
+                <Trash2 className="h-5 w-5" />
+              </Button>
+            </AlertDialogTrigger>
+
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. La visita para{' '}
+                  <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => visita.id && eliminarVisita(visita.id)}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+       {/* Mobile Actions */}
+        <div className="sm:hidden flex gap-2 w-full border-t mt-4 pt-3">
+            <Badge variant="secondary" className="bg-green-100 text-green-800">Realizada</Badge>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="flex-1">
+                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción no se puede deshacer. La visita para <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={() => visita.id && eliminarVisita(visita.id)}
+                        className="bg-red-600 hover:bg-red-700"
+                    >
+                        Eliminar
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
+    </li>
+  );
 
   return (
     <div className="p-6 pb-24 md:pb-6">
@@ -442,53 +551,7 @@ function AgendaView() {
                 <p className="text-gray-500 italic">Cargando visitas...</p>
               ) : visitasRealizadas.length > 0 ? (
                 <ul className="space-y-3">
-                  {visitasRealizadas.map((visita) => (
-                    <li key={visita.id} className="p-4 rounded-lg bg-white/70 shadow-sm border opacity-80">
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="flex-1">
-                          <div className="font-bold text-lg text-gray-800">{visita.cliente}</div>
-                          <div className="text-sm text-gray-500 capitalize">
-                            {visita.tipo} - {visita.fecha} {visita.hora}
-                          </div>
-                          <p className="text-sm text-gray-500 mt-1 line-clamp-2">{visita.notas}</p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="hidden sm:inline-flex bg-green-100 text-green-800">
-                            Realizada
-                          </Badge>
-
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button title="Eliminar visita" variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-11 w-11 rounded-full hover:bg-red-100 active:scale-95">
-                                <Trash2 className="h-5 w-5" />
-                              </Button>
-                            </AlertDialogTrigger>
-
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. La visita para{' '}
-                                  <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => visita.id && eliminarVisita(visita.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Eliminar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
+                  {visitasRealizadas.map(renderVisitaRealizada)}
                 </ul>
               ) : (
                 <p className="text-gray-500 italic">

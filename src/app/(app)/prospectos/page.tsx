@@ -138,124 +138,209 @@ export default function ProspectosPage() {
       {loading ? (
         <p className="text-gray-500 italic">Cargando prospectos...</p>
       ) : prospectos.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {prospectos.map((prospecto) => {
-            if (!prospecto.id) return null;
-            const salud = getSaludProspecto({
-              fechaCreacion: prospecto.createdAt.toDate(),
-              ultimaVisita: ultimaVisitaMap.get(prospecto.id),
-              hoy: new Date(),
-            });
+        <>
+          {/* Mobile View: Cards */}
+          <div className="md:hidden grid gap-4">
+            {prospectos.map((prospecto) => {
+              if (!prospecto.id) return null;
+              const salud = getSaludProspecto({
+                fechaCreacion: prospecto.createdAt.toDate(),
+                ultimaVisita: ultimaVisitaMap.get(prospecto.id),
+                hoy: new Date(),
+              });
 
-            return (
-              <div
-                key={prospecto.id}
-                className="p-4 rounded-lg border bg-white shadow-sm flex flex-col"
-              >
-                <div className="flex-grow">
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-bold text-lg text-gray-800">{prospecto.nombre}</h3>
-                    <span
-                      className={cn(
-                        'text-[10px] font-semibold px-2 py-0.5 rounded-full',
-                        salud.estado === 'activo' && 'bg-green-100 text-green-700',
-                        salud.estado === 'riesgo' && 'bg-orange-100 text-orange-700',
-                        salud.estado === 'perdido' && 'bg-red-100 text-red-700'
-                      )}
-                    >
-                      {salud.estado.toUpperCase()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">{salud.texto}</p>
-                  <div className="text-xs text-gray-400 mt-2">
-                    Ciudad: {prospecto.ciudad}
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-2 border-t pt-3">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="w-full"
-                    onClick={() => setNotaSeleccionada(prospecto.nota || '')}
-                  >
-                    <StickyNote className="h-4 w-4" />
-                    Nota
-                  </Button>
-
-                  <Button asChild variant="outline" size="lg" className="w-full">
-                    <Link
-                      href={`/agenda?clienteId=${prospecto.id}`}
-                    >
-                      <Calendar className="h-4 w-4" />
-                      Agenda
-                    </Link>
-                  </Button>
-
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        size="lg"
-                        className="w-full col-span-2"
-                        disabled={convirtiendoId === prospecto.id}
+              return (
+                <div
+                  key={prospecto.id}
+                  className="p-4 rounded-lg border bg-white shadow-sm flex flex-col"
+                >
+                  <div className="flex-grow">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-bold text-lg text-gray-800">{prospecto.nombre}</h3>
+                      <span
+                        className={cn(
+                          'text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize',
+                          salud.estado === 'activo' && 'bg-green-100 text-green-700',
+                          salud.estado === 'riesgo' && 'bg-orange-100 text-orange-700',
+                          salud.estado === 'perdido' && 'bg-red-100 text-red-700'
+                        )}
                       >
-                        <CheckCircle2 className="h-4 w-4" />
-                        {convirtiendoId === prospecto.id ? 'Convirtiendo...' : 'Pasar a Cliente'}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Convertir a cliente</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          ¿Seguro que quieres convertir a <b>{prospecto.nombre}</b> a <b>CLIENTE</b>?
-                          <br />
-                          Esto lo moverá automáticamente de Prospectos a Clientes.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => prospecto.id && convertirACliente(prospecto.id)}
-                          className="bg-green-600 hover:bg-green-700"
+                        {salud.estado}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">{salud.texto}</p>
+                    <div className="text-xs text-gray-400 mt-2">
+                      Ciudad: {prospecto.ciudad}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2 border-t pt-3">
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="w-full"
+                      onClick={() => setNotaSeleccionada(prospecto.nota || '')}
+                    >
+                      <StickyNote className="h-4 w-4 mr-2" />
+                      Nota
+                    </Button>
+
+                    <Button asChild variant="outline" size="lg" className="w-full">
+                      <Link
+                        href={`/agenda?clienteId=${prospecto.id}`}
+                      >
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Agenda
+                      </Link>
+                    </Button>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="lg"
+                          className="w-full col-span-2 bg-green-600 hover:bg-green-700"
+                          disabled={convirtiendoId === prospecto.id}
                         >
-                          Sí, convertir
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          {convirtiendoId === prospecto.id ? 'Convirtiendo...' : 'Pasar a Cliente'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Convertir a cliente</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            ¿Seguro que quieres convertir a <b>{prospecto.nombre}</b> a <b>CLIENTE</b>?
+                            <br />
+                            Esto lo moverá automáticamente de Prospectos a Clientes.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => prospecto.id && convertirACliente(prospecto.id)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            Sí, convertir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
                        <Button variant="destructive" size="lg" className="w-full col-span-2">
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 mr-2" />
                           Eliminar Prospecto
                         </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar prospecto?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta acción es permanente. Se eliminará a <b>{prospecto.nombre}</b> de la lista de prospectos.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => prospecto.id && handleDelete(prospecto.id)}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          Sí, eliminar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Eliminar prospecto?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta acción es permanente. Se eliminará a <b>{prospecto.nombre}</b> de la lista de prospectos.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => prospecto.id && handleDelete(prospecto.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Sí, eliminar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+          
+          {/* Desktop View: Table */}
+          <div className="hidden md:block rounded-md border bg-white">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr className="border-b">
+                  <th className="p-3 text-left">Nombre</th>
+                  <th className="p-3 text-left">Ciudad</th>
+                  <th className="p-3 text-left">Estado Seguimiento</th>
+                  <th className="p-3 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {prospectos.map((prospecto) => {
+                   if (!prospecto.id) return null;
+                   const salud = getSaludProspecto({
+                     fechaCreacion: prospecto.createdAt.toDate(),
+                     ultimaVisita: ultimaVisitaMap.get(prospecto.id),
+                     hoy: new Date(),
+                   });
+                  return (
+                    <tr key={prospecto.id} className="border-t hover:bg-gray-50">
+                      <td className="p-3 font-medium">{prospecto.nombre}</td>
+                      <td className="p-3">{prospecto.ciudad}</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <span className={cn('h-2 w-2 rounded-full',
+                            salud.estado === 'activo' && 'bg-green-500',
+                            salud.estado === 'riesgo' && 'bg-orange-500',
+                            salud.estado === 'perdido' && 'bg-red-500'
+                          )}></span>
+                          {salud.texto}
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => setNotaSeleccionada(prospecto.nota || '')}>Nota</Button>
+                           <Button asChild variant="ghost" size="sm">
+                              <Link href={`/agenda?clienteId=${prospecto.id}`}>Agenda</Link>
+                           </Button>
+                           <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                 <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700">Convertir</Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Convertir a cliente</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    ¿Seguro que quieres convertir a <b>{prospecto.nombre}</b> a <b>CLIENTE</b>?
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => convertirACliente(prospecto.id!)} className="bg-green-600 hover:bg-green-700">Sí, convertir</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                           </AlertDialog>
+                           <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                 <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700"><Trash2 className="h-4 w-4"/></Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Eliminar prospecto?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta acción es permanente. Se eliminará a <b>{prospecto.nombre}</b>.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(prospecto.id!)} className="bg-red-600 hover:bg-red-700">Sí, eliminar</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                           </AlertDialog>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       ) : (
-        <p className="text-gray-500 italic">No hay prospectos.</p>
+        <p className="text-gray-500 italic text-center mt-8">No hay prospectos registrados.</p>
       )}
 
       <Dialog
