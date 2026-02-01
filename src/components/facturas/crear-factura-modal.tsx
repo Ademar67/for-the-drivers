@@ -1,12 +1,11 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ClienteFS } from '@/lib/firestore/clientes';
 
 interface CrearFacturaModalProps {
@@ -24,6 +23,17 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
   const [fechaVencimiento, setFechaVencimiento] = useState('');
   const [pedidoId, setPedidoId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [filtroCliente, setFiltroCliente] = useState('');
+
+  const resetForm = () => {
+    setFolio('');
+    setClienteId('');
+    setMonto('');
+    setFecha('');
+    setFechaVencimiento('');
+    setPedidoId('');
+    setFiltroCliente('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,20 +44,42 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
     setLoading(true);
     const clienteSeleccionado = clientes.find(c => c.id === clienteId);
     
-    await onSave({
-      folio,
-      clienteId,
-      clienteNombre: clienteSeleccionado?.nombre,
-      monto: parseFloat(monto),
-      fecha,
-      fechaVencimiento,
-      pedidoId: pedidoId || 'N/A', // Opcional
-    });
-    setLoading(false);
+    try {
+        await onSave({
+          folio,
+          clienteId,
+          clienteNombre: clienteSeleccionado?.nombre,
+          monto: parseFloat(monto),
+          fecha,
+          fechaVencimiento,
+          pedidoId: pedidoId || 'N/A',
+        });
+        resetForm();
+    } catch (error) {
+        console.error("Error al guardar la factura:", error);
+        // Opcional: mostrar un mensaje de error al usuario
+    } finally {
+        setLoading(false);
+    }
   };
 
+  const handleClose = () => {
+    if (loading) return;
+    resetForm();
+    onClose();
+  }
+
+  const clientesFiltrados = useMemo(() => {
+    if (!filtroCliente) {
+      return clientes;
+    }
+    return clientes.filter(cliente =>
+      cliente.nombre.toLowerCase().includes(filtroCliente.toLowerCase())
+    );
+  }, [clientes, filtroCliente]);
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
@@ -64,27 +96,46 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
                 onChange={(e) => setFolio(e.target.value)}
                 className="col-span-3"
                 placeholder="Ej: F-001"
+                required
               />
             </div>
+
+            {clientes.length > 30 && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="filtro-cliente" className="text-right">
+                  Filtrar
+                </Label>
+                <Input
+                  id="filtro-cliente"
+                  value={filtroCliente}
+                  onChange={(e) => setFiltroCliente(e.target.value)}
+                  className="col-span-3"
+                  placeholder="Filtrar cliente..."
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="cliente" className="text-right">
                 Cliente
               </Label>
-              <Select onValueChange={setClienteId} value={clienteId}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Selecciona un cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes
-                    .filter(cliente => cliente.id)
-                    .map(cliente => (
-                      <SelectItem key={cliente.id!} value={cliente.id!}>
-                        {cliente.nombre}
-                      </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                id="cliente"
+                name="cliente"
+                value={clienteId}
+                onChange={(e) => setClienteId(e.target.value)}
+                className="col-span-3 w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                required
+              >
+                <option value="" disabled>Selecciona un cliente</option>
+                {clientesFiltrados.map(cliente => (
+                  <option key={cliente.id} value={cliente.id}>
+                    {cliente.nombre}
+                  </option>
+                ))}
+              </select>
             </div>
+            
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="monto" className="text-right">
                 Monto
@@ -96,6 +147,7 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
                 onChange={(e) => setMonto(e.target.value)}
                 className="col-span-3"
                 placeholder="1000.00"
+                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -108,6 +160,7 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
                 className="col-span-3"
+                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -120,6 +173,7 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
                 value={fechaVencimiento}
                 onChange={(e) => setFechaVencimiento(e.target.value)}
                 className="col-span-3"
+                required
               />
             </div>
              <div className="grid grid-cols-4 items-center gap-4">
@@ -136,7 +190,7 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
