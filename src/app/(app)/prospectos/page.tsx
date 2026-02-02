@@ -5,8 +5,9 @@ import { listenClientes, ClienteFS, cambiarTipoCliente, eliminarCliente } from '
 import { obtenerVisitas, Visita } from '@/lib/firestore/visitas';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { Calendar, CheckCircle2, StickyNote, Trash2 } from 'lucide-react';
+import { Calendar, CheckCircle2, StickyNote, Trash2, MapPin } from 'lucide-react';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
+import DenueSearchModal from '@/components/denue/DenueSearchModal';
 import {
   Dialog,
   DialogContent,
@@ -75,6 +76,10 @@ export default function ProspectosPage() {
   const [open, setOpen] = useState(false);
   const [notaSeleccionada, setNotaSeleccionada] = useState<string | null>(null);
   const [convirtiendoId, setConvirtiendoId] = useState<string | null>(null);
+  
+  // State for DENUE Search
+  const [denueModalOpen, setDenueModalOpen] = useState(false);
+  const [userCoords, setUserCoords] = useState<{lat: number, lng: number} | null>(null);
 
   useEffect(() => {
     const unsub = listenClientes((clientes) => {
@@ -124,15 +129,40 @@ export default function ProspectosPage() {
        alert('No se pudo eliminar el prospecto.');
     }
   };
+  
+  const handleDenueSearch = () => {
+    if (!navigator.geolocation) {
+      alert('Tu navegador no soporta geolocalización.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserCoords({ lat: latitude, lng: longitude });
+        setDenueModalOpen(true);
+      },
+      (error) => {
+        console.error("Error obteniendo ubicación: ", error);
+        alert('No se pudo obtener tu ubicación. Asegúrate de haber dado los permisos necesarios.');
+      }
+    );
+  };
 
 
   return (
     <div className="p-6">
-      <div className="flex justify-between mb-4">
+      <div className="flex flex-wrap justify-between items-center mb-4 gap-3">
         <h1 className="text-2xl font-bold">Prospectos</h1>
-        <Button onClick={() => setOpen(true)}>
-          + Agregar Prospecto
-        </Button>
+        <div className="flex gap-2">
+            <Button onClick={handleDenueSearch} variant="outline">
+                <MapPin className="h-4 w-4 mr-2" />
+                Buscar Cercanos
+            </Button>
+            <Button onClick={() => setOpen(true)}>
+              + Agregar Prospecto
+            </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -368,6 +398,12 @@ export default function ProspectosPage() {
       </Dialog>
 
       <CrearClienteModal open={open} onClose={() => setOpen(false)} />
+      
+      <DenueSearchModal
+        open={denueModalOpen}
+        onClose={() => setDenueModalOpen(false)}
+        coords={userCoords}
+      />
     </div>
   );
 }
