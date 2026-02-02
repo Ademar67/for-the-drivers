@@ -21,6 +21,7 @@ import {
 import { ChevronDown, PlusCircle, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import AgregarVisitaModal from '@/components/agenda/agregar-visita-modal';
+import DenueSearchModal from '@/components/denue/DenueSearchModal';
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -118,6 +119,10 @@ function AgendaView() {
   const [visitaParaMarcar, setVisitaParaMarcar] = useState<Visita | null>(null);
   const [notaVisita, setNotaVisita] = useState('');
   const [guardandoRealizada, setGuardandoRealizada] = useState(false);
+  
+  // Modal para búsqueda en DENUE
+  const [denueSearchModalOpen, setDenueSearchModalOpen] = useState(false);
+  const [denueSearchCoords, setDenueSearchCoords] = useState<{lat: number, lng: number} | null>(null);
 
   useEffect(() => {
     const unsubClientes = listenClientes(setClientes);
@@ -165,12 +170,22 @@ function AgendaView() {
   const handleConfirmarRealizada = async () => {
     if (!visitaParaMarcar?.id) return;
 
+    const currentVisita = visitaParaMarcar;
+
     try {
       setGuardandoRealizada(true);
-      await marcarVisitaRealizada(visitaParaMarcar.id, notaVisita);
+      await marcarVisitaRealizada(currentVisita.id, notaVisita);
 
       setVisitaParaMarcar(null);
       setNotaVisita('');
+      
+      const clienteDeVisita = clientes.find(c => c.id === currentVisita.clienteId);
+      
+      if (clienteDeVisita && clienteDeVisita.lat && clienteDeVisita.lng) {
+        setDenueSearchCoords({ lat: clienteDeVisita.lat, lng: clienteDeVisita.lng });
+        setDenueSearchModalOpen(true);
+      }
+
     } catch (e) {
       console.error(e);
       alert('No se pudo marcar como realizada.');
@@ -760,6 +775,12 @@ function AgendaView() {
             </Button>
         </div>
       </div>
+      
+      <DenueSearchModal
+        open={denueSearchModalOpen}
+        onClose={() => setDenueSearchModalOpen(false)}
+        coords={denueSearchCoords}
+      />
     </div>
   );
 }
