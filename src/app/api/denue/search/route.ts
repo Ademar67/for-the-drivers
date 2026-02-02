@@ -3,8 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// IMPORTANT: This is a placeholder token. Replace with a real INEGI API token in your .env.local file.
-const INEGI_API_TOKEN = process.env.INEGI_API_KEY || 'REPLACE_WITH_YOUR_INEGI_API_TOKEN';
+// IMPORTANT: This token is loaded from your .env file (DENUE_TOKEN).
+const DENUE_TOKEN = process.env.DENUE_TOKEN || 'REPLACE_WITH_YOUR_INEGI_API_TOKEN';
 
 /**
  * Searches the DENUE directory for businesses near a given location.
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid tipo parameter' }, { status: 400 });
   }
 
-  const url = `https://www.inegi.org.mx/servicios/api/denue/v1/consulta/buscar/${condition}/${lat},${lng}/${radius}/${INEGI_API_TOKEN}`;
+  const url = `https://www.inegi.org.mx/servicios/api/denue/v1/consulta/buscar/${condition}/${lat},${lng}/${radius}/${DENUE_TOKEN}`;
 
   try {
     const response = await fetch(url, {
