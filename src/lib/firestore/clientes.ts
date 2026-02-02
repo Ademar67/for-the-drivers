@@ -22,6 +22,14 @@ export type ClienteFS = {
   frecuencia: string | null
   createdAt: Timestamp
   nota?: string
+  lat?: number
+  lng?: number
+  origen?: string
+  denue?: {
+    id: string;
+    actividad: string;
+    fechaImportado: Timestamp;
+  }
 }
 
 // Escuchar clientes en tiempo real
@@ -41,6 +49,8 @@ export function listenClientes(callback: (clientes: ClienteFS[]) => void) {
         frecuencia: data.frecuencia ?? null,
         createdAt: data.createdAt,
         nota: data.nota ?? '',
+        lat: data.lat,
+        lng: data.lng,
       }
     }) as ClienteFS[]
 
@@ -75,6 +85,41 @@ export async function crearCliente(input: {
     nota: (input.nota ?? '').trim(),
     createdAt: Timestamp.now(),
   })
+}
+
+// New function to add prospects from DENUE
+export async function crearProspectoDesdeDenue(denueBusiness: any) {
+    if (!denueBusiness || !denueBusiness.id) {
+        throw new Error('Datos de negocio de DENUE inválidos.');
+    }
+    
+    const direccionCompleta = [
+        denueBusiness.Calle,
+        denueBusiness.Num_Exterior,
+        denueBusiness.Num_Interior,
+        denueBusiness.Colonia,
+    ].filter(Boolean).join(' ').trim();
+
+    const prospectoData = {
+        nombre: denueBusiness.Nombre,
+        tipo: 'prospecto',
+        ciudad: denueBusiness.Municipio,
+        domicilio: direccionCompleta,
+        diaVisita: null,
+        frecuencia: null,
+        nota: `Importado desde DENUE. Actividad: ${denueBusiness.Clase_actividad}.`,
+        lat: parseFloat(denueBusiness.Latitud),
+        lng: parseFloat(denueBusiness.Longitud),
+        origen: 'DENUE',
+        denue: {
+            id: denueBusiness.id,
+            actividad: denueBusiness.Clase_actividad,
+            fechaImportado: Timestamp.now(),
+        },
+        createdAt: Timestamp.now(),
+    };
+
+    return await addDoc(collection(db, 'clientes'), prospectoData);
 }
 
 export async function eliminarCliente(id: string) {
