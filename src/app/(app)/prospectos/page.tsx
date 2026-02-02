@@ -169,8 +169,9 @@ export default function ProspectosPage() {
                       </span>
                     </div>
                     <p className="text-sm text-gray-500 mt-1">{salud.texto}</p>
-                    <div className="text-xs text-gray-400 mt-2">
-                      Ciudad: {prospecto.ciudad}
+                    <div className="text-xs text-gray-500 mt-2 space-y-1">
+                      <p><span className="font-medium text-gray-600">Dirección:</span> {prospecto.domicilio || 'No especificada'}</p>
+                      <p><span className="font-medium text-gray-600">Ciudad:</span> {prospecto.ciudad}</p>
                     </div>
                   </div>
 
@@ -263,6 +264,7 @@ export default function ProspectosPage() {
               <thead className="bg-gray-50">
                 <tr className="border-b">
                   <th className="p-3 text-left">Nombre</th>
+                  <th className="p-3 text-left">Dirección</th>
                   <th className="p-3 text-left">Ciudad</th>
                   <th className="p-3 text-left">Estado Seguimiento</th>
                   <th className="p-3 text-center">Acciones</th>
@@ -279,6 +281,7 @@ export default function ProspectosPage() {
                   return (
                     <tr key={prospecto.id} className="border-t hover:bg-gray-50">
                       <td className="p-3 font-medium">{prospecto.nombre}</td>
+                      <td className="p-3">{prospecto.domicilio || 'No especificada'}</td>
                       <td className="p-3">{prospecto.ciudad}</td>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
