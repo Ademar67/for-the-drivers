@@ -119,10 +119,10 @@ function AgendaView() {
   const [visitaParaMarcar, setVisitaParaMarcar] = useState<Visita | null>(null);
   const [notaVisita, setNotaVisita] = useState('');
   const [guardandoRealizada, setGuardandoRealizada] = useState(false);
-  
+
   // Modal para búsqueda en DENUE
   const [denueSearchModalOpen, setDenueSearchModalOpen] = useState(false);
-  const [denueSearchCoords, setDenueSearchCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [denueSearchCoords, setDenueSearchCoords] = useState<{ lat: number, lng: number } | null>(null);
 
   useEffect(() => {
     const unsubClientes = listenClientes(setClientes);
@@ -178,9 +178,9 @@ function AgendaView() {
 
       setVisitaParaMarcar(null);
       setNotaVisita('');
-      
+
       const clienteDeVisita = clientes.find(c => c.id === currentVisita.clienteId);
-      
+
       if (clienteDeVisita && clienteDeVisita.lat && clienteDeVisita.lng) {
         setDenueSearchCoords({ lat: clienteDeVisita.lat, lng: clienteDeVisita.lng });
         setDenueSearchModalOpen(true);
@@ -374,44 +374,44 @@ function AgendaView() {
                 </AlertDialog>
               </>
             ) : (
-               <Badge variant="secondary" className="bg-green-100 text-green-800">
-                  Realizada
-               </Badge>
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                Realizada
+              </Badge>
             )}
           </div>
         </div>
 
         {/* Mobile Actions */}
         {visita.estado === 'pendiente' && (
-            <div className="md:hidden flex gap-2 w-full border-t mt-4 pt-3">
-                <Button onClick={() => handleOpenMarcarRealizada(visita)} size="sm" className="flex-1 bg-green-600 hover:bg-green-700">
-                    <CheckCircle className="mr-2 h-4 w-4"/> Marcar Realizada
+          <div className="md:hidden flex gap-2 w-full border-t mt-4 pt-3">
+            <Button onClick={() => handleOpenMarcarRealizada(visita)} size="sm" className="flex-1 bg-green-600 hover:bg-green-700">
+              <CheckCircle className="mr-2 h-4 w-4" /> Marcar Realizada
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="flex-1">
+                  <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                 </Button>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="flex-1">
-                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                        <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción no se puede deshacer. La visita pendiente para <strong>{visita.cliente}</strong> será eliminada.
-                        </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => visita.id && eliminarVisita(visita.id)}
-                            className="bg-red-600 hover:bg-red-700"
-                        >
-                            Eliminar
-                        </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </div>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción no se puede deshacer. La visita pendiente para <strong>{visita.cliente}</strong> será eliminada.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => visita.id && eliminarVisita(visita.id)}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         )}
       </li>
     );
@@ -439,7 +439,6 @@ function AgendaView() {
                 <Trash2 className="h-5 w-5" />
               </Button>
             </AlertDialogTrigger>
-
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
@@ -448,7 +447,6 @@ function AgendaView() {
                   <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
@@ -462,34 +460,34 @@ function AgendaView() {
           </AlertDialog>
         </div>
       </div>
-       {/* Mobile Actions */}
-        <div className="sm:hidden flex gap-2 w-full border-t mt-4 pt-3">
-            <Badge variant="secondary" className="bg-green-100 text-green-800">Realizada</Badge>
-            <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" className="flex-1">
-                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                    </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                    <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Esta acción no se puede deshacer. La visita para <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
-                    </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                        onClick={() => visita.id && eliminarVisita(visita.id)}
-                        className="bg-red-600 hover:bg-red-700"
-                    >
-                        Eliminar
-                    </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
+      {/* Mobile Actions */}
+      <div className="sm:hidden flex gap-2 w-full border-t mt-4 pt-3">
+        <Badge variant="secondary" className="bg-green-100 text-green-800">Realizada</Badge>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm" className="flex-1">
+              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. La visita para <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => visita.id && eliminarVisita(visita.id)}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </li>
   );
 
@@ -504,223 +502,91 @@ function AgendaView() {
         </div>
 
         <div className="hidden md:flex gap-2">
-          <Button onClick={() => setOpenCrearCliente(true)}>
+          <Button variant="outline" onClick={() => setOpenCrearCliente(true)}>
             + Nuevo Cliente
           </Button>
-          <Button
-            onClick={() => setOpenAgregarVisita(true)}
-            className="flex items-center"
-          >
-            <PlusCircle className="mr-2 h-5 w-5" />
-            Agregar visita
+          <Button onClick={() => setOpenAgregarVisita(true)}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Agregar Visita
           </Button>
         </div>
       </div>
 
-      {planDeHoy.length > 0 && !clienteIdFromUrl && (
-        <section className="mb-8">
-          <h2 className="text-xl font-semibold mb-3 text-gray-800">
-            📋 Plan sugerido para hoy ({planDeHoy.length})
-          </h2>
-          <ul className="space-y-3">{planDeHoy.map(renderVisita)}</ul>
-        </section>
-      )}
+      {loading ? (
+        <div className="text-center py-10">Cargando agenda...</div>
+      ) : (
+        <div className="space-y-12">
+          {/* Plan de Hoy */}
+          <section>
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-3">
+              Plan de Hoy ({hoyDiaSemana})
+              <span className="text-lg font-normal text-gray-500">
+                — {hoyFecha}
+              </span>
+            </h2>
+            {planDeHoy.length > 0 ? (
+              <ul className="space-y-4">{planDeHoy.map(renderVisita)}</ul>
+            ) : (
+              <p className="text-gray-500 italic">No hay visitas planeadas para hoy.</p>
+            )}
+          </section>
 
-      <div className="space-y-2">
-        <Collapsible defaultOpen>
-          <CollapsibleTrigger className="w-full py-2">
-            <div className="flex items-center justify-between border-t pt-6">
-              <h2 className="text-xl font-semibold text-gray-800">
-                Visitas Pendientes ({visitasPendientes.length})
-              </h2>
-              <ChevronDown className="h-5 w-5 transition-transform data-[state=open]:rotate-180" />
-            </div>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="pt-3">
-              {loading ? (
-                <p className="text-gray-500 italic">Cargando visitas...</p>
-              ) : visitasPendientes.length > 0 ? (
-                <ul className="space-y-3">{visitasPendientes.map(renderVisita)}</ul>
-              ) : (
-                <p className="text-gray-500 italic">
-                  No hay visitas pendientes {nombreClienteFiltrado ? `para ${nombreClienteFiltrado}` : ''}.
-                </p>
-              )}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+          {/* Próximas Visitas */}
+          {visitasPendientes.length > 0 && (
+            <Collapsible defaultOpen={true}>
+              <CollapsibleTrigger className="w-full">
+                <div className="flex justify-between items-center py-2 border-b-2">
+                  <h2 className="text-xl font-semibold">Próximas Visitas Pendientes</h2>
+                  <ChevronDown className="h-6 w-6 transition-transform [&[data-state=open]]:rotate-180" />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <ul className="space-y-4 pt-4">
+                  {visitasPendientes.map(renderVisita)}
+                </ul>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
 
-        <Collapsible>
-          <CollapsibleTrigger className="w-full py-2">
-            <div className="flex items-center justify-between border-t pt-6">
-              <h2 className="text-xl font-semibold text-gray-800">
-                Visitas Realizadas ({visitasRealizadas.length})
-              </h2>
-              <ChevronDown className="h-5 w-5 transition-transform data-[state=open]:rotate-180" />
-            </div>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="pt-3">
-              {loading ? (
-                <p className="text-gray-500 italic">Cargando visitas...</p>
-              ) : visitasRealizadas.length > 0 ? (
-                <ul className="space-y-3">
+          {/* Visitas Realizadas */}
+          {visitasRealizadas.length > 0 && (
+            <Collapsible>
+              <CollapsibleTrigger className="w-full">
+                <div className="flex justify-between items-center py-2 border-b-2">
+                  <h2 className="text-xl font-semibold">Historial de Visitas Realizadas</h2>
+                  <ChevronDown className="h-6 w-6 transition-transform [&[data-state=open]]:rotate-180" />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <ul className="space-y-4 pt-4">
                   {visitasRealizadas.map(renderVisitaRealizada)}
                 </ul>
-              ) : (
-                <p className="text-gray-500 italic">
-                  No hay visitas realizadas {nombreClienteFiltrado ? `para ${nombreClienteFiltrado}` : ''}.
-                </p>
-              )}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+        </div>
+      )}
 
-        {clientesSinVisitaReciente.length > 0 && !clienteIdFromUrl && (
-          <div className="border-t pt-6">
-            <h2 className="text-xl font-semibold mb-3 text-orange-700 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Clientes sin visita esta semana ({clientesSinVisitaReciente.length})
-            </h2>
-
-            <div className="p-4 rounded-lg border bg-orange-50 border-orange-200">
-              <ul className="space-y-2">
-                {clientesSinVisitaReciente.map((cliente) => (
-                  <li key={cliente.id}>
-                    <Link href={`/agenda?clienteId=${cliente.id}`} className="text-sm text-blue-600 hover:underline">
-                      {cliente.nombre}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {clientesVencidos.length > 0 && !clienteIdFromUrl && (
-          <div className="border-t pt-6">
-            <h2 className="text-xl font-semibold mb-3 text-red-700 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Clientes con frecuencia vencida ({clientesVencidos.length})
-            </h2>
-
-            <div className="p-4 rounded-lg border bg-red-50 border-red-200">
-              <ul className="space-y-2">
-                {clientesVencidos.map((cliente) => (
-                  <li key={cliente.id} className="flex justify-between items-center">
-                    <Link href={`/agenda?clienteId=${cliente.id}`} className="text-sm text-blue-600 hover:underline">
-                      {cliente.nombre}
-                    </Link>
-                    <Badge variant="destructive">URGENTE</Badge>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {!clienteIdFromUrl && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-800 border-t pt-6">Clientes a Visitar por Día</h2>
-
-            <div className="space-y-6">
-              {DIAS_SEMANA.map((dia) => {
-                const delDiaOriginal = clientes.filter(
-                  (c) => c.diaVisita === dia && c.tipo !== 'inactivo' && c.diaVisita
-                );
-
-                if (delDiaOriginal.length === 0) return null;
-
-                const delDia = [...delDiaOriginal].sort((a, b) => {
-                  const urgenciaDiff =
-                    getUrgenciaScore(a.id!, urgenciaSets) - getUrgenciaScore(b.id!, urgenciaSets);
-
-                  if (urgenciaDiff !== 0) return urgenciaDiff;
-
-                  const atrasoA = getDiasAtraso(a.id!, ultimaVisitaMap, hoy);
-                  const atrasoB = getDiasAtraso(b.id!, ultimaVisitaMap, hoy);
-
-                  return atrasoB - atrasoA;
-                });
-
-                const esHoy = dia === hoyDiaSemana;
-
-                return (
-                  <Collapsible key={dia} defaultOpen={esHoy}>
-                    <CollapsibleTrigger className="w-full">
-                      <div
-                        className={cn(
-                          'flex items-center justify-between p-3 rounded-lg border',
-                          esHoy ? 'bg-blue-100 border-blue-300' : 'bg-gray-50 border-gray-200'
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <h3 className={cn('text-lg font-semibold capitalize', esHoy ? 'text-blue-800' : 'text-gray-800')}>
-                            {dia}
-                          </h3>
-                          <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', esHoy ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700')}>
-                            {delDia.length}
-                          </span>
-                        </div>
-
-                        <ChevronDown className={cn('h-5 w-5 transition-transform data-[state=open]:rotate-180', esHoy ? 'text-blue-700' : 'text-gray-600')} />
-                      </div>
-                    </CollapsibleTrigger>
-
-                    <CollapsibleContent>
-                      <ul className="mt-2 space-y-2 border-l-2 pl-6 ml-3">
-                        {delDia.map((cliente) => {
-                          const textoUrgencia = getTextoUrgencia(cliente.id!, {
-                            frecuenciaVencida: urgenciaSets.frecuenciaVencida,
-                            sinVisitaSemana: urgenciaSets.sinVisitaSemana,
-                            ultimaVisitaMap,
-                            hoy,
-                          });
-
-                          const urgenciaScore = getUrgenciaScore(cliente.id!, urgenciaSets);
-
-                          return (
-                            <li
-                              key={cliente.id}
-                              className={cn(
-                                'p-3 rounded-md border text-sm hover:bg-gray-50 cursor-pointer bg-white relative',
-                                urgenciaScore === 0 && 'border-red-500',
-                                urgenciaScore === 1 && 'border-orange-400'
-                              )}
-                            >
-                              {urgenciaScore === 0 && (
-                                <span className="absolute -left-1 top-1/2 -translate-y-1/2 h-full w-1.5 bg-red-500 rounded-r-full" />
-                              )}
-
-                              <div className="font-semibold flex justify-between items-center">
-                                {cliente.nombre}
-                                {urgenciaScore === 0 && (
-                                  <span className="ml-2 text-[10px] font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
-                                    URGENTE
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="text-xs text-gray-600">{cliente.ciudad}</div>
-                              <div className="text-xs text-gray-500 mt-1">Frecuencia: {cliente.frecuencia}</div>
-
-                              {textoUrgencia && <p className="text-xs text-red-600 font-medium mt-1">{textoUrgencia}</p>}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </CollapsibleContent>
-                  </Collapsible>
-                );
-              })}
-            </div>
-          </div>
-        )}
+      {/* --- Floating Action Buttons (Mobile) --- */}
+      <div className="md:hidden fixed bottom-4 right-4 z-40 flex flex-col gap-3">
+        <Button
+          onClick={() => setOpenCrearCliente(true)}
+          size="lg"
+          className="rounded-full shadow-lg h-14 w-auto px-4"
+        >
+          + Cliente
+        </Button>
+        <Button
+          onClick={() => setOpenAgregarVisita(true)}
+          size="lg"
+          className="rounded-full shadow-lg h-14 w-auto px-4 bg-red-600 hover:bg-red-700"
+        >
+          <PlusCircle className="mr-2 h-5 w-5" />
+          Visita
+        </Button>
       </div>
 
       <CrearClienteModal open={openCrearCliente} onClose={() => setOpenCrearCliente(false)} />
-
       <AgregarVisitaModal
         open={openAgregarVisita}
         onClose={() => setOpenAgregarVisita(false)}
@@ -728,55 +594,36 @@ function AgendaView() {
         clientes={clientes}
         clienteIdInicial={clienteIdFromUrl}
       />
-
-      {/* ✅ Modal: Marcar como realizada + nota */}
-      <Dialog open={!!visitaParaMarcar} onOpenChange={(isOpen) => !isOpen && setVisitaParaMarcar(null)}>
+      
+      {/* --- Modal para marcar visita como realizada --- */}
+      <Dialog open={!!visitaParaMarcar} onOpenChange={() => setVisitaParaMarcar(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Marcar visita como realizada</DialogTitle>
-            <DialogDescription>
-              Agrega o actualiza la nota de la visita para <strong>{visitaParaMarcar?.cliente}</strong>.
-            </DialogDescription>
+            <DialogTitle>Completar Visita a {visitaParaMarcar?.cliente}</DialogTitle>
           </DialogHeader>
-
           <div className="py-4">
+            <label htmlFor="nota-visita" className="block text-sm font-medium text-gray-700 mb-1">
+              Agregar nota de la visita (opcional)
+            </label>
             <Textarea
-              placeholder="Escribe aquí las notas de la visita..."
+              id="nota-visita"
               value={notaVisita}
               onChange={(e) => setNotaVisita(e.target.value)}
-              rows={5}
-              className="w-full"
+              placeholder="Ej: Se entregó cotización, se acordó seguimiento..."
+              rows={4}
             />
           </div>
-
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setVisitaParaMarcar(null)} disabled={guardandoRealizada} className="w-full sm:w-auto">
-              Cancelar
-            </Button>
-            <Button onClick={handleConfirmarRealizada} disabled={guardandoRealizada} className="w-full sm:w-auto">
-              {guardandoRealizada ? 'Guardando...' : 'Guardar y Marcar como Realizada'}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVisitaParaMarcar(null)} disabled={guardandoRealizada}>Cancelar</Button>
+            <Button onClick={handleConfirmarRealizada} disabled={guardandoRealizada} className="bg-green-600 hover:bg-green-700">
+              {guardandoRealizada ? 'Guardando...' : 'Confirmar Visita Realizada'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       
-      {/* Barra de acción fija para móvil */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white p-3 md:hidden">
-        <div className="flex gap-2">
-           <Button onClick={() => setOpenCrearCliente(true)} variant="outline" className="h-12 flex-1 text-base">
-                + Nuevo Cliente
-            </Button>
-            <Button
-              onClick={() => setOpenAgregarVisita(true)}
-              className="h-12 flex-1 text-base"
-            >
-              <PlusCircle className="mr-2 h-5 w-5" />
-              Agregar visita
-            </Button>
-        </div>
-      </div>
-      
-      <DenueSearchModal
+      {/* --- Modal para buscar en DENUE --- */}
+      <DenueSearchModal 
         open={denueSearchModalOpen}
         onClose={() => setDenueSearchModalOpen(false)}
         coords={denueSearchCoords}
@@ -785,9 +632,10 @@ function AgendaView() {
   );
 }
 
+
 export default function AgendaPage() {
   return (
-    <Suspense fallback={<div>Cargando agenda...</div>}>
+    <Suspense>
       <AgendaView />
     </Suspense>
   );
