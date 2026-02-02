@@ -169,7 +169,7 @@ function AgendaView() {
   };
 
   const handleConfirmarRealizada = async () => {
-    if (!visitaParaMarcar?.id) return;
+    if (!visitaParaMarcar) return;
 
     const currentVisita = visitaParaMarcar;
 
