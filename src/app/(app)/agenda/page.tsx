@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -192,7 +193,12 @@ function AgendaView() {
 
     try {
       setGuardandoRealizada(true);
-      await marcarVisitaRealizada(currentVisita.id, notaVisita);
+      if (!currentVisita?.id) {
+        console.error("Visita sin id");
+        setGuardandoRealizada(false);
+        return;
+      }
+      await marcarVisitaRealizada(currentVisita.id, notaVisita ?? "");
 
       setVisitaParaMarcar(null);
       setNotaVisita('');
