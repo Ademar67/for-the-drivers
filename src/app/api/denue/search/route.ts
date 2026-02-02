@@ -3,63 +3,97 @@ import { NextResponse, type NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// IMPORTANT: This token is loaded from your .env file (DENUE_TOKEN).
-const DENUE_TOKEN = process.env.DENUE_TOKEN || 'REPLACE_WITH_YOUR_INEGI_API_TOKEN';
+const DENUE_TOKEN = process.env.DENUE_TOKEN;
 
-/**
- * Searches the DENUE directory for businesses near a given location.
- */
+const TERMS: Record<string, string[]> = {
+  // suele responder bien
+  taller: ['taller mecanico', 'mecanico'],
+
+  // aquí es donde DENUE a veces se pone mamón con el texto exacto,
+  // por eso probamos varios
+  refaccionaria: [
+    'refaccionaria',
+    'refacciones',
+    'refacciones y accesorios para automoviles',
+    'refacciones y accesorios para vehículos automotores',
+  ],
+};
+
+async function fetchDenue(condition: string, lat: string, lng: string, radius: string, token: string) {
+  const encodedCondition = encodeURIComponent(condition);
+
+  const url =
+    `https://www.inegi.org.mx/app/api/denue/v1/consulta/Buscar/` +
+    `${encodedCondition}/${lat},${lng}/${radius}/${token}`;
+
+  const response = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+  });
+
+  const rawText = await response.text();
+  const cleanText = rawText.trim().replace(/^\uFEFF/, '');
+
+  return { response, cleanText };
+}
+
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const lat = searchParams.get('lat');
-  const lng = searchParams.get('lng');
-  const radius = searchParams.get('radius') || '250'; // Default radius 250m
-  const tipo = searchParams.get('tipo'); // e.g., 'taller', 'refaccionaria'
-
-  if (!lat || !lng || !tipo) {
-    return NextResponse.json(
-      { error: 'Missing required parameters: lat, lng, tipo' },
-      { status: 400 }
-    );
-  }
-
-  // Map internal type to DENUE search terms
-  const searchTerms: { [key: string]: string } = {
-    taller: 'mecánico',
-    refaccionaria: 'refacciones y accesorios para automóviles',
-  };
-
-  const condition = searchTerms[tipo];
-  if (!condition) {
-    return NextResponse.json({ error: 'Invalid tipo parameter' }, { status: 400 });
-  }
-
-  const url = `https://www.inegi.org.mx/servicios/api/denue/v1/consulta/buscar/${condition}/${lat},${lng}/${radius}/${DENUE_TOKEN}`;
-
   try {
-    const response = await fetch(url, {
-        headers: {
-            'Accept': 'application/json'
-        }
-    });
+    const { searchParams } = new URL(req.url);
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('DENUE API Error:', errorText);
-        throw new Error(`DENUE API failed with status ${response.status}`);
+    const lat = searchParams.get('lat');
+    const lng = searchParams.get('lng');
+    const radius = searchParams.get('radius') || '1000';
+    const tipo = searchParams.get('tipo'); // 'taller' | 'refaccionaria'
+
+    if (!DENUE_TOKEN) {
+      return NextResponse.json(
+        { error: 'Falta configurar DENUE_TOKEN en variables de entorno.' },
+        { status: 500 }
+      );
     }
 
-    // INEGI API sometimes returns JSON with a BOM character at the start, which needs to be removed.
-    const rawText = await response.text();
-    const cleanText = rawText.trim().replace(/^\uFEFF/, '');
-    const data = JSON.parse(cleanText);
+    if (!lat || !lng || !tipo) {
+      return NextResponse.json(
+        { error: 'Faltan parámetros: lat, lng, tipo' },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json(data);
+    const attempts = TERMS[tipo];
+    if (!attempts) {
+      return NextResponse.json({ error: 'tipo inválido' }, { status: 400 });
+    }
+
+    // Probamos varios términos hasta que uno funcione
+    let lastError: any = null;
+
+    for (const term of attempts) {
+      const { response, cleanText } = await fetchDenue(term, lat, lng, radius, DENUE_TOKEN);
+
+      if (response.ok) {
+        const data = JSON.parse(cleanText);
+        return NextResponse.json(data);
+      }
+
+      // guardamos el último error para devolver algo útil
+      lastError = { status: response.status, details: cleanText, term };
+      // seguimos intentando con otro término
+    }
+
+    console.error('DENUE API Error (all terms failed):', lastError);
+    return NextResponse.json(
+      {
+        error: `DENUE API failed for tipo=${tipo}`,
+        details: lastError,
+      },
+      { status: lastError?.status || 500 }
+    );
   } catch (error) {
     console.error('[DENUE SEARCH API] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to fetch data from DENUE API.', details: errorMessage },
+      { error: 'Failed to fetch data from DENUE API.', details: msg },
       { status: 500 }
     );
   }
