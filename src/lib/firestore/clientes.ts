@@ -36,6 +36,7 @@ export type ClienteFS = {
   denue?: {
     id: string
     actividad?: string
+    tipoNegocio?: 'taller' | 'refaccionaria'
     fechaImportado: Timestamp
   }
 
@@ -114,18 +115,22 @@ export async function crearCliente(input: {
 // DENUE -> CREAR PROSPECTO
 // (evita duplicados por denue.id)
 // ==============================
-export async function crearProspectoDesdeDenue(denueBusiness: any) {
-  if (!denueBusiness) {
-    throw new Error('Datos de negocio de DENUE inválidos.')
+export async function crearProspectoDesdeDenue(input: {
+  denueId: string,
+  nombre: string,
+  telefono: string,
+  ciudad: string,
+  domicilio: string,
+  lat: number | null,
+  lng: number | null,
+  claseActividad: string,
+  tipoNegocio: 'taller' | 'refaccionaria';
+}) {
+  if (!input || !input.denueId) {
+    throw new Error('Datos de negocio de DENUE inválidos o sin ID.')
   }
 
-  // DENUE a veces manda "Id" (mayúscula) en lugar de "id"
-  const denueId: string =
-    String(denueBusiness.id ?? denueBusiness.Id ?? denueBusiness.ID ?? '').trim()
-
-  if (!denueId) {
-    throw new Error('DENUE no trae ID del negocio.')
-  }
+  const denueId = input.denueId.trim();
 
   // 1) Evitar duplicados: si ya existe un cliente con denue.id == denueId, no crear.
   const existingQ = query(
@@ -138,37 +143,25 @@ export async function crearProspectoDesdeDenue(denueBusiness: any) {
     return { ok: true, alreadyExists: true, id: existingSnap.docs[0].id }
   }
 
-  const direccionCompleta = [
-    denueBusiness.Calle,
-    denueBusiness.Num_Exterior,
-    denueBusiness.Num_Interior,
-    denueBusiness.Colonia,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .trim()
-
-  const lat = Number.parseFloat(String(denueBusiness.Latitud ?? '').trim())
-  const lng = Number.parseFloat(String(denueBusiness.Longitud ?? '').trim())
-
   const prospectoData = {
-    nombre: String(denueBusiness.Nombre ?? '').trim() || 'Prospecto DENUE',
+    nombre: input.nombre || 'Prospecto DENUE',
     tipo: 'prospecto' as const,
-    ciudad: String(denueBusiness.Municipio ?? '').trim() || 'N/A',
-    domicilio: direccionCompleta || 'N/A',
+    ciudad: input.ciudad || 'N/A',
+    domicilio: input.domicilio || 'N/A',
     diaVisita: null,
     frecuencia: null,
 
-    nota: `Importado desde DENUE.${denueBusiness.Clase_actividad ? ` Actividad: ${denueBusiness.Clase_actividad}.` : ''}`,
+    nota: `Importado desde DENUE.${input.claseActividad ? ` Actividad: ${input.claseActividad}.` : ''}`,
 
     // solo guardamos coords si son válidas
-    lat: Number.isFinite(lat) ? lat : undefined,
-    lng: Number.isFinite(lng) ? lng : undefined,
+    lat: input.lat != null && Number.isFinite(input.lat) ? input.lat : undefined,
+    lng: input.lng != null && Number.isFinite(input.lng) ? input.lng : undefined,
 
     origen: 'DENUE',
     denue: {
       id: denueId,
-      actividad: denueBusiness.Clase_actividad ?? undefined,
+      actividad: input.claseActividad || undefined,
+      tipoNegocio: input.tipoNegocio,
       fechaImportado: Timestamp.now(),
     },
 
