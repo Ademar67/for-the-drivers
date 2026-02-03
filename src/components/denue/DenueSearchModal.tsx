@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -47,7 +48,7 @@ function buildDomicilio(d: DenueResult) {
 function getDenueKey(d: DenueResult) {
   // 1) Id oficial si viene
   const id = d.Id || d.id;
-  if (id) return id;
+  if (id) return String(id);
 
   // 2) fallback por si DENUE no manda Id en algún caso (evita undefined)
   const lat = d.Latitud || '';
