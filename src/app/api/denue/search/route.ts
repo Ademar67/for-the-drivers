@@ -3,8 +3,6 @@ import { NextResponse, type NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const DENUE_TOKEN = process.env.DENUE_TOKEN;
-
 const TERMS: Record<string, string[]> = {
   // suele responder bien
   taller: ['taller mecanico', 'mecanico'],
@@ -46,7 +44,8 @@ export async function GET(req: NextRequest) {
     const radius = searchParams.get('radius') || '1000';
     const tipo = searchParams.get('tipo'); // 'taller' | 'refaccionaria'
 
-    if (!DENUE_TOKEN) {
+    const token = process.env.DENUE_TOKEN ?? process.env.DENUE_API_TOKEN;
+    if (!token) {
       return NextResponse.json(
         { error: 'Falta configurar DENUE_TOKEN en variables de entorno.' },
         { status: 500 }
@@ -69,7 +68,7 @@ export async function GET(req: NextRequest) {
     let lastError: any = null;
 
     for (const term of attempts) {
-      const { response, cleanText } = await fetchDenue(term, lat, lng, radius, DENUE_TOKEN);
+      const { response, cleanText } = await fetchDenue(term, lat, lng, radius, token);
 
       if (response.ok) {
         const data = JSON.parse(cleanText);
