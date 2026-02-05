@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { PlusCircle, Loader2 } from 'lucide-react';
-import { crearProspectoDesdeDenue } from '@/lib/firestore/clientes';
 
 type DenueSearchModalProps = {
   open: boolean;
@@ -26,6 +25,24 @@ type DenueSearchModalProps = {
 export type DenueResult = {
   Id?: string;
   id?: string;
+  clee?: string;
+  nom_estab?: string;
+  name?: string;
+  nom_vial?: string,
+  numero_ext?: string,
+  colonia?: string,
+  cod_postal?: string,
+  municipio?: string,
+  entidad?: string,
+  telefono?: string;
+  tel?: string;
+  phone?: string;
+  latitud?: string;
+  longitud?: string;
+  lat?: string;
+  lng?: string;
+  direccion?: string;
+
 
   Nombre: string;
   Calle: string;
@@ -56,12 +73,85 @@ function getDenueKey(d: DenueResult) {
   return `${d.Nombre}-${lat}-${lng}`.replace(/\s+/g, '-');
 }
 
+function buildAddress(item: any) {
+  // Ajusta si tus campos vienen distinto, esto cubre lo normal en DENUE
+  return (
+    item?.direccion ||
+    [
+      item?.nom_vial,
+      item?.numero_ext,
+      item?.colonia,
+      item?.cod_postal,
+      item?.municipio,
+      item?.entidad,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
+export function useDenueAdd() {
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
+
+  async function addFromDenue(item: any, category: "taller" | "refaccionaria") {
+    // Un id local para bloquear el botón
+    const localId =
+      item?.id ||
+      item?.id_denue ||
+      item?.clee ||
+      `${item?.nom_estab ?? "x"}-${item?.latitud ?? ""}-${item?.longitud ?? ""}`;
+
+    try {
+      setAddingId(String(localId));
+
+      const name = item?.nom_estab ?? item?.name ?? "SIN NOMBRE";
+      const phone = item?.telefono ?? item?.tel ?? item?.phone ?? null;
+      const address = buildAddress(item);
+
+      const lat = Number(item?.latitud ?? item?.lat ?? null);
+      const lng = Number(item?.longitud ?? item?.lng ?? null);
+
+      const res = await fetch("/api/prospectos/from-denue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          address,
+          phone,
+          lat: Number.isFinite(lat) ? lat : null,
+          lng: Number.isFinite(lng) ? lng : null,
+          category,
+          denueRaw: item,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data?.error ?? "No se pudo agregar el prospecto");
+        return;
+      }
+
+      // Marcar como agregado en UI (aunque haya sido duplicado)
+      setAddedIds((prev) => ({ ...prev, [String(localId)]: true }));
+
+      alert(data.created ? "✅ Prospecto agregado" : "ℹ️ Ya existía, no se duplicó");
+    } finally {
+      setAddingId(null);
+    }
+  }
+
+  return { addFromDenue, addingId, addedIds };
+}
+
 export default function DenueSearchModal({ open, onClose, coords }: DenueSearchModalProps) {
   const [searchType, setSearchType] = useState<'taller' | 'refaccionaria'>('taller');
   const [results, setResults] = useState<DenueResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [addedProspects, setAddedProspects] = useState<Set<string>>(new Set());
+  const { addFromDenue, addingId, addedIds } = useDenueAdd();
+
 
   const handleSearch = async () => {
     if (!coords) {
@@ -82,7 +172,7 @@ export default function DenueSearchModal({ open, onClose, coords }: DenueSearchM
       );
 
       const text = await response.text();
-      const clean = text.trim().replace(/^\uFEFF/, '');
+      const clean = text.trim().replace(/^﻿/, '');
 
       if (!response.ok) {
         // intenta parsear error JSON, si no, muestra el texto
@@ -103,37 +193,6 @@ export default function DenueSearchModal({ open, onClose, coords }: DenueSearchM
       setError(e?.message || 'Error al buscar en DENUE.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAgregarProspecto = async (business: DenueResult) => {
-    const key = getDenueKey(business);
-
-    // Optimistic UI
-    setAddedProspects((prev) => new Set(prev).add(key));
-
-    try {
-      await crearProspectoDesdeDenue({
-        denueId: key,
-        nombre: business.Nombre,
-        telefono: business.Telefono || '',
-        ciudad: business.Municipio || '',
-        domicilio: buildDomicilio(business),
-        lat: business.Latitud ? Number(business.Latitud) : null,
-        lng: business.Longitud ? Number(business.Longitud) : null,
-        claseActividad: business.Clase_actividad || '',
-        tipoNegocio: searchType, // "taller" | "refaccionaria"
-      });
-    } catch (err) {
-      console.error('Error al agregar prospecto:', err);
-      alert('No se pudo agregar el prospecto.');
-
-      // rollback optimistic
-      setAddedProspects((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
     }
   };
 
@@ -192,16 +251,10 @@ export default function DenueSearchModal({ open, onClose, coords }: DenueSearchM
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleAgregarProspecto(item)}
-                    disabled={addedProspects.has(key)}
-                  >
-                    {!addedProspects.has(key) ? (
-                      <>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Agregar
-                      </>
-                    ) : (
-                      'Agregado'
-                    )}
+                    onClick={() => addFromDenue(item, searchType)}
+                    disabled={addingId === item?.clee || addedIds[item?.clee]}
+                 >
+                    {addedIds[item?.clee] ? "Agregado ✅" : addingId === item?.clee ? "Agregando..." : "Agregar"}
                   </Button>
                 </div>
               );
