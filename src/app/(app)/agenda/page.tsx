@@ -156,6 +156,24 @@ function AgendaView() {
       alert(error instanceof Error ? error.message : 'Error desconocido al guardar visita');
     }
   };
+  
+    const handleQuitarDeLista = async (clienteId: string, clienteNombre: string) => {
+    try {
+      // Registrar una visita "rápida" para sacarlo de la lista
+      await crearVisita({
+        clienteId,
+        cliente: clienteNombre,
+        fecha: new Date().toISOString().split('T')[0],
+        hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        tipo: 'visita',
+        notas: 'Visita rápida para quitar de pendientes.',
+        estado: 'realizada',
+      });
+    } catch (error) {
+      console.error('Error al quitar cliente de la lista:', error);
+      alert('No se pudo quitar al cliente de la lista.');
+    }
+  };
 
   const handleOpenMarcarRealizada = (visita: Visita) => {
     setVisitaParaMarcar(visita);
@@ -192,23 +210,18 @@ function AgendaView() {
   visitas
     .filter((v) => v.estado === 'realizada')
     .forEach((v) => {
-      const fechaVisita = new Date(v.fecha);
-      const fechaExistente = ultimaVisitaMap.get(v.clienteId);
-      if (!fechaExistente || fechaVisita > fechaExistente) {
-        ultimaVisitaMap.set(v.clienteId, fechaVisita);
+      // Validar que la fecha sea un string antes de crear el objeto Date
+      if (typeof v.fecha === 'string') {
+        const fechaVisita = new Date(v.fecha);
+        // Validar que la fecha no sea inválida
+        if (!isNaN(fechaVisita.getTime())) {
+          const fechaExistente = ultimaVisitaMap.get(v.clienteId);
+          if (!fechaExistente || fechaVisita > fechaExistente) {
+            ultimaVisitaMap.set(v.clienteId, fechaVisita);
+          }
+        }
       }
     });
-
-  const clientesSinVisitaReciente = clientesActivos.filter((cliente) => {
-    const visitasDelCliente = visitas.filter((v) => v.clienteId === cliente.id);
-    if (visitasDelCliente.length === 0) return true;
-
-    const ultimaVisita = visitasDelCliente.reduce((masReciente, actual) =>
-      new Date(actual.fecha) > new Date(masReciente.fecha) ? actual : masReciente
-    );
-
-    return new Date(ultimaVisita.fecha) < sieteDiasAtras;
-  });
 
   const getFechaLimite = (ultimaFecha: Date, frecuencia: string) => {
     const fechaLimite = new Date(ultimaFecha);
@@ -244,6 +257,18 @@ function AgendaView() {
       const fechaLimite = getFechaLimite(new Date(ultimaVisita.fecha), cliente.frecuencia!);
       return new Date() > fechaLimite;
     });
+
+  const clientesVencidosIdSet = new Set(clientesVencidos.map(c => c.id));
+
+  const clientesSinVisitaReciente = clientesActivos.filter((cliente) => {
+    if (!cliente.id) return false;
+    if (clientesVencidosIdSet.has(cliente.id)) return false;
+
+    const ultimaVisita = ultimaVisitaMap.get(cliente.id);
+    if (!ultimaVisita) return true;
+    return ultimaVisita < sieteDiasAtras;
+  });
+
 
   const frecuenciaVencidaSet = new Set(
     clientesVencidos.map((c) => c.id).filter((id): id is string => typeof id === 'string')
@@ -572,10 +597,31 @@ function AgendaView() {
             <div className="p-4 rounded-lg border bg-orange-50 border-orange-200">
               <ul className="space-y-2">
                 {clientesSinVisitaReciente.map((cliente) => (
-                  <li key={cliente.id}>
+                   <li key={cliente.id} className="flex justify-between items-center">
                     <Link href={`/agenda?clienteId=${cliente.id}`} className="text-sm text-blue-600 hover:underline">
                       {cliente.nombre}
                     </Link>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                         <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-8 w-8">
+                           <Trash2 className="h-4 w-4" />
+                         </Button>
+                      </AlertDialogTrigger>
+                       <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Quitar de la lista?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Se registrará una visita rápida para quitar a <strong>{cliente.nombre}</strong> de las listas de pendientes.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleQuitarDeLista(cliente.id!, cliente.nombre)} className="bg-red-600 hover:bg-red-700">
+                              Quitar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                   </li>
                 ))}
               </ul>
@@ -594,10 +640,33 @@ function AgendaView() {
               <ul className="space-y-2">
                 {clientesVencidos.map((cliente) => (
                   <li key={cliente.id} className="flex justify-between items-center">
-                    <Link href={`/agenda?clienteId=${cliente.id}`} className="text-sm text-blue-600 hover:underline">
-                      {cliente.nombre}
-                    </Link>
-                    <Badge variant="destructive">URGENTE</Badge>
+                    <div>
+                      <Link href={`/agenda?clienteId=${cliente.id}`} className="text-sm text-blue-600 hover:underline">
+                        {cliente.nombre}
+                      </Link>
+                      <Badge variant="destructive" className="ml-2">URGENTE</Badge>
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                         <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-8 w-8">
+                           <Trash2 className="h-4 w-4" />
+                         </Button>
+                      </AlertDialogTrigger>
+                       <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Quitar de la lista?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Se registrará una visita rápida para quitar a <strong>{cliente.nombre}</strong> de las listas de pendientes.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleQuitarDeLista(cliente.id!, cliente.nombre)} className="bg-red-600 hover:bg-red-700">
+                              Quitar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                   </li>
                 ))}
               </ul>
