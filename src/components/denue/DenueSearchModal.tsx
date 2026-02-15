@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -13,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 type DenueSearchModalProps = {
   open: boolean;
@@ -28,12 +27,12 @@ export type DenueResult = {
   clee?: string;
   nom_estab?: string;
   name?: string;
-  nom_vial?: string,
-  numero_ext?: string,
-  colonia?: string,
-  cod_postal?: string,
-  municipio?: string,
-  entidad?: string,
+  nom_vial?: string;
+  numero_ext?: string;
+  colonia?: string;
+  cod_postal?: string;
+  municipio?: string;
+  entidad?: string;
   telefono?: string;
   tel?: string;
   phone?: string;
@@ -43,7 +42,7 @@ export type DenueResult = {
   lng?: string;
   direccion?: string;
 
-
+  // Campos “normalizados” (los que tú estás usando para pintar)
   Nombre: string;
   Calle: string;
   Num_Exterior?: string;
@@ -67,26 +66,21 @@ function getDenueKey(d: DenueResult) {
   const id = d.Id || d.id;
   if (id) return String(id);
 
-  // 2) fallback por si DENUE no manda Id en algún caso (evita undefined)
+  // 2) clee si viene (también es buen id)
+  if (d.clee) return String(d.clee);
+
+  // 3) fallback para evitar undefined
   const lat = d.Latitud || '';
   const lng = d.Longitud || '';
   return `${d.Nombre}-${lat}-${lng}`.replace(/\s+/g, '-');
 }
 
 function buildAddress(item: any) {
-  // Ajusta si tus campos vienen distinto, esto cubre lo normal en DENUE
   return (
     item?.direccion ||
-    [
-      item?.nom_vial,
-      item?.numero_ext,
-      item?.colonia,
-      item?.cod_postal,
-      item?.municipio,
-      item?.entidad,
-    ]
+    [item?.nom_vial, item?.numero_ext, item?.colonia, item?.cod_postal, item?.municipio, item?.entidad]
       .filter(Boolean)
-      .join(" ")
+      .join(' ')
   );
 }
 
@@ -94,27 +88,27 @@ export function useDenueAdd() {
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
 
-  async function addFromDenue(item: any, category: "taller" | "refaccionaria") {
-    // Un id local para bloquear el botón
+  async function addFromDenue(item: any, category: 'taller' | 'refaccionaria') {
     const localId =
       item?.id ||
       item?.id_denue ||
       item?.clee ||
-      `${item?.nom_estab ?? "x"}-${item?.latitud ?? ""}-${item?.longitud ?? ""}`;
+      `${item?.nom_estab ?? item?.Nombre ?? 'x'}-${item?.latitud ?? item?.Latitud ?? ''}-${item?.longitud ?? item?.Longitud ?? ''}`;
 
     try {
-      setAddingId(String(localId));
+      const localIdStr = String(localId);
+      setAddingId(localIdStr);
 
-      const name = item?.nom_estab ?? item?.name ?? "SIN NOMBRE";
-      const phone = item?.telefono ?? item?.tel ?? item?.phone ?? null;
-      const address = buildAddress(item);
+      const name = item?.nom_estab ?? item?.name ?? item?.Nombre ?? 'SIN NOMBRE';
+      const phone = item?.telefono ?? item?.tel ?? item?.phone ?? item?.Telefono ?? null;
+      const address = buildAddress(item) || buildDomicilio(item);
 
-      const lat = Number(item?.latitud ?? item?.lat ?? null);
-      const lng = Number(item?.longitud ?? item?.lng ?? null);
+      const lat = Number(item?.latitud ?? item?.lat ?? item?.Latitud ?? null);
+      const lng = Number(item?.longitud ?? item?.lng ?? item?.Longitud ?? null);
 
-      const res = await fetch("/api/prospectos/from-denue", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/prospectos/from-denue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
           address,
@@ -129,14 +123,13 @@ export function useDenueAdd() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data?.error ?? "No se pudo agregar el prospecto");
+        alert(data?.error ?? 'No se pudo agregar el prospecto');
         return;
       }
 
-      // Marcar como agregado en UI (aunque haya sido duplicado)
-      setAddedIds((prev) => ({ ...prev, [String(localId)]: true }));
+      setAddedIds((prev) => ({ ...prev, [localIdStr]: true }));
 
-      alert(data.created ? "✅ Prospecto agregado" : "ℹ️ Ya existía, no se duplicó");
+      alert(data.created ? '✅ Prospecto agregado' : 'ℹ️ Ya existía, no se duplicó');
     } finally {
       setAddingId(null);
     }
@@ -151,7 +144,6 @@ export default function DenueSearchModal({ open, onClose, coords }: DenueSearchM
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { addFromDenue, addingId, addedIds } = useDenueAdd();
-
 
   const handleSearch = async () => {
     if (!coords) {
@@ -175,7 +167,6 @@ export default function DenueSearchModal({ open, onClose, coords }: DenueSearchM
       const clean = text.trim().replace(/^﻿/, '');
 
       if (!response.ok) {
-        // intenta parsear error JSON, si no, muestra el texto
         try {
           const errJson = JSON.parse(clean);
           throw new Error(errJson.details || errJson.error || `Error ${response.status}`);
@@ -185,8 +176,6 @@ export default function DenueSearchModal({ open, onClose, coords }: DenueSearchM
       }
 
       const data = JSON.parse(clean);
-
-      // A veces DENUE regresa objeto, a veces array. Nos vamos a array.
       const arr: DenueResult[] = Array.isArray(data) ? data : [];
       setResults(arr);
     } catch (e: any) {
@@ -201,18 +190,12 @@ export default function DenueSearchModal({ open, onClose, coords }: DenueSearchM
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Buscar Negocios Cercanos en DENUE</DialogTitle>
-          <DialogDescription>
-            Encuentra talleres mecánicos o refaccionarias cerca de tu ubicación.
-          </DialogDescription>
+          <DialogDescription>Encuentra talleres mecánicos o refaccionarias cerca de tu ubicación.</DialogDescription>
         </DialogHeader>
 
         <div className="py-4 space-y-4">
           <div className="flex items-center gap-6">
-            <RadioGroup
-              defaultValue="taller"
-              value={searchType}
-              onValueChange={(val: any) => setSearchType(val)}
-            >
+            <RadioGroup defaultValue="taller" value={searchType} onValueChange={(val: any) => setSearchType(val)}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="taller" id="r-taller" />
                 <Label htmlFor="r-taller">Talleres Mecánicos</Label>
@@ -240,6 +223,11 @@ export default function DenueSearchModal({ open, onClose, coords }: DenueSearchM
               const key = getDenueKey(item);
               const domicilio = buildDomicilio(item);
 
+              // ✅ ID seguro para UI (nunca undefined)
+              const keyId = String(item?.clee ?? item?.Id ?? item?.id ?? key);
+              const isAdding = addingId === keyId;
+              const isAdded = !!addedIds[keyId];
+
               return (
                 <div key={key} className="p-3 border rounded-lg flex justify-between items-center gap-3">
                   <div className="flex-1">
@@ -252,9 +240,9 @@ export default function DenueSearchModal({ open, onClose, coords }: DenueSearchM
                     size="sm"
                     variant="outline"
                     onClick={() => addFromDenue(item, searchType)}
-                    disabled={addingId === item?.clee || addedIds[item?.clee]}
-                 >
-                    {addedIds[item?.clee] ? "Agregado ✅" : addingId === item?.clee ? "Agregando..." : "Agregar"}
+                    disabled={isAdding || isAdded}
+                  >
+                    {isAdded ? 'Agregado ✅' : isAdding ? 'Agregando...' : 'Agregar'}
                   </Button>
                 </div>
               );
