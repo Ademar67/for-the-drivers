@@ -10,6 +10,7 @@ import {
   UserPlus,
   ClipboardList,
   BookOpen,
+  FileSearch,
 } from "lucide-react";
 import {
   Card,
@@ -72,6 +73,12 @@ const dashboardCards = [
     description: "Consulta fichas técnicas",
     href: "/fichas-tecnicas",
     icon: Calculator,
+  },
+  {
+    title: "Materiales",
+    description: "Listas de precios, catálogos y promos",
+    href: "/materiales",
+    icon: FileSearch,
   },
   {
     title: "Asesor Digital",

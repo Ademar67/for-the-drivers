@@ -147,6 +147,15 @@ function SidebarNavigation() {
 
       <SidebarMenuItem>
         <SidebarMenuButton asChild>
+          <Link href="/materiales" onClick={handleLinkClick}>
+            <FileSearch />
+            <span>Materiales</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild>
           <Link href="/soporte-ia" onClick={handleLinkClick}>
             <Bot />
             <span>Soporte IA</span>
