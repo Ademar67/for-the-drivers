@@ -1,6 +1,5 @@
 import { getFichasTecnicas } from "@/lib/fichas-tecnicas";
 import FichasCatalogoClient from "./FichasCatalogoClient";
-import MaterialAssetsCard from "@/components/MaterialAssetsCard";
 
 export const runtime = "nodejs";
 
@@ -26,9 +25,7 @@ export default async function FichasTecnicasPage() {
 
   return (
     <div className="p-4 grid gap-4">
-        <MaterialAssetsCard />
-        <FichasCatalogoClient items={items} />
+      <FichasCatalogoClient items={items} />
     </div>
-  )
-
+  );
 }
