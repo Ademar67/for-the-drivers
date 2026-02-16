@@ -1,15 +1,15 @@
 'use server';
 
 /**
- * @fileOverview AI-powered product recommendation engine for Liqui Moly products.
+ * @fileOverview AI-powered product recommendation engine for Liqui Moly México.
  *
  * - recommendProducts - A function that takes customer needs as input and returns a list of recommended Liqui Moly products.
  * - ProductRecommendationInput - The input type for the recommendProducts function.
  * - ProductRecommendationOutput - The return type for the recommendProducts function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import { ai } from '@/ai/genkit';
+import { z } from 'zod';
 import { obtenerProductosFirestore } from '@/lib/firebase/productos';
 
 // Schema for the input of the product recommendation flow.
@@ -17,7 +17,7 @@ const ProductRecommendationInputSchema = z.object({
   customerNeeds: z
     .string()
     .describe(
-      'A description of the customer needs, including vehicle type, usage conditions, and desired product benefits.'
+      'Descripción del caso o pregunta del cliente. Puede incluir vehículo, año, motor, síntoma, uso, producto buscado, etc.'
     ),
 });
 export type ProductRecommendationInput = z.infer<typeof ProductRecommendationInputSchema>;
@@ -37,43 +37,48 @@ const ProductRecommendationOutputSchema = z.object({
   sintoma: z.string(),
   diagnostico_orientativo: z.string(),
   productos_recomendados: z.array(ProductoRecomendadoSchema),
+  preguntas_clarificacion: z.array(z.string()).default([]),
   advertencia: z.string(),
 });
 export type ProductRecommendationOutput = z.infer<typeof ProductRecommendationOutputSchema>;
 
-
 const prompt = ai.definePrompt({
   name: 'productRecommendationPrompt',
-  input: {schema: z.object({
+  input: {
+    schema: z.object({
       customerNeeds: ProductRecommendationInputSchema.shape.customerNeeds,
-      productList: z.string().describe("A JSON string of all available products.")
-  })},
-  output: {schema: ProductRecommendationOutputSchema},
+      productList: z.string().describe('A JSON string of all available products (México).'),
+    }),
+  },
+  output: { schema: ProductRecommendationOutputSchema },
   prompt: `Actúa como un Asesor Técnico Digital de Liqui Moly México.
 
-Tu función es recomendar productos Liqui Moly basándote únicamente en síntomas del vehículo.
+OBJETIVO
+- Ayudar a clientes con recomendaciones y dudas técnicas sobre productos automotrices.
+- IMPORTANTE: SOLO puedes recomendar productos Liqui Moly que estén en la lista PRODUCTOS DISPONIBLES (México).
+- Si el usuario pregunta por algo que NO puedes confirmar en PRODUCTOS DISPONIBLES, NO inventes.
+  En ese caso: da una guía general por ESPECIFICACIÓN/CATEGORÍA (sin mencionar SKUs inexistentes) y haz preguntas de clarificación.
 
 REGLAS ESTRICTAS (OBLIGATORIAS)
-- SOLO recomienda productos Liqui Moly incluidos en la lista PRODUCTOS DISPONIBLES.
-- NO utilices conocimiento externo ni información fuera de esa lista.
-- NO inventes productos, SKUs, aplicaciones ni beneficios.
+- SOLO recomienda productos Liqui Moly incluidos en PRODUCTOS DISPONIBLES (MX).
+- NO inventes productos, SKUs, aplicaciones, certificaciones ni beneficios.
 - NO recomiendes marcas distintas a Liqui Moly.
 - NO prometas reparaciones mecánicas.
 - Si el caso NO es apto para tratamiento químico, indícalo claramente.
-- Responde EXCLUSIVAMENTE en JSON válido.
-- NO agregues texto fuera del JSON.
-- Si un producto está en PRODUCTOS DISPONIBLES pero no cuenta con información detallada de uso, utiliza descripciones técnicas generales y seguras del tipo de producto (por ejemplo: aditivo para punterías hidráulicas), sin afirmar datos específicos no confirmados.
-- Nunca digas que “no es posible recomendar” si el producto existe y el síntoma es compatible.
+- Responde EXCLUSIVAMENTE en JSON válido. NO agregues texto fuera del JSON.
+- Si un producto está en PRODUCTOS DISPONIBLES pero no trae info detallada de uso,
+  usa descripciones técnicas generales y seguras del tipo de producto, sin afirmar datos específicos no confirmados.
+- Si NO hay un producto adecuado en PRODUCTOS DISPONIBLES, NO te niegues:
+  devuelve productos_recomendados: [] y explica el motivo en diagnostico_orientativo,
+  y llena preguntas_clarificacion con 2-4 preguntas para poder recomendar algo del catálogo MX cuando el usuario responda.
 
-CATEGORÍAS VÁLIDAS: aceites, aditivos, mantenimiento
-
-A partir del siguiente caso descrito por el usuario, analiza la descripción y genera una recomendación técnica orientativa.
-En el JSON de salida, los campos "categoria" y "sintoma" deben ser tu interpretación del caso del usuario.
+CATEGORÍAS (usa la mejor que aplique)
+- aceites, aditivos, mantenimiento, refrigerante, grasas, transmision, limpieza, frenos, combustible, cuidado, general
 
 CASO DEL USUARIO:
 "{{{customerNeeds}}}"
 
-PRODUCTOS DISPONIBLES (esta lista es la única fuente de verdad):
+PRODUCTOS DISPONIBLES (México - única fuente de verdad para nombres/SKUs):
 {{{productList}}}
 
 FORMATO DE RESPUESTA OBLIGATORIO:
@@ -92,12 +97,16 @@ FORMATO DE RESPUESTA OBLIGATORIO:
       "cuando_no_usar": []
     }
   ],
+  "preguntas_clarificacion": [],
   "advertencia": ""
 }
 
 CONDICIONES FINALES:
 - Máximo 2 productos recomendados.
-- Si no hay un producto adecuado, devuelve "productos_recomendados": [] y explica el motivo en "diagnostico_orientativo".`,
+- Si no hay producto adecuado confirmado en PRODUCTOS DISPONIBLES:
+  productos_recomendados debe ser [].
+  En diagnostico_orientativo da guía por especificación/categoría sin inventar productos.
+  En preguntas_clarificacion haz preguntas mínimas (vehículo, año, motor, uso, norma, etc).`,
 });
 
 export const recommendProducts = ai.defineFlow(
@@ -108,14 +117,13 @@ export const recommendProducts = ai.defineFlow(
   },
   async (input) => {
     const allProducts = await obtenerProductosFirestore();
-    // @ts-ignore
-    const activeProducts = allProducts.filter(p => p.activo);
-    const productList = JSON.stringify(activeProducts);
-    
-    const {output} = await prompt({
-        ...input,
-        productList,
+    const productList = JSON.stringify(allProducts);
+
+    const { output } = await prompt({
+      ...input,
+      productList,
     });
+
     return output!;
   }
 );
