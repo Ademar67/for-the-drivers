@@ -1,5 +1,15 @@
 import { NextResponse } from 'next/server';
 
 export async function POST() {
-  return NextResponse.json({ error: 'Not Found' }, { status: 404 });
+  // Tell the browser to expire the cookie immediately
+  const options = {
+    name: process.env.AUTH_COOKIE_NAME!,
+    value: '',
+    maxAge: -1,
+  };
+
+  const response = NextResponse.json({ status: 'success' });
+  response.cookies.set(options);
+
+  return response;
 }

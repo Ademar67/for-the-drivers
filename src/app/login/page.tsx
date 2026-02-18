@@ -20,12 +20,24 @@ export default function LoginPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await signInWithEmailAndPassword(email, password);
-    if (success) {
+    const userCredential = await signInWithEmailAndPassword(email, password);
+
+    if (userCredential) {
+      const idToken = await userCredential.user.getIdToken();
+      
+      // Create server-side session cookie
+      await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
       router.push('/dashboard');
     }
   };
 
+  // This check is useful for client-side persistence, but middleware will handle redirects.
   if (user) {
     router.push('/dashboard');
     return null;

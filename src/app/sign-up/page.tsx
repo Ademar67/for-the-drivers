@@ -21,8 +21,19 @@ export default function SignUpPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await createUserWithEmailAndPassword(email, password);
-    if (success) {
+    const userCredential = await createUserWithEmailAndPassword(email, password);
+    
+    if (userCredential) {
+      const idToken = await userCredential.user.getIdToken();
+      
+      // Create server-side session cookie
+      await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+      
       router.push('/dashboard');
     }
   };

@@ -35,9 +35,11 @@ import {
   UserPlus,
   ClipboardList,
   FileSearch,
+  LogOut,
 } from "lucide-react";
 
 import { FirebaseClientProvider } from "@/firebase/client-provider";
+import LogoutButton from "@/components/auth/LogoutButton";
 
 function SidebarNavigation() {
   const { isMobile, setOpenMobile } = useSidebar();
@@ -193,7 +195,9 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter />
+        <SidebarFooter>
+            <LogoutButton />
+        </SidebarFooter>
       </Sidebar>
 
       <main className="flex-1 p-6">
