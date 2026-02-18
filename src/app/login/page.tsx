@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSignInWithEmailAndPassword } from 'react-firebase-hooks/auth';
@@ -17,6 +17,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [signInWithEmailAndPassword, user, loading, error] = useSignInWithEmailAndPassword(auth);
   const router = useRouter();
+
+  useEffect(() => {
+    console.log("API Key from env:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
