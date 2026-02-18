@@ -15,7 +15,7 @@ import {
   uploadBytesResumable,
   getDownloadURL,
 } from "firebase/storage";
-import { db, storage } from "@/lib/firebaseClient";
+import { db, storage } from "@/lib/firebase";
 
 type Asset = {
   id: string;
