@@ -1,11 +1,10 @@
 
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import SplashScreen from "@/components/SplashScreen";
 import "./globals.css";
 import Link from "next/link";
-import { usePathname } from 'next/navigation';
 
 import {
   Sidebar,
@@ -35,11 +34,9 @@ import {
   UserPlus,
   ClipboardList,
   FileSearch,
-  LogOut,
 } from "lucide-react";
 
 import { FirebaseClientProvider } from "@/firebase/client-provider";
-import LogoutButton from "@/components/auth/LogoutButton";
 
 function SidebarNavigation() {
   const { isMobile, setOpenMobile } = useSidebar();
@@ -170,12 +167,6 @@ function SidebarNavigation() {
   );
 }
 
-const AuthLayout = ({ children }: { children: React.ReactNode }) => (
-  <main className="flex-1">
-    {children}
-  </main>
-);
-
 const AppLayout = ({ children }: { children: React.ReactNode }) => (
   <SidebarProvider>
     <div className="flex min-h-screen w-full">
@@ -196,7 +187,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
         </SidebarContent>
 
         <SidebarFooter>
-            <LogoutButton />
+            {/* Logout button removed */}
         </SidebarFooter>
       </Sidebar>
 
@@ -210,14 +201,11 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [showSplash, setShowSplash] = useState(false);
-  const pathname = usePathname();
 
   useEffect(() => {
     const seen = localStorage.getItem("splashSeen");
     if (!seen) setShowSplash(true);
   }, []);
-
-  const isAuthPage = ['/login', '/sign-up', '/forgot-password'].includes(pathname);
 
   return (
     <html lang="es">
@@ -234,11 +222,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
 
         <FirebaseClientProvider>
-          {isAuthPage ? (
-            <AuthLayout>{children}</AuthLayout>
-          ) : (
-            <AppLayout>{children}</AppLayout>
-          )}
+          <AppLayout>{children}</AppLayout>
         </FirebaseClientProvider>
       </body>
     </html>
