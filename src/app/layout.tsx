@@ -1,9 +1,11 @@
+
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import SplashScreen from "@/components/SplashScreen";
 import "./globals.css";
 import Link from "next/link";
+import { usePathname } from 'next/navigation';
 
 import {
   Sidebar,
@@ -166,13 +168,52 @@ function SidebarNavigation() {
   );
 }
 
+const AuthLayout = ({ children }: { children: React.ReactNode }) => (
+  <main className="flex-1">
+    {children}
+  </main>
+);
+
+const AppLayout = ({ children }: { children: React.ReactNode }) => (
+  <SidebarProvider>
+    <div className="flex min-h-screen w-full">
+      <Sidebar>
+        <SidebarHeader>
+          <img
+            src="/logo-liqui-moly.png"
+            alt="Liqui Moly"
+            className="h-10 w-10 rounded-sm"
+          />
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Menú</SidebarGroupLabel>
+            <SidebarNavigation />
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter />
+      </Sidebar>
+
+      <main className="flex-1 p-6">
+        <SidebarTrigger />
+        {children}
+      </main>
+    </div>
+  </SidebarProvider>
+);
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [showSplash, setShowSplash] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const seen = localStorage.getItem("splashSeen");
     if (!seen) setShowSplash(true);
   }, []);
+
+  const isAuthPage = ['/login', '/sign-up', '/forgot-password'].includes(pathname);
 
   return (
     <html lang="es">
@@ -182,7 +223,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Liqui Moly" />
-        {/* ✅ usa un archivo que sí existe */}
         <link rel="apple-touch-icon" href="/logo-liqui-moly.png" />
       </head>
 
@@ -190,34 +230,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
 
         <FirebaseClientProvider>
-          <SidebarProvider>
-            <div className="flex min-h-screen w-full">
-              <Sidebar>
-                <SidebarHeader>
-                  {/* ✅ usa un archivo que sí existe */}
-                  <img
-                    src="/logo-liqui-moly.png"
-                    alt="Liqui Moly"
-                    className="h-10 w-10 rounded-sm"
-                  />
-                </SidebarHeader>
-
-                <SidebarContent>
-                  <SidebarGroup>
-                    <SidebarGroupLabel>Menú</SidebarGroupLabel>
-                    <SidebarNavigation />
-                  </SidebarGroup>
-                </SidebarContent>
-
-                <SidebarFooter />
-              </Sidebar>
-
-              <main className="flex-1 p-6">
-                <SidebarTrigger />
-                {children}
-              </main>
-            </div>
-          </SidebarProvider>
+          {isAuthPage ? (
+            <AuthLayout>{children}</AuthLayout>
+          ) : (
+            <AppLayout>{children}</AppLayout>
+          )}
         </FirebaseClientProvider>
       </body>
     </html>
