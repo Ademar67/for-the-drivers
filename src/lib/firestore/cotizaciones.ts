@@ -22,7 +22,10 @@ export interface Cotizacion extends Omit<CotizacionBase, 'fecha'> {
     seconds: number;
     nanoseconds: number;
   };
-  totalDescuentos?: number;
+  totalDescuentos: number;
+  observaciones?: string;
+  vigenciaDias?: number;
+
 }
 
 type CrearCotizacionInput = {
@@ -38,6 +41,9 @@ type CrearCotizacionInput = {
   subtotal: number;
   descuentos: (number | undefined)[];
   total: number;
+  totalDescuentos: number;
+  observaciones: string;
+  vigenciaDias: number;
 };
 
 export async function crearCotizacion(input: CrearCotizacionInput) {
@@ -67,6 +73,9 @@ export async function obtenerCotizaciones(): Promise<Cotizacion[]> {
       total: data.total,
       estado: data.estado,
       items: data.items || [],
+      totalDescuentos: data.totalDescuentos,
+      observaciones: data.observaciones,
+      vigenciaDias: data.vigenciaDias,
     } as Cotizacion;
   });
 }
@@ -91,6 +100,9 @@ export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | n
     total: data.total,
     estado: data.estado,
     items: data.items || [],
+    totalDescuentos: data.totalDescuentos,
+    observaciones: data.observaciones,
+    vigenciaDias: data.vigenciaDias,
   } as Cotizacion;
 }
 

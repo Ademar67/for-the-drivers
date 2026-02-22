@@ -113,6 +113,9 @@ export default function NuevaCotizacionPage() {
         subtotal,
         descuentos,
         total,
+        totalDescuentos,
+        observaciones,
+        vigenciaDias,
       });
       alert("Cotización guardada con éxito");
       router.push('/cotizaciones');
@@ -122,7 +125,7 @@ export default function NuevaCotizacionPage() {
     }
   };
 
-  const handleGenerarPDF = () => {
+  const handleGenerarPDF = async () => {
     const cliente = clientes.find((c) => c.id === clienteSeleccionadoId);
     if (!cliente) {
       alert('Por favor, selecciona un cliente para generar el PDF.');
@@ -130,18 +133,20 @@ export default function NuevaCotizacionPage() {
     }
 
     const cotizacionParaPDF = {
+      id: 'nueva-cotizacion',
       clienteNombre: cliente.nombre,
       clienteDireccion: cliente.domicilio,
-      items: items,
+      items: items.map(item => ({...item})),
       subtotal,
       total,
-      descuentos,
       totalDescuentos,
       observaciones,
       vigenciaDias,
     };
     
-    generarCotizacionPDF(cotizacionParaPDF);
+    const blob = await generarCotizacionPDF(cotizacionParaPDF);
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
   };
 
   return (

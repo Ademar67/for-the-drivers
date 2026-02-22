@@ -1,6 +1,6 @@
 
 import { Document, Page, View, Text, StyleSheet, Image } from '@react-pdf/renderer';
-import { Cotizacion } from '@/lib/firestore/cotizaciones';
+import { CotizacionPDFData } from './types';
 
 const styles = StyleSheet.create({
   page: {
@@ -76,10 +76,10 @@ const styles = StyleSheet.create({
 });
 
 interface CotizacionPDFProps {
-  cotizacion: Cotizacion;
+  data: CotizacionPDFData;
 }
 
-export function CotizacionPDF({ cotizacion }: CotizacionPDFProps) {
+export function CotizacionPDF({ data }: CotizacionPDFProps) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -87,13 +87,14 @@ export function CotizacionPDF({ cotizacion }: CotizacionPDFProps) {
           <Image style={styles.logo} src="/logo-liqui-moly.png" />
           <View style={styles.headerText}>
             <Text>Cotización</Text>
-            <Text>Fecha: {new Date(cotizacion.fecha_creacion.seconds * 1000).toLocaleDateString()}</Text>
-            <Text>Folio: {cotizacion.id}</Text>
+            {data.fecha_creacion && <Text>Fecha: {new Date(data.fecha_creacion.seconds * 1000).toLocaleDateString()}</Text>}
+            <Text>Folio: {data.id}</Text>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text>Cliente: {cotizacion.clienteNombre}</Text>
+          <Text>Cliente: {data.clienteNombre}</Text>
+          {data.clienteDireccion && <Text>Dirección: {data.clienteDireccion}</Text>}
         </View>
 
         <View style={styles.table}>
@@ -103,7 +104,7 @@ export function CotizacionPDF({ cotizacion }: CotizacionPDFProps) {
             <Text style={styles.tableColHeader}>Precio Unitario</Text>
             <Text style={styles.tableColHeader}>Total</Text>
           </View>
-          {cotizacion.items.map((item, index) => (
+          {data.items.map((item, index) => (
             <View key={index} style={styles.tableRow}>
               <Text style={styles.tableCol}>{item.nombre}</Text>
               <Text style={styles.tableCol}>{item.cantidad}</Text>
@@ -114,8 +115,9 @@ export function CotizacionPDF({ cotizacion }: CotizacionPDFProps) {
         </View>
 
         <View style={{ ...styles.section, textAlign: 'right' }}>
-          <Text>Subtotal: ${cotizacion.subtotal.toFixed(2)}</Text>
-          <Text>Total: ${cotizacion.total.toFixed(2)}</Text>
+          <Text>Subtotal: ${data.subtotal.toFixed(2)}</Text>
+          {data.totalDescuentos > 0 && <Text>Descuentos: -${data.totalDescuentos.toFixed(2)}</Text>}
+          <Text>Total: ${data.total.toFixed(2)}</Text>
         </View>
 
         <View style={styles.footer}>

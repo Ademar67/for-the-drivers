@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -41,18 +42,10 @@ export default function CotizacionDetallePage() {
     return <div className="p-6">Cotización no encontrada.</div>;
   }
 
-  const handleExportPDF = () => {
-    // @ts-ignore
-    const totalDescuentos = cotizacion.totalDescuentos ?? cotizacion.subtotal - cotizacion.total;
-
-    generarCotizacionPDF({
-      ...cotizacion,
-      totalDescuentos: totalDescuentos,
-      // @ts-ignore
-      observaciones: cotizacion.observaciones ?? '',
-      // @ts-ignore
-      vigenciaDias: cotizacion.vigenciaDias ?? 7,
-    });
+  const handleExportPDF = async () => {
+    const blob = await generarCotizacionPDF(cotizacion);
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
   }
 
   return (

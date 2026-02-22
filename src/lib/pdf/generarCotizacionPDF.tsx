@@ -1,12 +1,10 @@
 
 import { pdf } from '@react-pdf/renderer';
 import { CotizacionPDF } from './cotizacion-pdf';
-import { Cotizacion } from '@/lib/firestore/cotizaciones';
+import { CotizacionPDFData } from './types';
 
-export async function generarCotizacionPDF(cotizacion: Cotizacion) {
-  const blob = await pdf(
-    <CotizacionPDF cotizacion={cotizacion} />
-  ).toBlob();
+export async function generarCotizacionPDF(data: CotizacionPDFData) {
+  const blob = await pdf(<CotizacionPDF data={data} />).toBlob();
 
   return blob;
 }
