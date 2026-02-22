@@ -19,14 +19,17 @@ const storage = getStorage(app);
 
 if (typeof window !== 'undefined') {
   try {
-    enableIndexedDbPersistence(db);
-    console.log('Firestore offline persistence enabled');
-  } catch (error: any) {
-    if (error.code == 'failed-precondition') {
-      console.warn('Firestore offline persistence failed: multiple tabs open.');
-    } else if (error.code == 'unimplemented') {
-      console.warn('Firestore offline persistence not available in this browser.');
-    }
+    enableIndexedDbPersistence(db)
+      .then(() => console.log('Firestore offline persistence enabled.'))
+      .catch((error: any) => {
+        if (error.code == 'failed-precondition') {
+          console.warn('Firestore offline persistence failed: multiple tabs open.');
+        } else if (error.code == 'unimplemented') {
+          console.warn('Firestore offline persistence not available in this browser.');
+        }
+      });
+  } catch (e) {
+    console.error("Error enabling Firestore persistence", e);
   }
 }
 
