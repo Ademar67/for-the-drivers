@@ -22,6 +22,7 @@ export interface Cotizacion extends Omit<CotizacionBase, 'fecha'> {
     seconds: number;
     nanoseconds: number;
   };
+  totalDescuentos?: number;
 }
 
 type CrearCotizacionInput = {
