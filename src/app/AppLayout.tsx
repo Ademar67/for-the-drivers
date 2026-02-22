@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import SplashScreen from "@/components/SplashScreen";
 import "./globals.css";
 import Link from "next/link";
+import ConnectionStatus from "@/components/ConnectionStatus";
 
 import {
   Sidebar,
@@ -178,6 +179,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <SidebarProvider>
+            <ConnectionStatus />
             <div className="flex min-h-screen w-full">
             <Sidebar>
                 <SidebarHeader>
