@@ -6,6 +6,7 @@ import SplashScreen from "@/components/SplashScreen";
 import "./globals.css";
 import Link from "next/link";
 import ConnectionStatus from "@/components/ConnectionStatus";
+import FirestoreSyncStatus from '@/components/FirestoreSyncStatus';
 
 import {
   Sidebar,
@@ -173,13 +174,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   
     useEffect(() => {
       const seen = localStorage.getItem("splashSeen");
-      if (!seen) setShowSplash(true);
+      if (!seen) {
+        setShowSplash(true);
+        localStorage.setItem("splashSeen", "1");
+      }
     }, []);
   
 
     return (
         <SidebarProvider>
             <ConnectionStatus />
+            <FirestoreSyncStatus />
             <div className="flex min-h-screen w-full pt-10">
             <Sidebar>
                 <SidebarHeader>
@@ -206,7 +211,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 {showSplash && (
                   <SplashScreen
                     onFinish={() => {
-                      localStorage.setItem("splashSeen", "1");
                       setShowSplash(false);
                     }}
                   />
