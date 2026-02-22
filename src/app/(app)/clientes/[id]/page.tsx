@@ -60,7 +60,13 @@ export default function ClienteDetailPage({ params }: { params: { id: string } }
                 <div className="flex justify-between items-center">
                   <div>
                     <p>Folio: {cot.id}</p>
-                    <p>Fecha: {new Date(cot.fecha_creacion.seconds * 1000).toLocaleDateString()}</p>
+                    <p>
+                      Fecha: {
+                        cot.fecha_creacion
+                          ? new Date(cot.fecha_creacion.seconds * 1000).toLocaleDateString()
+                          : "Sin fecha"
+                      }
+                    </p>
                     <p>Total: ${cot.total.toFixed(2)}</p>
                   </div>
                   <button
