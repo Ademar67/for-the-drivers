@@ -1,4 +1,3 @@
-
 import { db } from '@/lib/firebase'
 import {
   collection,
@@ -20,6 +19,7 @@ export type ClienteFS = {
   id?: string
   nombre: string
   email?: string
+  telefono?: string
   tipo: 'cliente' | 'prospecto' | 'inactivo'
   ciudad: string
   domicilio: string
@@ -60,6 +60,7 @@ export function listenClientes(callback: (clientes: ClienteFS[]) => void) {
         id: d.id,
         nombre: data.nombre ?? '',
         email: data.email ?? undefined,
+        telefono: data.telefono ?? undefined,
         ciudad: data.ciudad ?? '',
         domicilio: data.domicilio ?? '',
         tipo: (data.tipo ?? 'prospecto') as ClienteFS['tipo'],
