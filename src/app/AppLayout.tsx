@@ -150,7 +150,7 @@ function SidebarNavigation() {
       <SidebarMenuItem>
         <SidebarMenuButton asChild>
           <Link href="/materiales" onClick={handleLinkClick}>
-            <FileSearch />
+            <FileText />
             <span>Materiales</span>
           </Link>
         </SidebarMenuButton>
@@ -180,7 +180,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
         <SidebarProvider>
             <ConnectionStatus />
-            <div className="flex min-h-screen w-full">
+            <div className="flex min-h-screen w-full pt-10">
             <Sidebar>
                 <SidebarHeader>
                 <img
@@ -203,7 +203,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Sidebar>
 
             <main className="flex-1 p-6">
-                {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+                {showSplash && (
+                  <SplashScreen
+                    onFinish={() => {
+                      localStorage.setItem("splashSeen", "1");
+                      setShowSplash(false);
+                    }}
+                  />
+                )}
                 <SidebarTrigger />
                 <FirebaseClientProvider>
                     {children}

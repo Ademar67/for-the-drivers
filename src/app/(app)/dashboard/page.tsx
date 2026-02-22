@@ -78,7 +78,7 @@ const dashboardCards = [
     title: "Materiales",
     description: "Listas de precios, catálogos y promos",
     href: "/materiales",
-    icon: FileSearch,
+    icon: FileText,
   },
   {
     title: "Asesor Digital",
