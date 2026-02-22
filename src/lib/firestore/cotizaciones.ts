@@ -18,6 +18,10 @@ import type { Cotizacion as CotizacionBase, CotizacionItem } from '@/lib/firebas
 export interface Cotizacion extends Omit<CotizacionBase, 'fecha'> {
   id: string; // Asegurarse de que el id siempre esté presente
   fecha: Timestamp;
+  fecha_creacion?: {
+    seconds: number;
+    nanoseconds: number;
+  };
 }
 
 type CrearCotizacionInput = {
@@ -38,7 +42,7 @@ type CrearCotizacionInput = {
 export async function crearCotizacion(input: CrearCotizacionInput) {
   const cotizacionData = {
     ...input,
-    fecha: serverTimestamp(),
+    fecha_creacion: serverTimestamp(),
     estado: 'pendiente' as const,
   };
   const docRef = await addDoc(collection(db, 'cotizaciones'), cotizacionData);
@@ -46,7 +50,7 @@ export async function crearCotizacion(input: CrearCotizacionInput) {
 }
 
 export async function obtenerCotizaciones(): Promise<Cotizacion[]> {
-  const q = query(collection(db, 'cotizaciones'), orderBy('fecha', 'desc'));
+  const q = query(collection(db, 'cotizaciones'), orderBy('fecha_creacion', 'desc'));
   const snapshot = await getDocs(q);
 
   return snapshot.docs.map(doc => {
@@ -55,7 +59,8 @@ export async function obtenerCotizaciones(): Promise<Cotizacion[]> {
       id: doc.id,
       clienteId: data.clienteId,
       clienteNombre: data.clienteNombre,
-      fecha: data.fecha as Timestamp,
+      fecha: data.fecha_creacion as Timestamp, // Mantener compatibilidad
+      fecha_creacion: data.fecha_creacion, // Agregar el campo para el UI
       subtotal: data.subtotal,
       descuentos: data.descuentos || [],
       total: data.total,
@@ -78,7 +83,8 @@ export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | n
     id: docSnap.id,
     clienteId: data.clienteId,
     clienteNombre: data.clienteNombre,
-    fecha: data.fecha as Timestamp,
+    fecha: data.fecha_creacion as Timestamp,
+    fecha_creacion: data.fecha_creacion,
     subtotal: data.subtotal,
     descuentos: data.descuentos || [],
     total: data.total,
