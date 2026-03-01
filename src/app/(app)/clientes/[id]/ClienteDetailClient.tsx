@@ -1,0 +1,88 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { ClienteFS } from '@/lib/firestore/clientes';
+import type { Cotizacion } from '@/lib/firestore/cotizaciones';
+
+export default function ClienteDetailClient({ id }: { id: string }) {
+  const [cliente, setCliente] = useState<ClienteFS | null>(null);
+  const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAll() {
+      setLoading(true);
+
+      const docRef = doc(db, 'clientes', id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setCliente({ id: docSnap.id, ...docSnap.data() } as ClienteFS);
+      } else {
+        setCliente(null);
+      }
+
+      const q = collection(db, 'cotizaciones');
+      const querySnapshot = await getDocs(q);
+      const cots = querySnapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() } as Cotizacion))
+        .filter((c) => c.clienteId === id);
+
+      setCotizaciones(cots);
+      setLoading(false);
+    }
+
+    fetchAll();
+  }, [id]);
+
+  if (loading) return <div className="p-6">Cargando...</div>;
+  if (!cliente) return <div className="p-6">Cliente no encontrado.</div>;
+
+  const handleViewPDF = (cotizacionId: string) => {
+    window.open(`/api/cotizaciones/pdf?id=${encodeURIComponent(cotizacionId)}`, '_blank');
+  };
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">{cliente.nombre}</h1>
+      <p>Email: {cliente.email}</p>
+      <p>Teléfono: {cliente.telefono}</p>
+      <p>Domicilio: {cliente.domicilio}</p>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-bold mb-4">Cotizaciones</h2>
+
+        {cotizaciones.length > 0 ? (
+          <ul className="space-y-4">
+            {cotizaciones.map((cot) => (
+              <li key={cot.id} className="p-4 bg-white rounded-lg shadow">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p>Folio: {cot.id}</p>
+                    <p>
+                      Fecha:{' '}
+                      {cot.fecha_creacion
+                        ? new Date(cot.fecha_creacion.seconds * 1000).toLocaleDateString()
+                        : 'Sin fecha'}
+                    </p>
+                    <p>Total: ${Number(cot.total ?? 0).toFixed(2)}</p>
+                  </div>
+
+                  <button
+                    onClick={() => handleViewPDF(cot.id)}
+                    className="bg-blue-500 text-white px-4 py-2 rounded-md"
+                  >
+                    Ver PDF
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No hay cotizaciones para este cliente.</p>
+        )}
+      </div>
+    </div>
+  );
+}
