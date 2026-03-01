@@ -7,6 +7,7 @@ import "./globals.css";
 import Link from "next/link";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import FirestoreSyncStatus from '@/components/FirestoreSyncStatus';
+import LogoutButton from '@/components/auth/LogoutButton';
 
 import {
   Sidebar,
@@ -203,7 +204,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </SidebarContent>
 
                 <SidebarFooter>
-                    {/* Logout button removed */}
+                    <LogoutButton />
                 </SidebarFooter>
             </Sidebar>
 
