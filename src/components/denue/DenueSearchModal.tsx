@@ -20,7 +20,6 @@ type DenueSearchModalProps = {
   coords: { lat: number; lng: number } | null;
 };
 
-// 👇 OJO: DENUE normalmente usa "Id" (mayúscula), no "id"
 export type DenueResult = {
   Id?: string;
   id?: string;
@@ -42,7 +41,6 @@ export type DenueResult = {
   lng?: string;
   direccion?: string;
 
-  // Campos “normalizados” (los que tú estás usando para pintar)
   Nombre: string;
   Calle: string;
   Num_Exterior?: string;
@@ -62,23 +60,25 @@ function buildDomicilio(d: DenueResult) {
 }
 
 function getDenueKey(d: DenueResult) {
-  // 1) Id oficial si viene
-  const id = d.Id || d.id;
-  if (id) return String(id);
-
-  // 2) clee si viene (también es buen id)
-  if (d.clee) return String(d.clee);
-
-  // 3) fallback para evitar undefined
-  const lat = d.Latitud || '';
-  const lng = d.Longitud || '';
-  return `${d.Nombre}-${lat}-${lng}`.replace(/\s+/g, '-');
+  return String(
+    d.clee ??
+      d.Id ??
+      d.id ??
+      `${d.Nombre}-${d.Latitud ?? ''}-${d.Longitud ?? ''}`
+  );
 }
 
 function buildAddress(item: any) {
   return (
     item?.direccion ||
-    [item?.nom_vial, item?.numero_ext, item?.colonia, item?.cod_postal, item?.municipio, item?.entidad]
+    [
+      item?.nom_vial,
+      item?.numero_ext,
+      item?.colonia,
+      item?.cod_postal,
+      item?.municipio,
+      item?.entidad,
+    ]
       .filter(Boolean)
       .join(' ')
   );
@@ -89,22 +89,31 @@ export function useDenueAdd() {
   const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
 
   async function addFromDenue(item: any, category: 'taller' | 'refaccionaria') {
-    const localId =
-      item?.id ||
-      item?.id_denue ||
-      item?.clee ||
-      `${item?.nom_estab ?? item?.Nombre ?? 'x'}-${item?.latitud ?? item?.Latitud ?? ''}-${item?.longitud ?? item?.Longitud ?? ''}`;
+    const localId = String(
+      item?.clee ??
+        item?.Id ??
+        item?.id ??
+        item?.id_denue ??
+        `${item?.nom_estab ?? item?.Nombre ?? 'x'}-${
+          item?.latitud ?? item?.Latitud ?? ''
+        }-${item?.longitud ?? item?.Longitud ?? ''}`
+    );
 
     try {
-      const localIdStr = String(localId);
-      setAddingId(localIdStr);
+      setAddingId(localId);
 
-      const name = item?.nom_estab ?? item?.name ?? item?.Nombre ?? 'SIN NOMBRE';
-      const phone = item?.telefono ?? item?.tel ?? item?.phone ?? item?.Telefono ?? null;
+      const name =
+        item?.nom_estab ?? item?.name ?? item?.Nombre ?? 'SIN NOMBRE';
+      const phone =
+        item?.telefono ?? item?.tel ?? item?.phone ?? item?.Telefono ?? null;
       const address = buildAddress(item) || buildDomicilio(item);
 
-      const lat = Number(item?.latitud ?? item?.lat ?? item?.Latitud ?? null);
-      const lng = Number(item?.longitud ?? item?.lng ?? item?.Longitud ?? null);
+      const lat = Number(
+        item?.latitud ?? item?.lat ?? item?.Latitud ?? null
+      );
+      const lng = Number(
+        item?.longitud ?? item?.lng ?? item?.Longitud ?? null
+      );
 
       const res = await fetch('/api/prospectos/from-denue', {
         method: 'POST',
@@ -127,9 +136,13 @@ export function useDenueAdd() {
         return;
       }
 
-      setAddedIds((prev) => ({ ...prev, [localIdStr]: true }));
+      setAddedIds((prev) => ({ ...prev, [localId]: true }));
 
-      alert(data.created ? '✅ Prospecto agregado' : 'ℹ️ Ya existía, no se duplicó');
+      alert(
+        data.created
+          ? '✅ Prospecto agregado'
+          : 'ℹ️ Ya existía, no se duplicó'
+      );
     } finally {
       setAddingId(null);
     }
@@ -138,8 +151,14 @@ export function useDenueAdd() {
   return { addFromDenue, addingId, addedIds };
 }
 
-export default function DenueSearchModal({ open, onClose, coords }: DenueSearchModalProps) {
-  const [searchType, setSearchType] = useState<'taller' | 'refaccionaria'>('taller');
+export default function DenueSearchModal({
+  open,
+  onClose,
+  coords,
+}: DenueSearchModalProps) {
+  const [searchType, setSearchType] = useState<
+    'taller' | 'refaccionaria'
+  >('taller');
   const [results, setResults] = useState<DenueResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -167,12 +186,7 @@ export default function DenueSearchModal({ open, onClose, coords }: DenueSearchM
       const clean = text.trim().replace(/^﻿/, '');
 
       if (!response.ok) {
-        try {
-          const errJson = JSON.parse(clean);
-          throw new Error(errJson.details || errJson.error || `Error ${response.status}`);
-        } catch {
-          throw new Error(clean || `Error ${response.status}`);
-        }
+        throw new Error(clean || `Error ${response.status}`);
       }
 
       const data = JSON.parse(clean);
@@ -189,60 +203,100 @@ export default function DenueSearchModal({ open, onClose, coords }: DenueSearchM
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Buscar Negocios Cercanos en DENUE</DialogTitle>
-          <DialogDescription>Encuentra talleres mecánicos o refaccionarias cerca de tu ubicación.</DialogDescription>
+          <DialogTitle>
+            Buscar Negocios Cercanos en DENUE
+          </DialogTitle>
+          <DialogDescription>
+            Encuentra talleres mecánicos o refaccionarias cerca de tu ubicación.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="py-4 space-y-4">
           <div className="flex items-center gap-6">
-            <RadioGroup defaultValue="taller" value={searchType} onValueChange={(val: any) => setSearchType(val)}>
+            <RadioGroup
+              value={searchType}
+              onValueChange={(val: any) => setSearchType(val)}
+            >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="taller" id="r-taller" />
-                <Label htmlFor="r-taller">Talleres Mecánicos</Label>
+                <Label htmlFor="r-taller">
+                  Talleres Mecánicos
+                </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="refaccionaria" id="r-refaccionaria" />
-                <Label htmlFor="r-refaccionaria">Refaccionarias</Label>
+                <RadioGroupItem
+                  value="refaccionaria"
+                  id="r-refaccionaria"
+                />
+                <Label htmlFor="r-refaccionaria">
+                  Refaccionarias
+                </Label>
               </div>
             </RadioGroup>
 
             <Button onClick={handleSearch} disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {loading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Buscar
             </Button>
           </div>
 
           <div className="max-h-[50vh] overflow-y-auto pr-2 space-y-3">
-            {loading && <p className="text-center text-gray-500">Buscando...</p>}
-            {error && <p className="text-center text-red-500">{error}</p>}
+            {loading && (
+              <p className="text-center text-gray-500">
+                Buscando...
+              </p>
+            )}
+            {error && (
+              <p className="text-center text-red-500">
+                {error}
+              </p>
+            )}
             {!loading && !error && results.length === 0 && (
-              <p className="text-center text-gray-500">No se encontraron resultados.</p>
+              <p className="text-center text-gray-500">
+                No se encontraron resultados.
+              </p>
             )}
 
             {results.map((item) => {
               const key = getDenueKey(item);
               const domicilio = buildDomicilio(item);
+              const keyId = getDenueKey(item);
 
-              // ✅ ID seguro para UI (nunca undefined)
-              const keyId = String(item?.clee ?? item?.Id ?? item?.id ?? key);
               const isAdding = addingId === keyId;
               const isAdded = !!addedIds[keyId];
 
               return (
-                <div key={key} className="p-3 border rounded-lg flex justify-between items-center gap-3">
+                <div
+                  key={key}
+                  className="p-3 border rounded-lg flex justify-between items-center gap-3"
+                >
                   <div className="flex-1">
-                    <p className="font-semibold">{item.Nombre}</p>
-                    <p className="text-sm text-gray-600">{domicilio || 'Sin dirección'}</p>
-                    <p className="text-xs text-gray-500">Tel: {item.Telefono || 'No disponible'}</p>
+                    <p className="font-semibold">
+                      {item.Nombre}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {domicilio || 'Sin dirección'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Tel: {item.Telefono || 'No disponible'}
+                    </p>
                   </div>
 
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => addFromDenue(item, searchType)}
+                    onClick={() =>
+                      addFromDenue(item, searchType)
+                    }
                     disabled={isAdding || isAdded}
                   >
-                    {isAdded ? 'Agregado ✅' : isAdding ? 'Agregando...' : 'Agregar'}
+                    {isAdded
+                      ? 'Agregado ✅'
+                      : isAdding
+                      ? 'Agregando...'
+                      : 'Agregar'}
                   </Button>
                 </div>
               );
