@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,7 +11,6 @@ import LogoutButton from '@/components/auth/LogoutButton';
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -203,9 +201,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </SidebarGroup>
                 </SidebarContent>
 
-                <SidebarFooter>
-                    <LogoutButton />
-                </SidebarFooter>
+                <div className="mt-auto p-4">
+                  <LogoutButton />
+                </div>
             </Sidebar>
 
             <main className="flex-1 p-6">
