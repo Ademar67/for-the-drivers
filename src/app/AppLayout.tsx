@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,11 +6,11 @@ import "./globals.css";
 import Link from "next/link";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import FirestoreSyncStatus from '@/components/FirestoreSyncStatus';
+import LogoutButton from '@/components/auth/LogoutButton';
 
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -202,9 +201,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </SidebarGroup>
                 </SidebarContent>
 
-                <SidebarFooter>
-                    {/* Logout button removed */}
-                </SidebarFooter>
+                <div className="mt-auto p-4">
+                  <LogoutButton />
+                </div>
             </Sidebar>
 
             <main className="flex-1 p-6">

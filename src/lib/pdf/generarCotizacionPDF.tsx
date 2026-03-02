@@ -1,4 +1,3 @@
-
 import { pdf } from '@react-pdf/renderer';
 import { CotizacionPDF } from './cotizacion-pdf';
 import { CotizacionPDFData } from './types';
