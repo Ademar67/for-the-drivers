@@ -1,4 +1,4 @@
-
+npm run dev
 
 git status
 rm -rf .next

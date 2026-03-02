@@ -10,6 +10,8 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+    const vigencia = searchParams.get('vigencia') ?? undefined; // ✅ NUEVO
+
     if (!id) {
       return NextResponse.json({ error: 'Falta id' }, { status: 400 });
     }
@@ -21,7 +23,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Cotización no encontrada' }, { status: 404 });
     }
 
-    const cotizacion = { id: snap.id, ...snap.data() } as any;
+    // ✅ Le pegamos vigencia manual a la cotización (solo para el PDF)
+    const cotizacion = { id: snap.id, ...snap.data(), vigencia } as any;
 
     const blob = await generarCotizacionPDF(cotizacion);
     const buffer = Buffer.from(await blob.arrayBuffer());
