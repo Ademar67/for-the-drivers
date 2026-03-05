@@ -9,7 +9,7 @@ import { crearCotizacion } from '@/lib/firestore/cotizaciones';
 import type { Producto } from '@/lib/firebase-types';
 import { Trash2, FileDown, MessageCircle } from 'lucide-react';
 import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
-import { sharePdfViaWhatsApp } from '@/lib/sharePdfWhatsApp';
+import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';
 
 
@@ -30,6 +30,7 @@ export default function NuevaCotizacionPage() {
   const [descuentos, setDescuentos] = useState<(number | undefined)[]>([undefined, undefined, undefined, undefined]);
   const [observaciones, setObservaciones] = useState('');
   const [vigenciaDias, setVigenciaDias] = useState(7);
+  const [isSharing, setIsSharing] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -72,20 +73,22 @@ export default function NuevaCotizacionPage() {
 
   const { subtotal, total, totalDescuentos } = items.reduce(
     (acc, item) => {
-      let itemTotalConDescuentos = item.precio * item.cantidad
-      descuentos.forEach(d => {
+      let itemSubtotal = item.precio * item.cantidad;
+      acc.subtotal += itemSubtotal;
+      
+      const itemTotalConDescuentos = descuentos.reduce((currentPrice, d) => {
         if (d !== undefined && d > 0) {
-          itemTotalConDescuentos *= 1 - d / 100
+          return currentPrice * (1 - d / 100);
         }
-      })
+        return currentPrice;
+      }, itemSubtotal);
 
-      acc.subtotal += item.precio * item.cantidad
-      acc.total += itemTotalConDescuentos
-      acc.totalDescuentos += item.precio * item.cantidad - itemTotalConDescuentos
-      return acc
+      acc.total += itemTotalConDescuentos;
+      acc.totalDescuentos += itemSubtotal - itemTotalConDescuentos;
+      return acc;
     },
     { subtotal: 0, total: 0, totalDescuentos: 0 }
-  )
+  );
   
   const handleGuardarCotizacion = async () => {
     if (!clienteSeleccionadoId || items.length === 0) {
@@ -155,11 +158,35 @@ export default function NuevaCotizacionPage() {
 
   const handleShareWhatsApp = async () => {
     const cotizacionParaPDF = buildCotizacionData();
-     if (!cotizacionParaPDF) {
+    if (!cotizacionParaPDF) {
       alert('Por favor, selecciona un cliente para compartir la cotización.');
       return;
     }
-    await sharePdfViaWhatsApp(cotizacionParaPDF);
+
+    setIsSharing(true);
+    try {
+      const pdfBlob = await generarCotizacionPDF(cotizacionParaPDF);
+      const fileName = `Cotizacion-${cotizacionParaPDF.clienteNombre.replace(/\s/g, '_')}.pdf`;
+      
+      const totalFormatted = new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+      }).format(cotizacionParaPDF.total);
+
+      const message = `Hola, te comparto la cotización para ${cotizacionParaPDF.clienteNombre} con un total de ${totalFormatted}.`;
+      
+      await sharePdfViaWhatsapp({
+        fileName,
+        pdfBlob,
+        message,
+      });
+
+    } catch (error) {
+      console.error('Error al compartir por WhatsApp:', error);
+      alert('Ocurrió un error al intentar compartir la cotización.');
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   return (
@@ -326,11 +353,11 @@ export default function NuevaCotizacionPage() {
             </button>
             <button
               onClick={handleShareWhatsApp}
-              disabled={items.length === 0 || !clienteSeleccionadoId}
+              disabled={items.length === 0 || !clienteSeleccionadoId || isSharing}
               className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400"
             >
               <MessageCircle size={18} />
-              Compartir WhatsApp
+              {isSharing ? 'Compartiendo...' : 'Compartir WhatsApp'}
             </button>
             <button
               onClick={handleGuardarCotizacion}
