@@ -23,6 +23,8 @@ export interface Cotizacion extends Omit<CotizacionBase, 'fecha'> {
     nanoseconds: number;
   };
   totalDescuentos: number;
+  clienteDireccion?: string;
+  clienteTelefono?: string;
   observaciones?: string;
   vigenciaDias?: number;
 
@@ -76,6 +78,8 @@ export async function obtenerCotizaciones(): Promise<Cotizacion[]> {
       totalDescuentos: data.totalDescuentos,
       observaciones: data.observaciones,
       vigenciaDias: data.vigenciaDias,
+      clienteDireccion: data.clienteDireccion,
+      clienteTelefono: data.clienteTelefono,
     } as Cotizacion;
   });
 }
@@ -103,6 +107,8 @@ export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | n
     totalDescuentos: data.totalDescuentos,
     observaciones: data.observaciones,
     vigenciaDias: data.vigenciaDias,
+    clienteDireccion: data.clienteDireccion,
+    clienteTelefono: data.clienteTelefono,
   } as Cotizacion;
 }
 

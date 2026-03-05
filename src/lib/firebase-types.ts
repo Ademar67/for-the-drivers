@@ -91,6 +91,10 @@ export interface Cotizacion {
     total: number;
     estado: 'pendiente' | 'aprobada' | 'rechazada';
     items: CotizacionItem[];
+    clienteDireccion?: string;
+    clienteTelefono?: string;
+    observaciones?: string;
+    vigenciaDias?: number;
 }
   
 /**
