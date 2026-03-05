@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -8,8 +7,10 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { crearCotizacion } from '@/lib/firestore/cotizaciones';
 import type { Producto } from '@/lib/firebase-types';
-import { Trash2, FileDown } from 'lucide-react';
+import { Trash2, FileDown, MessageCircle } from 'lucide-react';
 import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
+import { sharePdfViaWhatsApp } from '@/lib/sharePdfWhatsApp';
+import { CotizacionPDFData } from '@/lib/pdf/types';
 
 
 interface ProductoConId extends Producto {
@@ -71,23 +72,20 @@ export default function NuevaCotizacionPage() {
 
   const { subtotal, total, totalDescuentos } = items.reduce(
     (acc, item) => {
-      const itemTotal = item.precio * item.cantidad;
-      let subtotalConDescuentos = itemTotal;
-
+      let itemTotalConDescuentos = item.precio * item.cantidad
       descuentos.forEach(d => {
         if (d !== undefined && d > 0) {
-          subtotalConDescuentos = subtotalConDescuentos * (1 - d / 100);
+          itemTotalConDescuentos *= 1 - d / 100
         }
-      });
-      
-      acc.subtotal += itemTotal;
-      acc.total += subtotalConDescuentos;
-      acc.totalDescuentos += itemTotal - subtotalConDescuentos;
-      
-      return acc;
+      })
+
+      acc.subtotal += item.precio * item.cantidad
+      acc.total += itemTotalConDescuentos
+      acc.totalDescuentos += item.precio * item.cantidad - itemTotalConDescuentos
+      return acc
     },
     { subtotal: 0, total: 0, totalDescuentos: 0 }
-  );
+  )
   
   const handleGuardarCotizacion = async () => {
     if (!clienteSeleccionadoId || items.length === 0) {
@@ -125,15 +123,13 @@ export default function NuevaCotizacionPage() {
     }
   };
 
-  const handleGenerarPDF = async () => {
+  const buildCotizacionData = (): CotizacionPDFData | null => {
     const cliente = clientes.find((c) => c.id === clienteSeleccionadoId);
     if (!cliente) {
-      alert('Por favor, selecciona un cliente para generar el PDF.');
-      return;
+      return null;
     }
-
-    const cotizacionParaPDF = {
-      id: 'nueva-cotizacion',
+    return {
+      id: 'NUEVA',
       clienteNombre: cliente.nombre,
       clienteDireccion: cliente.domicilio,
       items: items.map(item => ({...item})),
@@ -143,10 +139,27 @@ export default function NuevaCotizacionPage() {
       observaciones,
       vigenciaDias,
     };
+  }
+
+  const handleGenerarPDF = async () => {
+    const cotizacionParaPDF = buildCotizacionData();
+    if (!cotizacionParaPDF) {
+      alert('Por favor, selecciona un cliente para generar el PDF.');
+      return;
+    }
     
     const blob = await generarCotizacionPDF(cotizacionParaPDF);
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
+  };
+
+  const handleShareWhatsApp = async () => {
+    const cotizacionParaPDF = buildCotizacionData();
+     if (!cotizacionParaPDF) {
+      alert('Por favor, selecciona un cliente para compartir la cotización.');
+      return;
+    }
+    await sharePdfViaWhatsApp(cotizacionParaPDF);
   };
 
   return (
@@ -306,10 +319,18 @@ export default function NuevaCotizacionPage() {
             <button
               onClick={handleGenerarPDF}
               disabled={items.length === 0 || !clienteSeleccionadoId}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400"
+              className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors disabled:bg-gray-400"
             >
               <FileDown size={18} />
               Exportar a PDF
+            </button>
+            <button
+              onClick={handleShareWhatsApp}
+              disabled={items.length === 0 || !clienteSeleccionadoId}
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400"
+            >
+              <MessageCircle size={18} />
+              Compartir WhatsApp
             </button>
             <button
               onClick={handleGuardarCotizacion}
