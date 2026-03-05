@@ -40,6 +40,7 @@ export type DenueResult = {
   lat?: string;
   lng?: string;
   direccion?: string;
+  id_denue?: string;
 
   Nombre: string;
   Calle: string;
@@ -59,12 +60,22 @@ function buildDomicilio(d: DenueResult) {
   return `${d.Calle || ''}${ext}${col}`.trim();
 }
 
-function getDenueKey(d: DenueResult) {
+/**
+ * Creates a stable, unique key for a DENUE result item.
+ * It tries several properties to find a unique identifier. This is crucial
+ * because the DENUE API can be inconsistent.
+ * This function ensures we always have a non-undefined string key.
+ */
+function getDenueKey(item: DenueResult): string {
   return String(
-    d.clee ??
-      d.Id ??
-      d.id ??
-      `${d.Nombre}-${d.Latitud ?? ''}-${d.Longitud ?? ''}`
+    item?.clee ??
+      item?.Id ??
+      item?.id ??
+      item?.id_denue ??
+      // Fallback to a composite key if no other ID is present
+      `${item?.nom_estab ?? item?.Nombre ?? 'x'}-${
+        item?.latitud ?? item?.Latitud ?? ''
+      }-${item?.longitud ?? item?.Longitud ?? ''}`
   );
 }
 
@@ -88,16 +99,8 @@ export function useDenueAdd() {
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
 
-  async function addFromDenue(item: any, category: 'taller' | 'refaccionaria') {
-    const localId = String(
-      item?.clee ??
-        item?.Id ??
-        item?.id ??
-        item?.id_denue ??
-        `${item?.nom_estab ?? item?.Nombre ?? 'x'}-${
-          item?.latitud ?? item?.Latitud ?? ''
-        }-${item?.longitud ?? item?.Longitud ?? ''}`
-    );
+  async function addFromDenue(item: DenueResult, category: 'taller' | 'refaccionaria') {
+    const localId = getDenueKey(item); // Use the unified key function
 
     try {
       setAddingId(localId);
@@ -260,16 +263,15 @@ export default function DenueSearchModal({
             )}
 
             {results.map((item) => {
-              const key = getDenueKey(item);
+              const keyId = getDenueKey(item); // Use the unified key
               const domicilio = buildDomicilio(item);
-              const keyId = getDenueKey(item);
 
               const isAdding = addingId === keyId;
               const isAdded = !!addedIds[keyId];
 
               return (
                 <div
-                  key={key}
+                  key={keyId}
                   className="p-3 border rounded-lg flex justify-between items-center gap-3"
                 >
                   <div className="flex-1">
