@@ -12,13 +12,17 @@ const styles = StyleSheet.create({
     paddingRight: 40,
     paddingBottom: 100, // Increased bottom padding for fixed footer
     backgroundColor: '#ffffff',
-    color: '#1f2937', 
+    color: '#1f2937',
   },
 
   // Header
   header: {
-    alignItems: 'center',
     marginBottom: 15,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   logo: {
     width: 150,
@@ -30,13 +34,6 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: CORPORATE_BLUE,
     marginTop: 10,
-  },
-  metaInfoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: -28,
-    marginBottom: 8,
-    width: '100%',
   },
   metaInfo: {
     textAlign: 'right',
@@ -88,7 +85,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     overflow: 'hidden',
   },
-  tableRow: { 
+  tableRow: {
     flexDirection: 'row',
     borderTopStyle: 'solid',
     borderTopWidth: 1,
@@ -205,7 +202,7 @@ const styles = StyleSheet.create({
 
 
 function formatMoney(n: number) {
-  return `$${n.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '\$&,')}`;
+  return `$${n.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
 }
 
 export function CotizacionPDF({ data }: { data: CotizacionPDFData }) {
@@ -232,17 +229,16 @@ export function CotizacionPDF({ data }: { data: CotizacionPDFData }) {
         
         {/* Header */}
         <View style={styles.header}>
-          <Image style={styles.logo} src="/logo-liqui-moly.png" />
-          <View style={styles.headerLine} />
-        </View>
-
-        <View style={styles.metaInfoContainer}>
-          <View style={styles.metaInfo}>
-            <Text style={styles.title}>Cotización</Text>
-            <Text style={styles.metaText}>Folio: {folio}</Text>
-            <Text style={styles.metaText}>Fecha de emisión: {fecha}</Text>
-            <Text style={styles.metaText}>Vigencia: {vigencia}</Text>
-          </View>
+            <View style={styles.headerTop}>
+                <Image style={styles.logo} src="/logo-liqui-moly.png" />
+                <View style={styles.metaInfo}>
+                    <Text style={styles.title}>Cotización</Text>
+                    <Text style={styles.metaText}>Folio: {folio}</Text>
+                    <Text style={styles.metaText}>Fecha de emisión: {fecha}</Text>
+                    <Text style={styles.metaText}>Vigencia: {vigencia}</Text>
+                </View>
+            </View>
+            <View style={styles.headerLine} />
         </View>
 
         {/* Cliente */}
