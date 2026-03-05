@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
 
 
 function formatMoney(n: number) {
-  return `$${n.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
+  return `$${n.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '\$&,')}`;
 }
 
 export function CotizacionPDF({ data }: { data: CotizacionPDFData }) {
@@ -220,6 +220,12 @@ export function CotizacionPDF({ data }: { data: CotizacionPDFData }) {
 
   const items = Array.isArray(data.items) ? data.items : [];
 
+  const year = new Date().getFullYear();
+  const folio = 
+    data.id === "NUEVA"
+    ? `COT-${year}-PEND`
+    : `COT-${year}-${data.id.substring(0,4).toUpperCase()}`;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -233,7 +239,7 @@ export function CotizacionPDF({ data }: { data: CotizacionPDFData }) {
         <View style={styles.metaInfoContainer}>
           <View style={styles.metaInfo}>
             <Text style={styles.title}>Cotización</Text>
-            <Text style={styles.metaText}>Folio: {data.id}</Text>
+            <Text style={styles.metaText}>Folio: {folio}</Text>
             <Text style={styles.metaText}>Fecha de emisión: {fecha}</Text>
             <Text style={styles.metaText}>Vigencia: {vigencia}</Text>
           </View>
