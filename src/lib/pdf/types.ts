@@ -7,6 +7,7 @@ export interface CotizacionPDFData {
   };
   clienteNombre: string;
   clienteDireccion?: string;
+  clienteTelefono?: string;
   items: {
     codigo: string;
     nombre: string;
