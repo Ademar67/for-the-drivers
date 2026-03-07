@@ -2,18 +2,20 @@
 
 interface NavigatorWithShare extends Navigator {
   canShare?: (data: { files: File[] }) => boolean;
-  share?: (data: { title: string; text: string; files: File[] }) => Promise<void>;
+  share?: (data: { title?: string; text?: string; files?: File[] }) => Promise<void>;
 }
 
-export async function sharePdfViaWhatsapp({
-  fileName,
-  pdfBlob,
-  message,
-}: {
+type SharePdfParams = {
   fileName: string;
   pdfBlob: Blob;
   message: string;
-}) {
+};
+
+async function sharePdfBase({
+  fileName,
+  pdfBlob,
+  message,
+}: SharePdfParams) {
   const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
   const navigatorWithShare = navigator as NavigatorWithShare;
 
@@ -54,4 +56,12 @@ export async function sharePdfViaWhatsapp({
     console.error('Error during fallback download:', downloadError);
     alert('No se pudo compartir ni descargar el PDF. Por favor, utiliza la opción "Exportar PDF" y compártelo manualmente.');
   }
+}
+
+export async function sharePdfViaWhatsapp(params: SharePdfParams) {
+  return sharePdfBase(params);
+}
+
+export async function sharePdfWhatsApp(params: SharePdfParams) {
+  return sharePdfBase(params);
 }
