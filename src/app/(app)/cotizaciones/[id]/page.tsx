@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,7 +6,7 @@ import { obtenerCotizacionPorId, Cotizacion } from '@/lib/firestore/cotizaciones
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Printer, MessageCircle } from 'lucide-react';
 import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
-import { sharePdfViaWhatsApp } from '@/lib/sharePdfWhatsApp';
+import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';
 
 // Helper to convert Firestore Timestamp to a plain object for PDF generation
@@ -83,7 +82,12 @@ export default function CotizacionDetallePage() {
   const handleShareWhatsApp = async () => {
     if (!cotizacion) return;
     const cotizacionDataForPdf = formatCotizacionForPDF(cotizacion);
-    await sharePdfViaWhatsApp(cotizacionDataForPdf);
+    const pdfBlob = await generarCotizacionPDF(cotizacionDataForPdf);
+    await sharePdfViaWhatsapp({
+      fileName: `Cotizacion-${cotizacion.id}.pdf`,
+      pdfBlob,
+      message: `Hola, te comparto la cotización No. ${cotizacion.id}.`,
+    });
   };
 
 
