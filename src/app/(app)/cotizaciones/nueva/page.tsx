@@ -12,7 +12,6 @@ import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
 import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';
 
-
 interface ProductoConId extends Producto {
   id: string;
 }
@@ -35,11 +34,13 @@ export default function NuevaCotizacionPage() {
 
   useEffect(() => {
     const unsub = listenClientes(setClientes);
+
     async function fetchProductos() {
       const snap = await getDocs(collection(db, 'productos'));
       const prods = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ProductoConId));
       setProductos(prods);
     }
+
     fetchProductos();
     return () => unsub();
   }, []);
@@ -48,7 +49,9 @@ export default function NuevaCotizacionPage() {
     setItems(prev => {
       const existente = prev.find(item => item.id === producto.id);
       if (existente) {
-        return prev.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item);
+        return prev.map(item =>
+          item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
+        );
       }
       return [...prev, { ...producto, cantidad: 1 }];
     });
@@ -57,10 +60,14 @@ export default function NuevaCotizacionPage() {
   const eliminarItem = (id: string) => {
     setItems(prev => prev.filter(item => item.id !== id));
   };
-  
+
   const handleCantidadChange = (id: string, cantidad: number) => {
-    setItems(prev => prev.map(item => item.id === id ? { ...item, cantidad: Math.max(0, cantidad) } : item));
-  }
+    setItems(prev =>
+      prev.map(item =>
+        item.id === id ? { ...item, cantidad: Math.max(0, cantidad || 0) } : item
+      )
+    );
+  };
 
   const handleDescuentoChange = (index: number, valor: string) => {
     const nuevosDescuentos = [...descuentos];
@@ -68,49 +75,65 @@ export default function NuevaCotizacionPage() {
     nuevosDescuentos[index] = isNaN(valNum) ? undefined : valNum;
     setDescuentos(nuevosDescuentos);
   };
-  
-  const productosFiltrados = busqueda ? productos.filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || p.codigo.toLowerCase().includes(busqueda.toLowerCase())) : [];
+
+  const productosFiltrados = busqueda
+    ? productos.filter(
+        p =>
+          p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+          p.codigo.toLowerCase().includes(busqueda.toLowerCase())
+      )
+    : [];
 
   const { subtotal, total, totalDescuentos } = items.reduce(
     (acc, item) => {
-      let itemSubtotal = item.precio * item.cantidad;
+      const itemSubtotal = item.precio * item.cantidad;
       acc.subtotal += itemSubtotal;
-      
-      const itemTotalConDescuentos = descuentos.reduce((currentPrice = itemSubtotal, d) => {
-        if (d !== undefined && d > 0) {
-          return currentPrice * (1 - d / 100);
-        }
-        return currentPrice;
-      }, itemSubtotal);
+
+      const itemTotalConDescuentos =
+        descuentos.reduce((currentPrice, d) => {
+          if (d !== undefined && d > 0) {
+            return currentPrice * (1 - d / 100);
+          }
+          return currentPrice;
+        }, itemSubtotal) ?? itemSubtotal;
 
       acc.total += itemTotalConDescuentos;
       acc.totalDescuentos += itemSubtotal - itemTotalConDescuentos;
+
       return acc;
     },
     { subtotal: 0, total: 0, totalDescuentos: 0 }
   );
-  
+
   const handleGuardarCotizacion = async () => {
     if (!clienteSeleccionadoId || items.length === 0) {
-      alert("Por favor, selecciona un cliente y agrega al menos un producto.");
+      alert('Por favor, selecciona un cliente y agrega al menos un producto.');
       return;
     }
+
     try {
       const cliente = clientes.find(c => c.id === clienteSeleccionadoId);
+
       if (!cliente) {
-        alert("Cliente no encontrado");
+        alert('Cliente no encontrado');
         return;
       }
 
       if (!cliente.id) {
-        alert("Error: el cliente no tiene un ID válido.");
+        alert('Error: el cliente no tiene un ID válido.');
         return;
       }
 
       await crearCotizacion({
         clienteId: cliente.id,
         clienteNombre: cliente.nombre,
-        items: items.map(i => ({ productoId: i.id, nombre: i.nombre, cantidad: i.cantidad, precio: i.precio, codigo: i.codigo })),
+        items: items.map(i => ({
+          productoId: i.id,
+          nombre: i.nombre,
+          cantidad: i.cantidad,
+          precio: i.precio,
+          codigo: i.codigo,
+        })),
         subtotal,
         descuentos,
         total,
@@ -118,39 +141,43 @@ export default function NuevaCotizacionPage() {
         observaciones,
         vigenciaDias,
       });
-      alert("Cotización guardada con éxito");
+
+      alert('Cotización guardada con éxito');
       router.push('/cotizaciones');
     } catch (error) {
-      console.error("Error al guardar la cotización:", error);
-      alert("No se pudo guardar la cotización.");
+      console.error('Error al guardar la cotización:', error);
+      alert('No se pudo guardar la cotización.');
     }
   };
 
   const buildCotizacionData = (): CotizacionPDFData | null => {
-    const cliente = clientes.find((c) => c.id === clienteSeleccionadoId);
+    const cliente = clientes.find(c => c.id === clienteSeleccionadoId);
+
     if (!cliente) {
       return null;
     }
+
     return {
       id: 'NUEVA',
       clienteNombre: cliente.nombre,
       clienteDireccion: cliente.domicilio,
-      items: items.map(item => ({...item})),
+      items: items.map(item => ({ ...item })),
       subtotal,
       total,
       totalDescuentos,
       observaciones,
       vigenciaDias,
     };
-  }
+  };
 
   const handleGenerarPDF = async () => {
     const cotizacionParaPDF = buildCotizacionData();
+
     if (!cotizacionParaPDF) {
       alert('Por favor, selecciona un cliente para generar el PDF.');
       return;
     }
-    
+
     const blob = await generarCotizacionPDF(cotizacionParaPDF);
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
@@ -158,29 +185,30 @@ export default function NuevaCotizacionPage() {
 
   const handleShareWhatsApp = async () => {
     const cotizacionParaPDF = buildCotizacionData();
+
     if (!cotizacionParaPDF) {
       alert('Por favor, selecciona un cliente para compartir la cotización.');
       return;
     }
 
     setIsSharing(true);
+
     try {
       const pdfBlob = await generarCotizacionPDF(cotizacionParaPDF);
       const fileName = `Cotizacion-${cotizacionParaPDF.clienteNombre.replace(/\s/g, '_')}.pdf`;
-      
+
       const totalFormatted = new Intl.NumberFormat('es-MX', {
         style: 'currency',
         currency: 'MXN',
       }).format(cotizacionParaPDF.total);
 
       const message = `Hola, te comparto la cotización para ${cotizacionParaPDF.clienteNombre} con un total de ${totalFormatted}.`;
-      
+
       await sharePdfViaWhatsapp({
         fileName,
         pdfBlob,
         message,
       });
-
     } catch (error) {
       console.error('Error al compartir por WhatsApp:', error);
       alert('Ocurrió un error al intentar compartir la cotización.');
@@ -194,9 +222,7 @@ export default function NuevaCotizacionPage() {
       <h1 className="text-3xl font-bold mb-6">Nueva Cotización</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Columna Izquierda: Cliente y Productos */}
         <div className="md:col-span-1 space-y-6">
-          {/* Cliente */}
           <div className="bg-white p-4 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-3">Cliente</h2>
             <select
@@ -205,11 +231,14 @@ export default function NuevaCotizacionPage() {
               className="w-full border p-2 rounded bg-gray-50"
             >
               <option value="">Selecciona un cliente</option>
-              {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              {clientes.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* Buscador de Productos */}
           <div className="bg-white p-4 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-3">Buscar Productos</h2>
             <input
@@ -222,9 +251,15 @@ export default function NuevaCotizacionPage() {
             {productosFiltrados.length > 0 && (
               <ul className="mt-2 border rounded max-h-60 overflow-y-auto">
                 {productosFiltrados.slice(0, 10).map(p => (
-                  <li key={p.id} onClick={() => agregarProducto(p)} className="p-2 hover:bg-blue-100 cursor-pointer border-b">
+                  <li
+                    key={p.id}
+                    onClick={() => agregarProducto(p)}
+                    className="p-2 hover:bg-blue-100 cursor-pointer border-b"
+                  >
                     <p className="font-medium">{p.nombre}</p>
-                    <p className="text-sm text-gray-500">{p.codigo} - ${p.precio.toFixed(2)}</p>
+                    <p className="text-sm text-gray-500">
+                      {p.codigo} - ${p.precio.toFixed(2)}
+                    </p>
                   </li>
                 ))}
               </ul>
@@ -232,15 +267,13 @@ export default function NuevaCotizacionPage() {
           </div>
         </div>
 
-        {/* Columna Derecha: Resumen de Cotización */}
         <div className="md:col-span-2 bg-white p-6 rounded-lg shadow">
           <h2 className="text-2xl font-bold mb-4">Resumen</h2>
-          
+
           {items.length === 0 ? (
             <p className="text-gray-500">Agrega productos para comenzar.</p>
           ) : (
             <div className="space-y-4">
-              {/* Tabla de items */}
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-gray-100">
@@ -260,12 +293,24 @@ export default function NuevaCotizacionPage() {
                           <p className="text-xs text-gray-500">{item.codigo}</p>
                         </td>
                         <td className="p-3">
-                          <input type="number" value={item.cantidad} onChange={e => handleCantidadChange(item.id, parseInt(e.target.value, 10))} className="w-20 border rounded p-1 text-center" />
+                          <input
+                            type="number"
+                            value={item.cantidad}
+                            onChange={e =>
+                              handleCantidadChange(item.id, parseInt(e.target.value, 10))
+                            }
+                            className="w-20 border rounded p-1 text-center"
+                          />
                         </td>
                         <td className="p-3">${item.precio.toFixed(2)}</td>
-                        <td className="p-3 font-medium">${(item.precio * item.cantidad).toFixed(2)}</td>
+                        <td className="p-3 font-medium">
+                          ${(item.precio * item.cantidad).toFixed(2)}
+                        </td>
                         <td className="p-3 text-center">
-                          <button onClick={() => eliminarItem(item.id)} className="text-red-500 hover:text-red-700">
+                          <button
+                            onClick={() => eliminarItem(item.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
                             <Trash2 size={18} />
                           </button>
                         </td>
@@ -275,7 +320,6 @@ export default function NuevaCotizacionPage() {
                 </table>
               </div>
 
-              {/* Descuentos y Totales */}
               <div className="flex justify-end">
                 <div className="w-full max-w-sm space-y-3">
                   <div className="flex justify-between items-center">
@@ -285,7 +329,9 @@ export default function NuevaCotizacionPage() {
 
                   {descuentos.map((_, index) => (
                     <div key={index} className="flex justify-between items-center">
-                      <label htmlFor={`desc-${index}`} className="text-sm text-gray-600">Descuento {index + 1} (%)</label>
+                      <label htmlFor={`desc-${index}`} className="text-sm text-gray-600">
+                        Descuento {index + 1} (%)
+                      </label>
                       <input
                         id={`desc-${index}`}
                         type="number"
@@ -297,13 +343,13 @@ export default function NuevaCotizacionPage() {
                     </div>
                   ))}
 
-                   <div className="flex justify-between items-center text-red-600">
+                  <div className="flex justify-between items-center text-red-600">
                     <span className="font-semibold">Total Descuentos</span>
                     <span className="font-semibold">-${totalDescuentos.toFixed(2)}</span>
                   </div>
 
                   <div className="border-t my-2"></div>
-                  
+
                   <div className="flex justify-between items-center text-xl font-bold">
                     <span>Total</span>
                     <span>${total.toFixed(2)}</span>
@@ -312,36 +358,44 @@ export default function NuevaCotizacionPage() {
               </div>
             </div>
           )}
-          
+
           <div className="mt-6 border-t pt-6">
-              <h3 className="font-semibold mb-2">Configuración del PDF</h3>
-               <div className="space-y-4">
-                  <div>
-                      <label htmlFor="vigencia" className="block text-sm font-medium text-gray-700 mb-1">Días de vigencia</label>
-                      <input 
-                        type="number" 
-                        id="vigencia"
-                        value={vigenciaDias}
-                        onChange={(e) => setVigenciaDias(parseInt(e.target.value, 10))}
-                        className="w-full border p-2 rounded"
-                      />
-                  </div>
-                   <div>
-                      <label htmlFor="observaciones" className="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-                      <textarea 
-                        id="observaciones"
-                        rows={3}
-                        placeholder="• Se acepta pago con terminal bancaria..."
-                        value={observaciones}
-                        onChange={(e) => setObservaciones(e.target.value)}
-                        className="w-full border p-2 rounded"
-                      ></textarea>
-                  </div>
-               </div>
+            <h3 className="font-semibold mb-2">Configuración del PDF</h3>
+            <div className="space-y-4">
+              <div>
+                <label
+                  htmlFor="vigencia"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Días de vigencia
+                </label>
+                <input
+                  type="number"
+                  id="vigencia"
+                  value={vigenciaDias}
+                  onChange={e => setVigenciaDias(parseInt(e.target.value, 10) || 0)}
+                  className="w-full border p-2 rounded"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="observaciones"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Observaciones
+                </label>
+                <textarea
+                  id="observaciones"
+                  rows={3}
+                  placeholder="• Se acepta pago con terminal bancaria..."
+                  value={observaciones}
+                  onChange={e => setObservaciones(e.target.value)}
+                  className="w-full border p-2 rounded"
+                ></textarea>
+              </div>
+            </div>
           </div>
 
-
-          {/* Acciones */}
           <div className="mt-8 flex justify-end gap-4">
             <button
               onClick={handleGenerarPDF}
