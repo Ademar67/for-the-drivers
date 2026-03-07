@@ -9,7 +9,6 @@ import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
 import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';
 
-// Convierte Cotizacion a CotizacionPDFData
 const formatCotizacionForPDF = (cot: Cotizacion): CotizacionPDFData => {
   const pdfData: CotizacionPDFData = {
     id: cot.id,
@@ -79,7 +78,6 @@ export default function CotizacionDetallePage() {
 
   const handleShareWhatsApp = async () => {
     const cotizacionDataForPdf = formatCotizacionForPDF(cotizacion);
-
     const pdfBlob = await generarCotizacionPDF(cotizacionDataForPdf);
 
     await sharePdfViaWhatsapp({
