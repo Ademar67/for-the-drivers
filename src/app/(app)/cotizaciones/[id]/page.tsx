@@ -83,7 +83,7 @@ export default function CotizacionDetallePage() {
   const handleShareWhatsApp = async () => {
     if (!cotizacion) return;
     const cotizacionDataForPdf = formatCotizacionForPDF(cotizacion);
-    await sharePdfViaWhatsApp(cotizacionDataForPdf);
+    await sharePdfWhatsApp(cotizacionDataForPdf);
   };
 
 
