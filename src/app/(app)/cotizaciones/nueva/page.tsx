@@ -76,7 +76,7 @@ export default function NuevaCotizacionPage() {
       let itemSubtotal = item.precio * item.cantidad;
       acc.subtotal += itemSubtotal;
       
-      const itemTotalConDescuentos = descuentos.reduce((currentPrice, d) => {
+      const itemTotalConDescuentos = descuentos.reduce((currentPrice = itemSubtotal, d) => {
         if (d !== undefined && d > 0) {
           return currentPrice * (1 - d / 100);
         }
