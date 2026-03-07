@@ -8,7 +8,8 @@ interface NavigatorWithShare extends Navigator {
 }
 
 /**
- * Shares a PDF file via the Web Share API if supported, otherwise falls back to a WhatsApp link.
+ * Shares a PDF file via the Web Share API if supported.
+ * If not, it downloads the PDF and then opens WhatsApp for manual attachment.
  * @param {object} params - The parameters for sharing.
  * @param {string} params.fileName - The name of the file to be shared.
  * @param {Blob} params.pdfBlob - The PDF content as a Blob.
@@ -26,7 +27,7 @@ export async function sharePdfViaWhatsapp({
   const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
   const navigatorWithShare = navigator as NavigatorWithShare;
 
-  // Check if Web Share API with file sharing is supported
+  // 1. Try to share directly with the file (ideal for mobile).
   if (navigatorWithShare.share && navigatorWithShare.canShare?.({ files: [pdfFile] })) {
     try {
       await navigatorWithShare.share({
@@ -34,23 +35,42 @@ export async function sharePdfViaWhatsapp({
         title: 'Cotización',
         text: message,
       });
-      // Share was successful
-      return;
+      return; // Success!
     } catch (error) {
-      // User might have cancelled the share. We don't need to do anything.
-      // If it's a real error, it will be logged, but we proceed to fallback as a safe measure.
       if (error instanceof DOMException && error.name === 'AbortError') {
+        // This is expected if the user cancels the share dialog.
         console.log('Share action was cancelled by the user.');
         return;
       }
-      console.error('Error using Web Share API:', error);
+      // If another error occurs, we'll proceed to the fallback.
+      console.error('Error using Web Share API, proceeding to fallback.', error);
     }
   }
 
-  // Fallback to opening a WhatsApp link with a pre-filled message
-  const fallbackMessage = `${message}\n\n(No se pudo adjuntar el PDF automáticamente. Por favor, descárgalo desde la opción "Exportar a PDF" y adjúntalo manualmente.)`;
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
-    fallbackMessage
-  )}`;
-  window.open(whatsappUrl, '_blank');
+  // 2. Fallback for desktop or unsupported browsers.
+  try {
+    // Initiate the download of the PDF file.
+    const downloadUrl = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(downloadUrl);
+
+    // Prepare a message for WhatsApp, instructing the user to attach the downloaded file.
+    const whatsappMessage = `${message}\n\n(El PDF se ha descargado en tu dispositivo. Por favor, adjúntalo a esta conversación.)`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`;
+    
+    // Give a brief moment for the download to start before opening the WhatsApp tab.
+    setTimeout(() => {
+      window.open(whatsappUrl, '_blank');
+    }, 500);
+
+  } catch (downloadError) {
+    console.error('Error during fallback download:', downloadError);
+    // A final, ultimate fallback if something goes wrong with the download process itself.
+    alert('No se pudo compartir ni descargar el PDF. Por favor, utiliza la opción "Exportar a PDF" y compártelo manually.');
+  }
 }
