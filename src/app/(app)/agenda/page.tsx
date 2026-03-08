@@ -816,8 +816,7 @@ function AgendaView() {
               {DIAS_SEMANA.map((dia) => {
                 const delDiaOriginal = clientes.filter(
                   (c) =>
-                    c.tipo === 'cliente' &&
-                    c.tipo !== 'inactivo' &&
+                    c.tipo === 'cliente' &
                     c.diaVisita === dia &&
                     c.semanaVisita === semanaActual &&
                     c.frecuencia === 'mensual' &&
