@@ -1,14 +1,14 @@
 'use client';
 
-interface NavigatorWithShare extends Navigator {
-  canShare?: (data: { files: File[] }) => boolean;
-  share?: (data: { title?: string; text?: string; files?: File[] }) => Promise<void>;
-}
-
 type SharePdfParams = {
   fileName: string;
   pdfBlob: Blob;
   message: string;
+};
+
+type ShareNavigator = Navigator & {
+  canShare?: (data?: ShareData) => boolean;
+  share?: (data?: ShareData) => Promise<void>;
 };
 
 async function sharePdfBase({
@@ -16,12 +16,15 @@ async function sharePdfBase({
   pdfBlob,
   message,
 }: SharePdfParams) {
-  const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
-  const navigatorWithShare = navigator as NavigatorWithShare;
+  const pdfFile = new File([pdfBlob], fileName, {
+    type: 'application/pdf',
+  });
 
-  if (navigatorWithShare.share && navigatorWithShare.canShare?.({ files: [pdfFile] })) {
+  const nav = navigator as ShareNavigator;
+
+  if (nav.share && nav.canShare?.({ files: [pdfFile] })) {
     try {
-      await navigatorWithShare.share({
+      await nav.share({
         files: [pdfFile],
         title: 'Cotización',
         text: message,
@@ -65,3 +68,4 @@ export async function sharePdfViaWhatsapp(params: SharePdfParams) {
 export async function sharePdfWhatsApp(params: SharePdfParams) {
   return sharePdfBase(params);
 }
+Qué cambió
