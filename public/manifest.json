@@ -1,7 +1,8 @@
 {
   "name": "Liqui Moly Sales Hub",
   "short_name": "LM Sales",
-  "start_url": "/",
+  "description": "Sistema de ventas Liqui Moly",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",

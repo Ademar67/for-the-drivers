@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import AppLayout from './AppLayout';
+import AppLayout from "./AppLayout";
 
 export const metadata: Metadata = {
   title: "Liqui Moly Sales Hub",
   description: "Sales Hub for Liqui Moly team.",
+  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
