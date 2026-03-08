@@ -37,7 +37,6 @@ export default function ClientesPage() {
   const handleDelete = async (id: string) => {
     try {
       await eliminarCliente(id);
-      // La lista se refresca automáticamente gracias al listener onSnapshot
     } catch (error) {
       console.error('Error al eliminar el cliente:', error);
       alert('No se pudo eliminar el cliente.');
@@ -57,13 +56,23 @@ export default function ClientesPage() {
       return;
     }
 
-    const headers = ['Nombre', 'Tipo', 'Ciudad', 'Día visita', 'Frecuencia'];
+    const headers = [
+      'Nombre',
+      'Tipo',
+      'Zona',
+      'Ciudad',
+      'Día visita',
+      'Semana visita',
+      'Frecuencia',
+    ];
 
     const rows = clientes.map((c) => [
       c.nombre ?? '—',
       c.tipo ?? '—',
+      c.tipoZona ?? '—',
       c.ciudad ?? '—',
       c.diaVisita ?? '—',
+      c.semanaVisita ?? '—',
       c.frecuencia ?? '—',
     ]);
 
@@ -109,10 +118,11 @@ export default function ClientesPage() {
           />
         </div>
       ) : clientes.length === 0 ? (
-         <p className="text-gray-500 italic text-center mt-8">No hay clientes registrados.</p>
+        <p className="text-gray-500 italic text-center mt-8">
+          No hay clientes registrados.
+        </p>
       ) : (
         <>
-          {/* ✅ Mobile View: Cards */}
           <div className="md:hidden space-y-4">
             {clientes.map((c) => (
               <div key={c.id} className="bg-white p-4 rounded-lg border shadow-sm">
@@ -133,13 +143,24 @@ export default function ClientesPage() {
 
                 <div className="mt-3 space-y-1 text-sm text-gray-600">
                   <p>
-                    <span className="font-medium text-gray-500">Ciudad:</span> {c.ciudad}
+                    <span className="font-medium text-gray-500">Zona:</span>{' '}
+                    {c.tipoZona ?? '—'}
                   </p>
                   <p>
-                    <span className="font-medium text-gray-500">Día visita:</span> {c.diaVisita ?? '—'}
+                    <span className="font-medium text-gray-500">Ciudad:</span>{' '}
+                    {c.ciudad}
                   </p>
                   <p>
-                    <span className="font-medium text-gray-500">Frecuencia:</span> {c.frecuencia ?? '—'}
+                    <span className="font-medium text-gray-500">Día visita:</span>{' '}
+                    {c.diaVisita ?? '—'}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-500">Semana:</span>{' '}
+                    {c.semanaVisita ? `Semana ${c.semanaVisita}` : '—'}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-500">Frecuencia:</span>{' '}
+                    {c.frecuencia ?? '—'}
                   </p>
                 </div>
 
@@ -183,15 +204,16 @@ export default function ClientesPage() {
             ))}
           </div>
 
-          {/* ✅ Desktop View: Table */}
           <div className="hidden md:block rounded-md border">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-100 border-b">
                   <th className="p-3 text-left">Nombre</th>
                   <th className="p-3 text-left">Tipo</th>
+                  <th className="p-3 text-left">Zona</th>
                   <th className="p-3 text-left">Ciudad</th>
                   <th className="p-3 text-left">Día visita</th>
+                  <th className="p-3 text-left">Semana</th>
                   <th className="p-3 text-left">Frecuencia</th>
                   <th className="p-3 text-left">Acciones</th>
                 </tr>
@@ -202,8 +224,12 @@ export default function ClientesPage() {
                   <tr key={c.id} className="border-t">
                     <td className="p-3">{c.nombre}</td>
                     <td className="p-3 capitalize">{c.tipo}</td>
+                    <td className="p-3 capitalize">{c.tipoZona ?? '—'}</td>
                     <td className="p-3">{c.ciudad}</td>
                     <td className="p-3">{c.diaVisita ?? '—'}</td>
+                    <td className="p-3">
+                      {c.semanaVisita ? `Semana ${c.semanaVisita}` : '—'}
+                    </td>
                     <td className="p-3">{c.frecuencia ?? '—'}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
@@ -217,7 +243,11 @@ export default function ClientesPage() {
 
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:text-red-700"
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>

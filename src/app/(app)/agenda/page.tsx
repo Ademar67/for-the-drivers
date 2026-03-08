@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -53,10 +52,28 @@ import { Textarea } from '@/components/ui/textarea';
 
 const DIAS_SEMANA = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
 
-const hoyIndex = new Date().getDay(); // 0 = Domingo, 1 = Lunes
+const hoyReal = new Date();
+const hoyIndex = hoyReal.getDay(); // 0 = domingo
 const hoyDiaSemana = hoyIndex === 0 ? 'domingo' : DIAS_SEMANA[hoyIndex - 1];
-const hoyFecha = new Date().toISOString().split('T')[0];
+const hoyFecha = hoyReal.toISOString().split('T')[0];
 const PLAN_DIARIO_LIMITE = 6;
+
+function getWeekOfMonth(date: Date) {
+  const day = date.getDate();
+  const week = Math.ceil(day / 7);
+  return Math.min(week, 4);
+}
+
+function getDateOnlyLocal(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function isSameMonthAndYear(dateA: Date, dateB: Date) {
+  return (
+    dateA.getFullYear() === dateB.getFullYear() &&
+    dateA.getMonth() === dateB.getMonth()
+  );
+}
 
 function getUrgenciaScore(
   clienteId: string,
@@ -75,23 +92,14 @@ function getTextoUrgencia(
   data: {
     frecuenciaVencida: Set<string>;
     sinVisitaSemana: Set<string>;
-    ultimaVisitaMap: Map<string, Date>;
-    hoy: Date;
   }
 ) {
   if (data.frecuenciaVencida.has(clienteId)) {
-    const ultimaVisita = data.ultimaVisitaMap.get(clienteId);
-
-    if (!ultimaVisita) return null;
-
-    const diffMs = data.hoy.getTime() - ultimaVisita.getTime();
-    const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    return `Frecuencia vencida — hace ${dias} días`;
+    return 'Frecuencia vencida este mes';
   }
 
   if (data.sinVisitaSemana.has(clienteId)) {
-    return 'Sin visita esta semana';
+    return 'Pendiente en su semana asignada';
   }
 
   return null;
@@ -116,14 +124,12 @@ function AgendaView() {
   const [openCrearCliente, setOpenCrearCliente] = useState(false);
   const [openAgregarVisita, setOpenAgregarVisita] = useState(false);
 
-  // Modal para marcar realizada + nota
   const [visitaParaMarcar, setVisitaParaMarcar] = useState<Visita | null>(null);
   const [notaVisita, setNotaVisita] = useState('');
   const [guardandoRealizada, setGuardandoRealizada] = useState(false);
-  
-  // Modal para búsqueda en DENUE
+
   const [denueSearchModalOpen, setDenueSearchModalOpen] = useState(false);
-  const [denueSearchCoords, setDenueSearchCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [denueSearchCoords, setDenueSearchCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     const unsubClientes = listenClientes(setClientes);
@@ -156,16 +162,14 @@ function AgendaView() {
       };
 
       await crearVisita(visitaToSave as any);
-      // se actualiza sola por listener
     } catch (error) {
       console.error('ERROR AL GUARDAR VISITA:', error);
       alert(error instanceof Error ? error.message : 'Error desconocido al guardar visita');
     }
   };
-  
-    const handleQuitarDeLista = async (clienteId: string, clienteNombre: string) => {
+
+  const handleQuitarDeLista = async (clienteId: string, clienteNombre: string) => {
     try {
-      // Registrar una visita "rápida" para sacarlo de la lista
       await crearVisita({
         clienteId,
         cliente: clienteNombre,
@@ -194,22 +198,21 @@ function AgendaView() {
     try {
       setGuardandoRealizada(true);
       if (!currentVisita?.id) {
-        console.error("Visita sin id");
+        console.error('Visita sin id');
         setGuardandoRealizada(false);
         return;
       }
-      await marcarVisitaRealizada(currentVisita.id, notaVisita ?? "");
+      await marcarVisitaRealizada(currentVisita.id, notaVisita ?? '');
 
       setVisitaParaMarcar(null);
       setNotaVisita('');
-      
-      const clienteDeVisita = clientes.find(c => c.id === currentVisita.clienteId);
-      
+
+      const clienteDeVisita = clientes.find((c) => c.id === currentVisita.clienteId);
+
       if (clienteDeVisita && clienteDeVisita.lat && clienteDeVisita.lng) {
         setDenueSearchCoords({ lat: clienteDeVisita.lat, lng: clienteDeVisita.lng });
         setDenueSearchModalOpen(true);
       }
-
     } catch (e) {
       console.error(e);
       alert('No se pudo marcar como realizada.');
@@ -222,81 +225,95 @@ function AgendaView() {
     ? clientes.find((c) => c.id === clienteIdFromUrl)?.nombre
     : null;
 
-  const sieteDiasAtras = new Date();
-  sieteDiasAtras.setDate(sieteDiasAtras.getDate() - 7);
+  const hoy = getDateOnlyLocal(new Date());
+  const semanaActual = getWeekOfMonth(hoy);
 
   const clientesActivos = clientes.filter((c) => c.tipo === 'cliente');
 
   const ultimaVisitaMap = new Map<string, Date>();
+  const visitaEsteMesMap = new Map<string, Date>();
+
   visitas
     .filter((v) => v.estado === 'realizada')
     .forEach((v) => {
-      // Validar que la fecha sea un string antes de crear el objeto Date
-      if (typeof v.fecha === 'string') {
-        const fechaVisita = new Date(v.fecha);
-        // Validar que la fecha no sea inválida
-        if (!isNaN(fechaVisita.getTime())) {
-          const fechaExistente = ultimaVisitaMap.get(v.clienteId);
-          if (!fechaExistente || fechaVisita > fechaExistente) {
-            ultimaVisitaMap.set(v.clienteId, fechaVisita);
-          }
+      if (typeof v.fecha !== 'string') return;
+
+      const fechaVisita = new Date(`${v.fecha}T00:00:00`);
+      if (isNaN(fechaVisita.getTime())) return;
+
+      const fechaExistente = ultimaVisitaMap.get(v.clienteId);
+      if (!fechaExistente || fechaVisita > fechaExistente) {
+        ultimaVisitaMap.set(v.clienteId, fechaVisita);
+      }
+
+      if (isSameMonthAndYear(fechaVisita, hoy)) {
+        const fechaMesExistente = visitaEsteMesMap.get(v.clienteId);
+        if (!fechaMesExistente || fechaVisita > fechaMesExistente) {
+          visitaEsteMesMap.set(v.clienteId, fechaVisita);
         }
       }
     });
 
-  const getFechaLimite = (ultimaFecha: Date, frecuencia: string) => {
-    const fechaLimite = new Date(ultimaFecha);
-    switch (frecuencia) {
-      case 'semanal':
-        fechaLimite.setDate(fechaLimite.getDate() + 7);
-        break;
-      case 'quincenal':
-        fechaLimite.setDate(fechaLimite.getDate() + 15);
-        break;
-      case 'mensual':
-        fechaLimite.setMonth(fechaLimite.getMonth() + 1);
-        break;
-      default:
-        return new Date();
-    }
-    return fechaLimite;
+  const yaVisitadoEsteMes = (clienteId?: string) => {
+    if (!clienteId) return false;
+    return visitaEsteMesMap.has(clienteId);
   };
 
-  const clientesVencidos = clientesActivos
-    .filter((c) => c.frecuencia)
-    .filter((cliente) => {
-      const visitasRealizadas = visitas.filter(
-        (v) => v.clienteId === cliente.id && v.estado === 'realizada'
-      );
+  const yaPasoSuTurnoEsteMes = (cliente: ClienteFS) => {
+    if (!cliente.semanaVisita || !cliente.diaVisita) return false;
 
-      if (visitasRealizadas.length === 0) return true;
+    const indexDiaCliente = DIAS_SEMANA.indexOf(cliente.diaVisita);
+    const indexDiaHoy = DIAS_SEMANA.indexOf(hoyDiaSemana);
 
-      const ultimaVisita = visitasRealizadas.reduce((masReciente, actual) =>
-        new Date(actual.fecha) > new Date(masReciente.fecha) ? actual : masReciente
-      );
+    if (indexDiaCliente === -1 || indexDiaHoy === -1) return false;
 
-      const fechaLimite = getFechaLimite(new Date(ultimaVisita.fecha), cliente.frecuencia!);
-      return new Date() > fechaLimite;
-    });
+    if (semanaActual > cliente.semanaVisita) return true;
+    if (semanaActual < cliente.semanaVisita) return false;
 
-  const clientesVencidosIdSet = new Set(clientesVencidos.map(c => c.id));
+    return indexDiaHoy > indexDiaCliente;
+  };
 
-  const clientesSinVisitaReciente = clientesActivos.filter((cliente) => {
+  const tocaHoyCliente = (cliente: ClienteFS) => {
+    if (cliente.tipo !== 'cliente') return false;
+    if (!cliente.semanaVisita || !cliente.diaVisita) return false;
+    if (cliente.frecuencia !== 'mensual') return false;
+    if (yaVisitadoEsteMes(cliente.id)) return false;
+
+    return (
+      cliente.semanaVisita === semanaActual &&
+      cliente.diaVisita === hoyDiaSemana
+    );
+  };
+
+  const clientesProgramadosHoy = clientesActivos.filter(tocaHoyCliente);
+
+  const clientesVencidos = clientesActivos.filter((cliente) => {
     if (!cliente.id) return false;
-    if (clientesVencidosIdSet.has(cliente.id)) return false;
+    if (!cliente.semanaVisita || !cliente.diaVisita) return false;
+    if (cliente.frecuencia !== 'mensual') return false;
+    if (yaVisitadoEsteMes(cliente.id)) return false;
 
-    const ultimaVisita = ultimaVisitaMap.get(cliente.id);
-    if (!ultimaVisita) return true;
-    return ultimaVisita < sieteDiasAtras;
+    return yaPasoSuTurnoEsteMes(cliente);
   });
 
+  const clientesVencidosIdSet = new Set(clientesVencidos.map((c) => c.id));
+
+  const clientesSinVisitaSemana = clientesActivos.filter((cliente) => {
+    if (!cliente.id) return false;
+    if (clientesVencidosIdSet.has(cliente.id)) return false;
+    if (!cliente.semanaVisita || !cliente.diaVisita) return false;
+    if (cliente.frecuencia !== 'mensual') return false;
+    if (yaVisitadoEsteMes(cliente.id)) return false;
+
+    return cliente.semanaVisita === semanaActual;
+  });
 
   const frecuenciaVencidaSet = new Set(
     clientesVencidos.map((c) => c.id).filter((id): id is string => typeof id === 'string')
   );
 
   const sinVisitaSemanaSet = new Set(
-    clientesSinVisitaReciente.map((c) => c.id).filter((id): id is string => typeof id === 'string')
+    clientesSinVisitaSemana.map((c) => c.id).filter((id): id is string => typeof id === 'string')
   );
 
   const urgenciaSets = {
@@ -307,8 +324,6 @@ function AgendaView() {
   const visitasFiltradas = clienteIdFromUrl
     ? visitas.filter((v) => v.clienteId === clienteIdFromUrl)
     : visitas;
-
-  const hoy = new Date();
 
   const visitasPendientes = visitasFiltradas
     .filter((v) => v.estado === 'pendiente')
@@ -330,7 +345,7 @@ function AgendaView() {
     .filter((v) => v.estado === 'realizada')
     .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 
-  const planDeHoy = visitasPendientes.slice(0, PLAN_DIARIO_LIMITE);
+  const planDeHoyManual = visitasPendientes.slice(0, PLAN_DIARIO_LIMITE);
 
   const renderVisita = (visita: Visita) => {
     const esVisitaDeHoy = visita.fecha === hoyFecha;
@@ -338,8 +353,6 @@ function AgendaView() {
     const textoUrgencia = getTextoUrgencia(visita.clienteId, {
       frecuenciaVencida: urgenciaSets.frecuenciaVencida,
       sinVisitaSemana: urgenciaSets.sinVisitaSemana,
-      ultimaVisitaMap,
-      hoy,
     });
 
     return (
@@ -366,7 +379,9 @@ function AgendaView() {
               {visita.tipo} - {visita.fecha} {visita.hora}
             </div>
             <p className="text-sm text-gray-500 mt-1 line-clamp-2">{visita.notas}</p>
-            {textoUrgencia && <p className="text-xs text-red-600 font-medium mt-1">{textoUrgencia}</p>}
+            {textoUrgencia && (
+              <p className="text-xs text-red-600 font-medium mt-1">{textoUrgencia}</p>
+            )}
           </div>
 
           <div className="hidden md:flex items-center gap-2">
@@ -381,7 +396,12 @@ function AgendaView() {
                 </button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button title="Eliminar visita" variant="ghost" size="icon" className="h-11 w-11 rounded-full text-red-500 hover:bg-red-100">
+                    <Button
+                      title="Eliminar visita"
+                      variant="ghost"
+                      size="icon"
+                      className="h-11 w-11 rounded-full text-red-500 hover:bg-red-100"
+                    >
                       <Trash2 className="h-5 w-5" />
                     </Button>
                   </AlertDialogTrigger>
@@ -405,44 +425,47 @@ function AgendaView() {
                 </AlertDialog>
               </>
             ) : (
-               <Badge variant="secondary" className="bg-green-100 text-green-800">
-                  Realizada
-               </Badge>
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                Realizada
+              </Badge>
             )}
           </div>
         </div>
 
-        {/* Mobile Actions */}
         {visita.estado === 'pendiente' && (
-            <div className="md:hidden flex gap-2 w-full border-t mt-4 pt-3">
-                <Button onClick={() => handleOpenMarcarRealizada(visita)} size="sm" className="flex-1 bg-green-600 hover:bg-green-700">
-                    <CheckCircle className="mr-2 h-4 w-4"/> Marcar Realizada
+          <div className="md:hidden flex gap-2 w-full border-t mt-4 pt-3">
+            <Button
+              onClick={() => handleOpenMarcarRealizada(visita)}
+              size="sm"
+              className="flex-1 bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="mr-2 h-4 w-4" /> Marcar Realizada
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="flex-1">
+                  <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                 </Button>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="flex-1">
-                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                        <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción no se puede deshacer. La visita pendiente para <strong>{visita.cliente}</strong> será eliminada.
-                        </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => visita.id && eliminarVisita(visita.id)}
-                            className="bg-red-600 hover:bg-red-700"
-                        >
-                            Eliminar
-                        </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </div>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción no se puede deshacer. La visita pendiente para <strong>{visita.cliente}</strong> será eliminada.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => visita.id && eliminarVisita(visita.id)}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         )}
       </li>
     );
@@ -466,7 +489,12 @@ function AgendaView() {
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button title="Eliminar visita" variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-11 w-11 rounded-full hover:bg-red-100 active:scale-95">
+              <Button
+                title="Eliminar visita"
+                variant="ghost"
+                size="icon"
+                className="text-red-500 hover:text-red-700 h-11 w-11 rounded-full hover:bg-red-100 active:scale-95"
+              >
                 <Trash2 className="h-5 w-5" />
               </Button>
             </AlertDialogTrigger>
@@ -475,8 +503,7 @@ function AgendaView() {
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta acción no se puede deshacer. La visita para{' '}
-                  <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
+                  Esta acción no se puede deshacer. La visita para <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
@@ -493,34 +520,36 @@ function AgendaView() {
           </AlertDialog>
         </div>
       </div>
-       {/* Mobile Actions */}
-        <div className="sm:hidden flex gap-2 w-full border-t mt-4 pt-3">
-            <Badge variant="secondary" className="bg-green-100 text-green-800">Realizada</Badge>
-            <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" className="flex-1">
-                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                    </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                    <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Esta acción no se puede deshacer. La visita para <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
-                    </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                        onClick={() => visita.id && eliminarVisita(visita.id)}
-                        className="bg-red-600 hover:bg-red-700"
-                    >
-                        Eliminar
-                    </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
+
+      <div className="sm:hidden flex gap-2 w-full border-t mt-4 pt-3">
+        <Badge variant="secondary" className="bg-green-100 text-green-800">
+          Realizada
+        </Badge>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm" className="flex-1">
+              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. La visita para <strong>{visita.cliente}</strong> del día {visita.fecha} será eliminada permanentemente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => visita.id && eliminarVisita(visita.id)}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </li>
   );
 
@@ -531,29 +560,89 @@ function AgendaView() {
           <h1 className="text-3xl font-bold">
             {nombreClienteFiltrado ? `Agenda de ${nombreClienteFiltrado}` : 'Agenda'}
           </h1>
-          {clienteIdFromUrl && <p className="text-sm text-gray-500 mt-1">Mostrando agenda del cliente seleccionado</p>}
+          {clienteIdFromUrl && (
+            <p className="text-sm text-gray-500 mt-1">
+              Mostrando agenda del cliente seleccionado
+            </p>
+          )}
+          {!clienteIdFromUrl && (
+            <p className="text-sm text-gray-500 mt-1">
+              Semana actual del mes: <strong>{semanaActual}</strong>
+            </p>
+          )}
         </div>
 
         <div className="hidden md:flex gap-2">
-          <Button onClick={() => setOpenCrearCliente(true)}>
-            + Nuevo Cliente
-          </Button>
-          <Button
-            onClick={() => setOpenAgregarVisita(true)}
-            className="flex items-center"
-          >
+          <Button onClick={() => setOpenCrearCliente(true)}>+ Nuevo Cliente</Button>
+          <Button onClick={() => setOpenAgregarVisita(true)} className="flex items-center">
             <PlusCircle className="mr-2 h-5 w-5" />
             Agregar visita
           </Button>
         </div>
       </div>
 
-      {planDeHoy.length > 0 && !clienteIdFromUrl && (
+      {!clienteIdFromUrl && clientesProgramadosHoy.length > 0 && (
         <section className="mb-8">
           <h2 className="text-xl font-semibold mb-3 text-gray-800">
-            📋 Plan sugerido para hoy ({planDeHoy.length})
+            📍 Clientes programados para hoy ({clientesProgramadosHoy.length})
           </h2>
-          <ul className="space-y-3">{planDeHoy.map(renderVisita)}</ul>
+          <div className="p-4 rounded-lg border bg-blue-50 border-blue-200">
+            <ul className="space-y-2">
+              {clientesProgramadosHoy.map((cliente) => (
+                <li key={cliente.id} className="flex justify-between items-center gap-3">
+                  <div>
+                    <div className="font-medium">{cliente.nombre}</div>
+                    <div className="text-sm text-gray-600">
+                      {cliente.ciudad} · {cliente.tipoZona ?? '—'} · Semana {cliente.semanaVisita}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/agenda?clienteId=${cliente.id}`}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      Ver agenda
+                    </Link>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-green-600 hover:text-green-700 h-8 w-8">
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Marcar como visitado?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Se registrará una visita rápida para <strong>{cliente.nombre}</strong> y dejará de aparecer este mes.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleQuitarDeLista(cliente.id!, cliente.nombre)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            Marcar visita
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
+      {planDeHoyManual.length > 0 && !clienteIdFromUrl && (
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-3 text-gray-800">
+            📋 Plan manual sugerido para hoy ({planDeHoyManual.length})
+          </h2>
+          <ul className="space-y-3">{planDeHoyManual.map(renderVisita)}</ul>
         </section>
       )}
 
@@ -596,9 +685,7 @@ function AgendaView() {
               {loading ? (
                 <p className="text-gray-500 italic">Cargando visitas...</p>
               ) : visitasRealizadas.length > 0 ? (
-                <ul className="space-y-3">
-                  {visitasRealizadas.map(renderVisitaRealizada)}
-                </ul>
+                <ul className="space-y-3">{visitasRealizadas.map(renderVisitaRealizada)}</ul>
               ) : (
                 <p className="text-gray-500 italic">
                   No hay visitas realizadas {nombreClienteFiltrado ? `para ${nombreClienteFiltrado}` : ''}.
@@ -608,40 +695,52 @@ function AgendaView() {
           </CollapsibleContent>
         </Collapsible>
 
-        {clientesSinVisitaReciente.length > 0 && !clienteIdFromUrl && (
+        {clientesSinVisitaSemana.length > 0 && !clienteIdFromUrl && (
           <div className="border-t pt-6">
             <h2 className="text-xl font-semibold mb-3 text-orange-700 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
-              Clientes sin visita esta semana ({clientesSinVisitaReciente.length})
+              Clientes pendientes en su semana ({clientesSinVisitaSemana.length})
             </h2>
 
             <div className="p-4 rounded-lg border bg-orange-50 border-orange-200">
               <ul className="space-y-2">
-                {clientesSinVisitaReciente.map((cliente) => (
-                   <li key={cliente.id} className="flex justify-between items-center">
-                    <Link href={`/agenda?clienteId=${cliente.id}`} className="text-sm text-blue-600 hover:underline">
-                      {cliente.nombre}
-                    </Link>
+                {clientesSinVisitaSemana.map((cliente) => (
+                  <li key={cliente.id} className="flex justify-between items-center">
+                    <div>
+                      <Link
+                        href={`/agenda?clienteId=${cliente.id}`}
+                        className="text-sm text-blue-600 hover:underline"
+                      >
+                        {cliente.nombre}
+                      </Link>
+                      <p className="text-xs text-gray-600">
+                        {cliente.diaVisita} · Semana {cliente.semanaVisita}
+                      </p>
+                    </div>
+
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-8 w-8">
-                           <Trash2 className="h-4 w-4" />
-                         </Button>
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-8 w-8">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </AlertDialogTrigger>
-                       <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Quitar de la lista?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Se registrará una visita rápida para quitar a <strong>{cliente.nombre}</strong> de las listas de pendientes.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleQuitarDeLista(cliente.id!, cliente.nombre)} className="bg-red-600 hover:bg-red-700">
-                              Quitar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Quitar de la lista?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Se registrará una visita rápida para quitar a <strong>{cliente.nombre}</strong> de las listas pendientes del mes.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleQuitarDeLista(cliente.id!, cliente.nombre)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Quitar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
                     </AlertDialog>
                   </li>
                 ))}
@@ -662,31 +761,43 @@ function AgendaView() {
                 {clientesVencidos.map((cliente) => (
                   <li key={cliente.id} className="flex justify-between items-center">
                     <div>
-                      <Link href={`/agenda?clienteId=${cliente.id}`} className="text-sm text-blue-600 hover:underline">
+                      <Link
+                        href={`/agenda?clienteId=${cliente.id}`}
+                        className="text-sm text-blue-600 hover:underline"
+                      >
                         {cliente.nombre}
                       </Link>
-                      <Badge variant="destructive" className="ml-2">URGENTE</Badge>
+                      <Badge variant="destructive" className="ml-2">
+                        URGENTE
+                      </Badge>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {cliente.diaVisita} · Semana {cliente.semanaVisita}
+                      </p>
                     </div>
+
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-8 w-8">
-                           <Trash2 className="h-4 w-4" />
-                         </Button>
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 h-8 w-8">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </AlertDialogTrigger>
-                       <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Quitar de la lista?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Se registrará una visita rápida para quitar a <strong>{cliente.nombre}</strong> de las listas de pendientes.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleQuitarDeLista(cliente.id!, cliente.nombre)} className="bg-red-600 hover:bg-red-700">
-                              Quitar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Quitar de la lista?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Se registrará una visita rápida para quitar a <strong>{cliente.nombre}</strong> de las listas de pendientes.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleQuitarDeLista(cliente.id!, cliente.nombre)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Quitar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
                     </AlertDialog>
                   </li>
                 ))}
@@ -697,12 +808,20 @@ function AgendaView() {
 
         {!clienteIdFromUrl && (
           <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-800 border-t pt-6">Clientes a Visitar por Día</h2>
+            <h2 className="text-xl font-semibold mb-4 text-gray-800 border-t pt-6">
+              Clientes a Visitar por Día · Semana {semanaActual}
+            </h2>
 
             <div className="space-y-6">
               {DIAS_SEMANA.map((dia) => {
                 const delDiaOriginal = clientes.filter(
-                  (c) => c.diaVisita === dia && c.tipo !== 'inactivo' && c.diaVisita
+                  (c) =>
+                    c.tipo === 'cliente' &&
+                    c.tipo !== 'inactivo' &&
+                    c.diaVisita === dia &&
+                    c.semanaVisita === semanaActual &&
+                    c.frecuencia === 'mensual' &&
+                    !yaVisitadoEsteMes(c.id)
                 );
 
                 if (delDiaOriginal.length === 0) return null;
@@ -731,15 +850,30 @@ function AgendaView() {
                         )}
                       >
                         <div className="flex items-center gap-3">
-                          <h3 className={cn('text-lg font-semibold capitalize', esHoy ? 'text-blue-800' : 'text-gray-800')}>
+                          <h3
+                            className={cn(
+                              'text-lg font-semibold capitalize',
+                              esHoy ? 'text-blue-800' : 'text-gray-800'
+                            )}
+                          >
                             {dia}
                           </h3>
-                          <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', esHoy ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700')}>
+                          <span
+                            className={cn(
+                              'px-2 py-0.5 rounded-full text-xs font-medium',
+                              esHoy ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+                            )}
+                          >
                             {delDia.length}
                           </span>
                         </div>
 
-                        <ChevronDown className={cn('h-5 w-5 transition-transform data-[state=open]:rotate-180', esHoy ? 'text-blue-700' : 'text-gray-600')} />
+                        <ChevronDown
+                          className={cn(
+                            'h-5 w-5 transition-transform data-[state=open]:rotate-180',
+                            esHoy ? 'text-blue-700' : 'text-gray-600'
+                          )}
+                        />
                       </div>
                     </CollapsibleTrigger>
 
@@ -749,8 +883,6 @@ function AgendaView() {
                           const textoUrgencia = getTextoUrgencia(cliente.id!, {
                             frecuenciaVencida: urgenciaSets.frecuenciaVencida,
                             sinVisitaSemana: urgenciaSets.sinVisitaSemana,
-                            ultimaVisitaMap,
-                            hoy,
                           });
 
                           const urgenciaScore = getUrgenciaScore(cliente.id!, urgenciaSets);
@@ -777,10 +909,18 @@ function AgendaView() {
                                 )}
                               </div>
 
-                              <div className="text-xs text-gray-600">{cliente.ciudad}</div>
-                              <div className="text-xs text-gray-500 mt-1">Frecuencia: {cliente.frecuencia}</div>
+                              <div className="text-xs text-gray-600">
+                                {cliente.ciudad} · {cliente.tipoZona ?? '—'}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Semana {cliente.semanaVisita} · Frecuencia: {cliente.frecuencia}
+                              </div>
 
-                              {textoUrgencia && <p className="text-xs text-red-600 font-medium mt-1">{textoUrgencia}</p>}
+                              {textoUrgencia && (
+                                <p className="text-xs text-red-600 font-medium mt-1">
+                                  {textoUrgencia}
+                                </p>
+                              )}
                             </li>
                           );
                         })}
@@ -804,8 +944,10 @@ function AgendaView() {
         clienteIdInicial={clienteIdFromUrl}
       />
 
-      {/* ✅ Modal: Marcar como realizada + nota */}
-      <Dialog open={!!visitaParaMarcar} onOpenChange={(isOpen) => !isOpen && setVisitaParaMarcar(null)}>
+      <Dialog
+        open={!!visitaParaMarcar}
+        onOpenChange={(isOpen) => !isOpen && setVisitaParaMarcar(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Marcar visita como realizada</DialogTitle>
@@ -825,32 +967,37 @@ function AgendaView() {
           </div>
 
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setVisitaParaMarcar(null)} disabled={guardandoRealizada} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => setVisitaParaMarcar(null)}
+              disabled={guardandoRealizada}
+              className="w-full sm:w-auto"
+            >
               Cancelar
             </Button>
-            <Button onClick={handleConfirmarRealizada} disabled={guardandoRealizada} className="w-full sm:w-auto">
+            <Button
+              onClick={handleConfirmarRealizada}
+              disabled={guardandoRealizada}
+              className="w-full sm:w-auto"
+            >
               {guardandoRealizada ? 'Guardando...' : 'Guardar y Marcar como Realizada'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      {/* Barra de acción fija para móvil */}
+
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white p-3 md:hidden">
         <div className="flex gap-2">
-           <Button onClick={() => setOpenCrearCliente(true)} variant="outline" className="h-12 flex-1 text-base">
-                + Nuevo Cliente
-            </Button>
-            <Button
-              onClick={() => setOpenAgregarVisita(true)}
-              className="h-12 flex-1 text-base"
-            >
-              <PlusCircle className="mr-2 h-5 w-5" />
-              Agregar visita
-            </Button>
+          <Button onClick={() => setOpenCrearCliente(true)} variant="outline" className="h-12 flex-1 text-base">
+            + Nuevo Cliente
+          </Button>
+          <Button onClick={() => setOpenAgregarVisita(true)} className="h-12 flex-1 text-base">
+            <PlusCircle className="mr-2 h-5 w-5" />
+            Agregar visita
+          </Button>
         </div>
       </div>
-      
+
       <DenueSearchModal
         open={denueSearchModalOpen}
         onClose={() => setDenueSearchModalOpen(false)}

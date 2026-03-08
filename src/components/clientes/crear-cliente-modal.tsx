@@ -1,8 +1,8 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { crearCliente } from '@/lib/firestore/clientes';
+import { geocodificarDireccion } from '@/lib/geocoding';
 
 export default function CrearClienteModal({
   open,
@@ -16,47 +16,72 @@ export default function CrearClienteModal({
   const [form, setForm] = useState({
     nombre: '',
     tipo: 'prospecto' as 'prospecto' | 'cliente' | 'inactivo',
+    tipoZona: 'local' as 'local' | 'foraneo',
     ciudad: '',
     domicilio: '',
     nota: '',
     diaVisita: 'lunes',
-    frecuencia: 'semanal',
+    frecuencia: 'mensual',
+    semanaVisita: 2,
   });
 
+  const semanasDisponibles = useMemo(() => {
+    return form.tipoZona === 'foraneo' ? [1, 4] : [2, 3];
+  }, [form.tipoZona]);
+
   if (!open) return null;
+
+  function handleTipoZonaChange(value: 'local' | 'foraneo') {
+    const semanaDefault = value === 'foraneo' ? 1 : 2;
+    setForm({
+      ...form,
+      tipoZona: value,
+      semanaVisita: semanaDefault,
+    });
+  }
 
   async function guardar() {
     try {
       setLoading(true);
+
+      const direccionCompleta = `${form.domicilio}, ${form.ciudad}, México`;
+      const coords = await geocodificarDireccion(direccionCompleta);
+
       await crearCliente({
         nombre: form.nombre,
         tipo: form.tipo,
+        tipoZona: form.tipoZona,
         ciudad: form.ciudad,
         domicilio: form.domicilio,
         diaVisita: form.diaVisita,
         frecuencia: form.frecuencia,
+        semanaVisita: form.semanaVisita,
         nota: form.nota,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
       });
-      
+
       onClose();
 
       setForm({
         nombre: '',
         tipo: 'prospecto',
+        tipoZona: 'local',
         ciudad: '',
         domicilio: '',
         nota: '',
         diaVisita: 'lunes',
-        frecuencia: 'semanal',
+        frecuencia: 'mensual',
+        semanaVisita: 2,
       });
     } catch (error) {
-      console.error('ERROR AL GUARDAR CLIENTE:', error)
+      console.error('ERROR AL GUARDAR CLIENTE:', error);
 
       alert(
         error instanceof Error
           ? error.message
           : 'Error desconocido al guardar cliente'
-      )
+      );
     } finally {
       setLoading(false);
     }
@@ -99,7 +124,9 @@ export default function CrearClienteModal({
         <select
           className="w-full border p-2 rounded"
           value={form.tipo}
-          onChange={(e) => setForm({ ...form, tipo: e.target.value as typeof form.tipo })}
+          onChange={(e) =>
+            setForm({ ...form, tipo: e.target.value as typeof form.tipo })
+          }
         >
           <option value="prospecto">Prospecto</option>
           <option value="cliente">Cliente</option>
@@ -108,15 +135,26 @@ export default function CrearClienteModal({
 
         <select
           className="w-full border p-2 rounded"
+          value={form.tipoZona}
+          onChange={(e) =>
+            handleTipoZonaChange(e.target.value as 'local' | 'foraneo')
+          }
+        >
+          <option value="local">Local</option>
+          <option value="foraneo">Foráneo</option>
+        </select>
+
+        <select
+          className="w-full border p-2 rounded"
           value={form.diaVisita}
           onChange={(e) => setForm({ ...form, diaVisita: e.target.value })}
         >
-          <option>lunes</option>
-          <option>martes</option>
-          <option>miercoles</option>
-          <option>jueves</option>
-          <option>viernes</option>
-          <option>sabado</option>
+          <option value="lunes">lunes</option>
+          <option value="martes">martes</option>
+          <option value="miercoles">miercoles</option>
+          <option value="jueves">jueves</option>
+          <option value="viernes">viernes</option>
+          <option value="sabado">sabado</option>
         </select>
 
         <select
@@ -124,9 +162,21 @@ export default function CrearClienteModal({
           value={form.frecuencia}
           onChange={(e) => setForm({ ...form, frecuencia: e.target.value })}
         >
-          <option>semanal</option>
-          <option>quincenal</option>
-          <option>mensual</option>
+          <option value="mensual">mensual</option>
+        </select>
+
+        <select
+          className="w-full border p-2 rounded"
+          value={form.semanaVisita}
+          onChange={(e) =>
+            setForm({ ...form, semanaVisita: Number(e.target.value) })
+          }
+        >
+          {semanasDisponibles.map((semana) => (
+            <option key={semana} value={semana}>
+              Semana {semana}
+            </option>
+          ))}
         </select>
 
         <div className="flex justify-end gap-2 pt-2">
