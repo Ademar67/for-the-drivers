@@ -26,7 +26,12 @@ export default function NuevaCotizacionPage() {
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string>('');
   const [items, setItems] = useState<ItemCotizacion[]>([]);
   const [busqueda, setBusqueda] = useState('');
-  const [descuentos, setDescuentos] = useState<(number | undefined)[]>([undefined, undefined, undefined, undefined]);
+  const [descuentos, setDescuentos] = useState<(number | undefined)[]>([
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+  ]);
   const [observaciones, setObservaciones] = useState('');
   const [vigenciaDias, setVigenciaDias] = useState(7);
   const [isSharing, setIsSharing] = useState(false);
@@ -37,7 +42,9 @@ export default function NuevaCotizacionPage() {
 
     async function fetchProductos() {
       const snap = await getDocs(collection(db, 'productos'));
-      const prods = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ProductoConId));
+      const prods = snap.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as ProductoConId)
+      );
       setProductos(prods);
     }
 
@@ -46,11 +53,13 @@ export default function NuevaCotizacionPage() {
   }, []);
 
   const agregarProducto = (producto: ProductoConId) => {
-    setItems(prev => {
-      const existente = prev.find(item => item.id === producto.id);
+    setItems((prev) => {
+      const existente = prev.find((item) => item.id === producto.id);
       if (existente) {
-        return prev.map(item =>
-          item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
+        return prev.map((item) =>
+          item.id === producto.id
+            ? { ...item, cantidad: item.cantidad + 1 }
+            : item
         );
       }
       return [...prev, { ...producto, cantidad: 1 }];
@@ -58,12 +67,12 @@ export default function NuevaCotizacionPage() {
   };
 
   const eliminarItem = (id: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
+    setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   const handleCantidadChange = (id: string, cantidad: number) => {
-    setItems(prev =>
-      prev.map(item =>
+    setItems((prev) =>
+      prev.map((item) =>
         item.id === id ? { ...item, cantidad: Math.max(0, cantidad || 0) } : item
       )
     );
@@ -78,7 +87,7 @@ export default function NuevaCotizacionPage() {
 
   const productosFiltrados = busqueda
     ? productos.filter(
-        p =>
+        (p) =>
           p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
           p.codigo.toLowerCase().includes(busqueda.toLowerCase())
       )
@@ -89,13 +98,15 @@ export default function NuevaCotizacionPage() {
       const itemSubtotal = item.precio * item.cantidad;
       acc.subtotal += itemSubtotal;
 
-      const itemTotalConDescuentos: number =
-  descuentos.reduce((currentPrice, d) => {
-    if (d !== undefined && d > 0) {
-      return currentPrice * (1 - d / 100);
-    }
-    return currentPrice;
-  }, itemSubtotal);
+      const itemTotalConDescuentos = descuentos.reduce<number>(
+        (currentPrice, d) => {
+          if (d !== undefined && d > 0) {
+            return currentPrice * (1 - d / 100);
+          }
+          return currentPrice;
+        },
+        itemSubtotal
+      );
 
       acc.total += itemTotalConDescuentos;
       acc.totalDescuentos += itemSubtotal - itemTotalConDescuentos;
@@ -112,7 +123,7 @@ export default function NuevaCotizacionPage() {
     }
 
     try {
-      const cliente = clientes.find(c => c.id === clienteSeleccionadoId);
+      const cliente = clientes.find((c) => c.id === clienteSeleccionadoId);
 
       if (!cliente) {
         alert('Cliente no encontrado');
@@ -127,7 +138,7 @@ export default function NuevaCotizacionPage() {
       await crearCotizacion({
         clienteId: cliente.id,
         clienteNombre: cliente.nombre,
-        items: items.map(i => ({
+        items: items.map((i) => ({
           productoId: i.id,
           nombre: i.nombre,
           cantidad: i.cantidad,
@@ -151,7 +162,7 @@ export default function NuevaCotizacionPage() {
   };
 
   const buildCotizacionData = (): CotizacionPDFData | null => {
-    const cliente = clientes.find(c => c.id === clienteSeleccionadoId);
+    const cliente = clientes.find((c) => c.id === clienteSeleccionadoId);
 
     if (!cliente) {
       return null;
@@ -161,7 +172,7 @@ export default function NuevaCotizacionPage() {
       id: 'NUEVA',
       clienteNombre: cliente.nombre,
       clienteDireccion: cliente.domicilio,
-      items: items.map(item => ({ ...item })),
+      items: items.map((item) => ({ ...item })),
       subtotal,
       total,
       totalDescuentos,
@@ -227,11 +238,11 @@ export default function NuevaCotizacionPage() {
             <h2 className="text-lg font-semibold mb-3">Cliente</h2>
             <select
               value={clienteSeleccionadoId}
-              onChange={e => setClienteSeleccionadoId(e.target.value)}
+              onChange={(e) => setClienteSeleccionadoId(e.target.value)}
               className="w-full border p-2 rounded bg-gray-50"
             >
               <option value="">Selecciona un cliente</option>
-              {clientes.map(c => (
+              {clientes.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nombre}
                 </option>
@@ -245,12 +256,12 @@ export default function NuevaCotizacionPage() {
               type="text"
               placeholder="Buscar por nombre o código..."
               value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
+              onChange={(e) => setBusqueda(e.target.value)}
               className="w-full border p-2 rounded bg-gray-50"
             />
             {productosFiltrados.length > 0 && (
               <ul className="mt-2 border rounded max-h-60 overflow-y-auto">
-                {productosFiltrados.slice(0, 10).map(p => (
+                {productosFiltrados.slice(0, 10).map((p) => (
                   <li
                     key={p.id}
                     onClick={() => agregarProducto(p)}
@@ -286,7 +297,7 @@ export default function NuevaCotizacionPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map(item => (
+                    {items.map((item) => (
                       <tr key={item.id} className="border-t">
                         <td className="p-3">
                           <p className="font-semibold">{item.nombre}</p>
@@ -296,7 +307,7 @@ export default function NuevaCotizacionPage() {
                           <input
                             type="number"
                             value={item.cantidad}
-                            onChange={e =>
+                            onChange={(e) =>
                               handleCantidadChange(item.id, parseInt(e.target.value, 10))
                             }
                             className="w-20 border rounded p-1 text-center"
@@ -337,7 +348,7 @@ export default function NuevaCotizacionPage() {
                         type="number"
                         placeholder="0"
                         value={descuentos[index] || ''}
-                        onChange={e => handleDescuentoChange(index, e.target.value)}
+                        onChange={(e) => handleDescuentoChange(index, e.target.value)}
                         className="w-20 border rounded p-1 text-right"
                       />
                     </div>
@@ -373,7 +384,7 @@ export default function NuevaCotizacionPage() {
                   type="number"
                   id="vigencia"
                   value={vigenciaDias}
-                  onChange={e => setVigenciaDias(parseInt(e.target.value, 10) || 0)}
+                  onChange={(e) => setVigenciaDias(parseInt(e.target.value, 10) || 0)}
                   className="w-full border p-2 rounded"
                 />
               </div>
@@ -389,7 +400,7 @@ export default function NuevaCotizacionPage() {
                   rows={3}
                   placeholder="• Se acepta pago con terminal bancaria..."
                   value={observaciones}
-                  onChange={e => setObservaciones(e.target.value)}
+                  onChange={(e) => setObservaciones(e.target.value)}
                   className="w-full border p-2 rounded"
                 ></textarea>
               </div>
