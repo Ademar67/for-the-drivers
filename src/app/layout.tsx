@@ -1,4 +1,3 @@
-c/app/layout.tsx, deja esto:
 
 import type { Metadata, Viewport } from "next";
 import AppLayout from "./AppLayout";
