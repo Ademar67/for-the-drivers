@@ -68,4 +68,3 @@ export async function sharePdfViaWhatsapp(params: SharePdfParams) {
 export async function sharePdfWhatsApp(params: SharePdfParams) {
   return sharePdfBase(params);
 }
-Qué cambió
