@@ -814,14 +814,14 @@ function AgendaView() {
 
             <div className="space-y-6">
               {DIAS_SEMANA.map((dia) => {
-               const delDiaOriginal = clientes.filter(
+              const delDiaOriginal = clientes.filter(
                 (c) =>
                   c.tipo === 'cliente' &&
                   c.diaVisita === dia &&
                   c.semanaVisita === semanaActual &&
                   c.frecuencia === 'mensual' &&
-                  !yaVisitadoEsteMes(c.id)
-                );
+                  !yaVisitadoEsteMes(c.id!)
+              );
 
                 if (delDiaOriginal.length === 0) return null;
 
