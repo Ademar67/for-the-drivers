@@ -12,7 +12,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Loader2, MapPin, Navigation, Route, Trash2 } from 'lucide-react';
+import {
+  Loader2,
+  MapPin,
+  Navigation,
+  Route,
+  Trash2,
+  Flame,
+} from 'lucide-react';
 
 type DenueSearchModalProps = {
   open: boolean;
@@ -75,11 +82,19 @@ type RutaDenueItem = {
   raw: DenueResult;
 };
 
+type ZonaCaliente = {
+  nombre: string;
+  total: number;
+};
+
 const DENUE_ROUTE_STORAGE_KEY = 'denue-route-items';
 
 function buildDomicilio(d: DenueResult) {
   const calle = d.Calle || d.nom_vial || '';
-  const ext = d.Num_Exterior || d.numero_ext ? ` ${d.Num_Exterior || d.numero_ext}` : '';
+  const ext =
+    d.Num_Exterior || d.numero_ext
+      ? ` ${d.Num_Exterior || d.numero_ext}`
+      : '';
   const col = d.Colonia || d.colonia ? `, ${d.Colonia || d.colonia}` : '';
   return `${calle}${ext}${col}`.trim();
 }
@@ -122,6 +137,16 @@ function getDenueLng(item: DenueResult) {
   return Number.isFinite(lng) ? lng : null;
 }
 
+function getZonaNombre(item: DenueResult) {
+  const colonia = item?.Colonia ?? item?.colonia ?? '';
+  const municipio = item?.Municipio ?? item?.municipio ?? '';
+
+  if (colonia && municipio) return `${colonia} — ${municipio}`;
+  if (colonia) return colonia;
+  if (municipio) return municipio;
+  return 'Zona no identificada';
+}
+
 function safeReadRouteItems(): RutaDenueItem[] {
   if (typeof window === 'undefined') return [];
 
@@ -151,7 +176,10 @@ export function useDenueAdd() {
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
 
-  async function addFromDenue(item: DenueResult, category: 'taller' | 'refaccionaria') {
+  async function addFromDenue(
+    item: DenueResult,
+    category: 'taller' | 'refaccionaria'
+  ) {
     const localId = getDenueKey(item);
 
     try {
@@ -213,7 +241,9 @@ export default function DenueSearchModal({
   onClose,
   coords,
 }: DenueSearchModalProps) {
-  const [searchType, setSearchType] = useState<'taller' | 'refaccionaria'>('taller');
+  const [searchType, setSearchType] = useState<'taller' | 'refaccionaria'>(
+    'taller'
+  );
   const [results, setResults] = useState<DenueResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -221,6 +251,7 @@ export default function DenueSearchModal({
   const { addFromDenue, addingId, addedIds } = useDenueAdd();
 
   const [routeItems, setRouteItems] = useState<RutaDenueItem[]>([]);
+  const [selectedZona, setSelectedZona] = useState<string | null>(null);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
@@ -228,11 +259,32 @@ export default function DenueSearchModal({
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
 
   useEffect(() => {
-    setRouteItems(safeReadRouteItems());
+    if (open) {
+      setRouteItems(safeReadRouteItems());
+    }
   }, [open]);
 
+  const zonasCalientes = useMemo<ZonaCaliente[]>(() => {
+    const countMap = new Map<string, number>();
+
+    results.forEach((item) => {
+      const zona = getZonaNombre(item);
+      countMap.set(zona, (countMap.get(zona) ?? 0) + 1);
+    });
+
+    return Array.from(countMap.entries())
+      .map(([nombre, total]) => ({ nombre, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  }, [results]);
+
+  const filteredResults = useMemo(() => {
+    if (!selectedZona) return results;
+    return results.filter((item) => getZonaNombre(item) === selectedZona);
+  }, [results, selectedZona]);
+
   const puntosMapa = useMemo<PuntoMapa[]>(() => {
-    return results
+    return filteredResults
       .map((item) => {
         const lat = getDenueLat(item);
         const lng = getDenueLng(item);
@@ -242,16 +294,21 @@ export default function DenueSearchModal({
         return {
           key: getDenueKey(item),
           nombre: item?.nom_estab ?? item?.name ?? item?.Nombre ?? 'SIN NOMBRE',
-          direccion: buildAddress(item) || buildDomicilio(item) || 'Sin dirección',
+          direccion:
+            buildAddress(item) || buildDomicilio(item) || 'Sin dirección',
           telefono:
-            item?.telefono ?? item?.tel ?? item?.phone ?? item?.Telefono ?? 'No disponible',
+            item?.telefono ??
+            item?.tel ??
+            item?.phone ??
+            item?.Telefono ??
+            'No disponible',
           lat,
           lng,
           raw: item,
         };
       })
       .filter((item): item is PuntoMapa => item !== null);
-  }, [results]);
+  }, [filteredResults]);
 
   useEffect(() => {
     if (!open) return;
@@ -364,11 +421,14 @@ export default function DenueSearchModal({
     if (!bounds.isEmpty()) {
       map.fitBounds(bounds);
 
-      if (puntosMapa.length === 0 && coords) {
-        map.setZoom(15);
+      if (puntosMapa.length === 1) {
+        map.setZoom(16);
       }
+    } else if (coords) {
+      map.setCenter(coords);
+      map.setZoom(14);
     }
-  }, [puntosMapa, coords, open, routeItems]);
+  }, [puntosMapa, coords, routeItems]);
 
   const handleSearch = async () => {
     if (!coords) {
@@ -379,6 +439,7 @@ export default function DenueSearchModal({
     setLoading(true);
     setError(null);
     setResults([]);
+    setSelectedZona(null);
 
     try {
       const { lat, lng } = coords;
@@ -405,6 +466,34 @@ export default function DenueSearchModal({
     }
   };
 
+  function centrarZona(zonaNombre: string) {
+    setSelectedZona(zonaNombre);
+
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const negociosZona = results.filter(
+      (item) => getZonaNombre(item) === zonaNombre
+    );
+
+    const bounds = new google.maps.LatLngBounds();
+    let hasPoints = false;
+
+    negociosZona.forEach((item) => {
+      const lat = getDenueLat(item);
+      const lng = getDenueLng(item);
+
+      if (lat !== null && lng !== null) {
+        bounds.extend({ lat, lng });
+        hasPoints = true;
+      }
+    });
+
+    if (hasPoints) {
+      map.fitBounds(bounds);
+    }
+  }
+
   function abrirEnGoogleMaps(item: DenueResult) {
     const lat = getDenueLat(item);
     const lng = getDenueLng(item);
@@ -415,14 +504,13 @@ export default function DenueSearchModal({
       return;
     }
 
-    const address =
-      encodeURIComponent(
-        buildAddress(item) ||
-          buildDomicilio(item) ||
-          item?.nom_estab ||
-          item?.Nombre ||
-          ''
-      );
+    const address = encodeURIComponent(
+      buildAddress(item) ||
+        buildDomicilio(item) ||
+        item?.nom_estab ||
+        item?.Nombre ||
+        ''
+    );
 
     const url = `https://www.google.com/maps/search/?api=1&query=${address}`;
     window.open(url, '_blank');
@@ -449,7 +537,11 @@ export default function DenueSearchModal({
       nombre: item?.nom_estab ?? item?.name ?? item?.Nombre ?? 'SIN NOMBRE',
       direccion: buildAddress(item) || buildDomicilio(item) || 'Sin dirección',
       telefono:
-        item?.telefono ?? item?.tel ?? item?.phone ?? item?.Telefono ?? 'No disponible',
+        item?.telefono ??
+        item?.tel ??
+        item?.phone ??
+        item?.Telefono ??
+        'No disponible',
       lat,
       lng,
       tipo: searchType,
@@ -520,7 +612,7 @@ export default function DenueSearchModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl">
+      <DialogContent className="max-w-7xl">
         <DialogHeader>
           <DialogTitle>Buscar Negocios Cercanos en DENUE</DialogTitle>
           <DialogDescription>
@@ -532,7 +624,8 @@ export default function DenueSearchModal({
           <div className="rounded-lg border p-3 bg-slate-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="text-sm">
               <span className="font-semibold">Ruta prospectada:</span>{' '}
-              {routeItems.length} negocio{routeItems.length === 1 ? '' : 's'} seleccionado
+              {routeItems.length} negocio
+              {routeItems.length === 1 ? '' : 's'} seleccionado
               {routeItems.length > 0 && (
                 <span className="text-slate-500"> para visita</span>
               )}
@@ -584,15 +677,65 @@ export default function DenueSearchModal({
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[420px_minmax(0,1fr)]">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_420px_minmax(0,1fr)]">
+            <div className="border rounded-lg p-3 space-y-3 bg-white max-h-[60vh] overflow-y-auto">
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4" />
+                <h3 className="font-semibold">Zonas calientes</h3>
+              </div>
+
+              {zonasCalientes.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  Busca negocios para detectar las zonas con más concentración.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {zonasCalientes.map((zona, index) => {
+                    const active = selectedZona === zona.nombre;
+
+                    return (
+                      <button
+                        key={zona.nombre}
+                        type="button"
+                        onClick={() => centrarZona(zona.nombre)}
+                        className={`w-full text-left border rounded-lg p-3 transition ${
+                          active
+                            ? 'border-blue-600 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-sm">
+                            #{index + 1} {zona.nombre}
+                          </span>
+                          <span className="text-xs px-2 py-1 rounded-full bg-slate-100">
+                            {zona.total}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {selectedZona && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setSelectedZona(null)}
+                    >
+                      Quitar filtro de zona
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-3">
               {loading && (
                 <p className="text-center text-gray-500">Buscando...</p>
               )}
 
-              {error && (
-                <p className="text-center text-red-500">{error}</p>
-              )}
+              {error && <p className="text-center text-red-500">{error}</p>}
 
               {!loading && !error && results.length === 0 && (
                 <p className="text-center text-gray-500">
@@ -600,7 +743,15 @@ export default function DenueSearchModal({
                 </p>
               )}
 
-              {results.map((item) => {
+              {!loading && !error && results.length > 0 && (
+                <div className="text-xs text-slate-500">
+                  Mostrando {filteredResults.length} de {results.length}{' '}
+                  resultados
+                  {selectedZona ? ` en ${selectedZona}` : ''}
+                </div>
+              )}
+
+              {filteredResults.map((item) => {
                 const keyId = getDenueKey(item);
                 const domicilio = buildAddress(item) || buildDomicilio(item);
                 const telefono =
@@ -623,13 +774,17 @@ export default function DenueSearchModal({
                   >
                     <div>
                       <p className="font-semibold">
-                        {item?.nom_estab ?? item?.name ?? item?.Nombre ?? 'SIN NOMBRE'}
+                        {item?.nom_estab ??
+                          item?.name ??
+                          item?.Nombre ??
+                          'SIN NOMBRE'}
                       </p>
                       <p className="text-sm text-gray-600">
                         {domicilio || 'Sin dirección'}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        Tel: {telefono}
+                      <p className="text-xs text-gray-500">Tel: {telefono}</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Zona: {getZonaNombre(item)}
                       </p>
 
                       {isSavedForRoute && (
@@ -670,7 +825,9 @@ export default function DenueSearchModal({
                         disabled={isSavedForRoute}
                       >
                         <Route className="mr-2 h-4 w-4" />
-                        {isSavedForRoute ? 'Guardado en ruta' : 'Guardar para ruta'}
+                        {isSavedForRoute
+                          ? 'Guardado en ruta'
+                          : 'Guardar para ruta'}
                       </Button>
 
                       <Button
