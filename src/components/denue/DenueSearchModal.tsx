@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Loader2, MapPin, Navigation } from 'lucide-react';
+import { Loader2, MapPin, Navigation, Route, Trash2 } from 'lucide-react';
 
 type DenueSearchModalProps = {
   open: boolean;
@@ -64,6 +64,19 @@ type PuntoMapa = {
   raw: DenueResult;
 };
 
+type RutaDenueItem = {
+  key: string;
+  nombre: string;
+  direccion: string;
+  telefono: string;
+  lat: number;
+  lng: number;
+  tipo: 'taller' | 'refaccionaria';
+  raw: DenueResult;
+};
+
+const DENUE_ROUTE_STORAGE_KEY = 'denue-route-items';
+
 function buildDomicilio(d: DenueResult) {
   const calle = d.Calle || d.nom_vial || '';
   const ext = d.Num_Exterior || d.numero_ext ? ` ${d.Num_Exterior || d.numero_ext}` : '';
@@ -107,6 +120,31 @@ function getDenueLat(item: DenueResult) {
 function getDenueLng(item: DenueResult) {
   const lng = Number(item?.longitud ?? item?.lng ?? item?.Longitud ?? null);
   return Number.isFinite(lng) ? lng : null;
+}
+
+function safeReadRouteItems(): RutaDenueItem[] {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = localStorage.getItem(DENUE_ROUTE_STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('Error leyendo ruta DENUE guardada:', error);
+    return [];
+  }
+}
+
+function safeWriteRouteItems(items: RutaDenueItem[]) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    localStorage.setItem(DENUE_ROUTE_STORAGE_KEY, JSON.stringify(items));
+  } catch (error) {
+    console.error('Error guardando ruta DENUE:', error);
+  }
 }
 
 export function useDenueAdd() {
@@ -182,10 +220,16 @@ export default function DenueSearchModal({
 
   const { addFromDenue, addingId, addedIds } = useDenueAdd();
 
+  const [routeItems, setRouteItems] = useState<RutaDenueItem[]>([]);
+
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+
+  useEffect(() => {
+    setRouteItems(safeReadRouteItems());
+  }, [open]);
 
   const puntosMapa = useMemo<PuntoMapa[]>(() => {
     return results
@@ -288,10 +332,15 @@ export default function DenueSearchModal({
     }
 
     puntosMapa.forEach((punto) => {
+      const isSaved = routeItems.some((saved) => saved.key === punto.key);
+
       const marker = new google.maps.Marker({
         position: { lat: punto.lat, lng: punto.lng },
         map,
         title: punto.nombre,
+        icon: isSaved
+          ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+          : undefined,
       });
 
       marker.addListener('click', () => {
@@ -300,6 +349,9 @@ export default function DenueSearchModal({
             <div style="font-weight:700;font-size:14px;margin-bottom:6px;">${punto.nombre}</div>
             <div style="font-size:12px;color:#444;margin-bottom:4px;">${punto.direccion}</div>
             <div style="font-size:12px;color:#666;">Tel: ${punto.telefono}</div>
+            <div style="font-size:12px;color:${isSaved ? '#15803d' : '#666'};margin-top:6px;">
+              ${isSaved ? 'Guardado para ruta ✅' : 'Disponible para guardar en ruta'}
+            </div>
           </div>
         `);
         infoWindowRef.current?.open(map, marker);
@@ -316,7 +368,7 @@ export default function DenueSearchModal({
         map.setZoom(15);
       }
     }
-  }, [puntosMapa, coords, open]);
+  }, [puntosMapa, coords, open, routeItems]);
 
   const handleSearch = async () => {
     if (!coords) {
@@ -364,7 +416,13 @@ export default function DenueSearchModal({
     }
 
     const address =
-      encodeURIComponent(buildAddress(item) || buildDomicilio(item) || item?.nom_estab || item?.Nombre || '');
+      encodeURIComponent(
+        buildAddress(item) ||
+          buildDomicilio(item) ||
+          item?.nom_estab ||
+          item?.Nombre ||
+          ''
+      );
 
     const url = `https://www.google.com/maps/search/?api=1&query=${address}`;
     window.open(url, '_blank');
@@ -375,6 +433,89 @@ export default function DenueSearchModal({
     if (ok) {
       abrirEnGoogleMaps(item);
     }
+  }
+
+  function guardarParaRuta(item: DenueResult) {
+    const lat = getDenueLat(item);
+    const lng = getDenueLng(item);
+
+    if (lat === null || lng === null) {
+      alert('Este negocio no tiene coordenadas válidas para guardarlo en ruta.');
+      return;
+    }
+
+    const newItem: RutaDenueItem = {
+      key: getDenueKey(item),
+      nombre: item?.nom_estab ?? item?.name ?? item?.Nombre ?? 'SIN NOMBRE',
+      direccion: buildAddress(item) || buildDomicilio(item) || 'Sin dirección',
+      telefono:
+        item?.telefono ?? item?.tel ?? item?.phone ?? item?.Telefono ?? 'No disponible',
+      lat,
+      lng,
+      tipo: searchType,
+      raw: item,
+    };
+
+    const current = safeReadRouteItems();
+
+    if (current.some((routeItem) => routeItem.key === newItem.key)) {
+      alert('ℹ️ Este negocio ya está guardado en la ruta.');
+      setRouteItems(current);
+      return;
+    }
+
+    const updated = [...current, newItem];
+    safeWriteRouteItems(updated);
+    setRouteItems(updated);
+
+    alert('✅ Guardado para ruta');
+  }
+
+  function limpiarRuta() {
+    safeWriteRouteItems([]);
+    setRouteItems([]);
+  }
+
+  function generarRuta() {
+    if (routeItems.length === 0) {
+      alert('No hay negocios guardados para ruta.');
+      return;
+    }
+
+    if (routeItems.length === 1) {
+      const only = routeItems[0];
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${only.lat},${only.lng}&travelmode=driving`;
+      window.open(url, '_blank');
+      return;
+    }
+
+    const destino = routeItems[routeItems.length - 1];
+    const intermedios = routeItems.slice(0, -1);
+
+    const params = new URLSearchParams({
+      api: '1',
+      destination: `${destino.lat},${destino.lng}`,
+      travelmode: 'driving',
+    });
+
+    if (coords) {
+      params.set('origin', `${coords.lat},${coords.lng}`);
+    } else {
+      const first = routeItems[0];
+      params.set('origin', `${first.lat},${first.lng}`);
+    }
+
+    const waypointsBase = coords ? intermedios : routeItems.slice(1, -1);
+
+    if (waypointsBase.length > 0) {
+      params.set(
+        'waypoints',
+        waypointsBase.map((item) => `${item.lat},${item.lng}`).join('|')
+      );
+    }
+
+    const url = `https://www.google.com/maps/dir/?${params.toString()}`;
+    window.open(url, '_blank');
   }
 
   return (
@@ -388,6 +529,38 @@ export default function DenueSearchModal({
         </DialogHeader>
 
         <div className="py-4 space-y-4">
+          <div className="rounded-lg border p-3 bg-slate-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="text-sm">
+              <span className="font-semibold">Ruta prospectada:</span>{' '}
+              {routeItems.length} negocio{routeItems.length === 1 ? '' : 's'} seleccionado
+              {routeItems.length > 0 && (
+                <span className="text-slate-500"> para visita</span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="default"
+                onClick={generarRuta}
+                disabled={routeItems.length === 0}
+              >
+                <Route className="mr-2 h-4 w-4" />
+                Generar ruta
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={limpiarRuta}
+                disabled={routeItems.length === 0}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Limpiar
+              </Button>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <RadioGroup
               value={searchType}
@@ -439,6 +612,9 @@ export default function DenueSearchModal({
 
                 const isAdding = addingId === keyId;
                 const isAdded = !!addedIds[keyId];
+                const isSavedForRoute = routeItems.some(
+                  (routeItem) => routeItem.key === keyId
+                );
 
                 return (
                   <div
@@ -455,6 +631,12 @@ export default function DenueSearchModal({
                       <p className="text-xs text-gray-500">
                         Tel: {telefono}
                       </p>
+
+                      {isSavedForRoute && (
+                        <p className="text-xs text-green-600 mt-2 font-medium">
+                          Guardado para ruta ✅
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -484,6 +666,16 @@ export default function DenueSearchModal({
                       <Button
                         size="sm"
                         variant="secondary"
+                        onClick={() => guardarParaRuta(item)}
+                        disabled={isSavedForRoute}
+                      >
+                        <Route className="mr-2 h-4 w-4" />
+                        {isSavedForRoute ? 'Guardado en ruta' : 'Guardar para ruta'}
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={() => abrirEnGoogleMaps(item)}
                       >
                         <MapPin className="mr-2 h-4 w-4" />
