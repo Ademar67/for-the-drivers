@@ -33,35 +33,67 @@ export default function CrearClienteModal({
 
   function handleTipoZonaChange(value: 'local' | 'foraneo') {
     const semanaDefault = value === 'foraneo' ? 1 : 2;
-    setForm({
-      ...form,
+    setForm((prev) => ({
+      ...prev,
       tipoZona: value,
       semanaVisita: semanaDefault,
-    });
+    }));
   }
 
   async function guardar() {
     try {
       setLoading(true);
 
-      const direccionCompleta = `${form.domicilio}, ${form.ciudad}, México`;
-      const coords = await geocodificarDireccion(direccionCompleta);
+      let lat: number | null = null;
+      let lng: number | null = null;
+
+      const nombreLimpio = form.nombre.trim();
+      const domicilioLimpio = form.domicilio.trim();
+      const ciudadLimpia = form.ciudad.trim();
+      const notaLimpia = form.nota.trim();
+
+      if (domicilioLimpio && ciudadLimpia) {
+        try {
+          const direccionCompleta = `${domicilioLimpio}, ${ciudadLimpia}, Michoacán, México`;
+
+          console.log('Dirección enviada a geocoding:', direccionCompleta);
+
+          let coords = await geocodificarDireccion(direccionCompleta);
+
+          if (!coords) {
+            const direccionFallback = `${ciudadLimpia}, Michoacán, México`;
+            console.warn('Falló dirección exacta. Intentando fallback con ciudad:', direccionFallback);
+
+            coords = await geocodificarDireccion(direccionFallback);
+          }
+
+          console.log('Coordenadas recibidas:', coords);
+
+          lat = coords?.lat ?? null;
+          lng = coords?.lng ?? null;
+        } catch (geoError) {
+          console.warn('No se pudo geocodificar la dirección del cliente:', geoError);
+        }
+      } else {
+        console.warn('No se intentó geocodificar porque falta domicilio o ciudad.');
+      }
+
+      console.log('Lat final:', lat);
+      console.log('Lng final:', lng);
 
       await crearCliente({
-        nombre: form.nombre,
+        nombre: nombreLimpio,
         tipo: form.tipo,
         tipoZona: form.tipoZona,
-        ciudad: form.ciudad,
-        domicilio: form.domicilio,
+        ciudad: ciudadLimpia,
+        domicilio: domicilioLimpio,
         diaVisita: form.diaVisita,
         frecuencia: form.frecuencia,
         semanaVisita: form.semanaVisita,
-        nota: form.nota,
-        lat: coords?.lat ?? null,
-        lng: coords?.lng ?? null,
+        nota: notaLimpia,
+        lat,
+        lng,
       });
-
-      onClose();
 
       setForm({
         nombre: '',
@@ -74,6 +106,8 @@ export default function CrearClienteModal({
         frecuencia: 'mensual',
         semanaVisita: 2,
       });
+
+      onClose();
     } catch (error) {
       console.error('ERROR AL GUARDAR CLIENTE:', error);
 
@@ -180,10 +214,12 @@ export default function CrearClienteModal({
         </select>
 
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose}>Cancelar</button>
+          <button onClick={onClose} disabled={loading}>
+            Cancelar
+          </button>
           <button
             onClick={guardar}
-            className="bg-blue-600 text-white px-4 py-2 rounded"
+            className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
             disabled={loading}
           >
             {loading ? 'Guardando...' : 'Guardar'}
