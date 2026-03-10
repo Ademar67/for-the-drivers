@@ -54,6 +54,7 @@ const NUEVO_OK = 7;
 const NUEVO_RIESGO = 21;
 const CONTACTO_OK = 14;
 const CONTACTO_RIESGO = 30;
+const DIAS_SEGUIMIENTO = 22;
 
 function getSaludProspecto({
   fechaCreacion,
@@ -150,13 +151,10 @@ export default function ProspectosPage() {
   const [marcandoId, setMarcandoId] = useState<string | null>(null);
   const [seguimientoId, setSeguimientoId] = useState<string | null>(null);
 
-  // DENUE
   const [denueOpen, setDenueOpen] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     null
   );
-
-  /* ------------------ data ------------------ */
 
   useEffect(() => {
     const unsub = listenClientes((clientes) => {
@@ -180,8 +178,6 @@ export default function ProspectosPage() {
 
     return map;
   }, [visitas]);
-
-  /* ------------------ acciones ------------------ */
 
   const buscarDenue = () => {
     if (!navigator.geolocation) {
@@ -229,12 +225,12 @@ export default function ProspectosPage() {
     }
   };
 
-  const programarSeguimiento7Dias = async (id: string) => {
+  const programarSeguimiento22Dias = async (id: string) => {
     try {
       setSeguimientoId(id);
 
       const fecha = new Date();
-      fecha.setDate(fecha.getDate() + 7);
+      fecha.setDate(fecha.getDate() + DIAS_SEGUIMIENTO);
 
       await programarSeguimientoProspecto(id, fecha);
     } catch (error) {
@@ -244,8 +240,6 @@ export default function ProspectosPage() {
       setSeguimientoId(null);
     }
   };
-
-  /* ------------------ render ------------------ */
 
   return (
     <div className="p-6 space-y-4">
@@ -269,8 +263,9 @@ export default function ProspectosPage() {
       ) : (
         <div className="grid gap-4">
           {prospectos.map((p) => {
-            const ultimaVisitaReal = p.ultimaVisita?.toDate?.()
-              ?? (p.id ? ultimaVisitaMap.get(p.id) : undefined);
+            const ultimaVisitaReal =
+              p.ultimaVisita?.toDate?.() ??
+              (p.id ? ultimaVisitaMap.get(p.id) : undefined);
 
             const salud = getSaludProspecto({
               fechaCreacion: p.createdAt?.toDate?.(),
@@ -367,13 +362,13 @@ export default function ProspectosPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => p.id && programarSeguimiento7Dias(p.id)}
+                    onClick={() => p.id && programarSeguimiento22Dias(p.id)}
                     disabled={seguimientoId === p.id}
                   >
                     <Clock3 className="h-4 w-4 mr-1" />
                     {seguimientoId === p.id
                       ? 'Programando...'
-                      : 'Seguimiento +7 días'}
+                      : `Seguimiento +${DIAS_SEGUIMIENTO} días`}
                   </Button>
 
                   <AlertDialog>
