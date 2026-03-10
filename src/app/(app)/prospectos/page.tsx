@@ -56,6 +56,14 @@ const CONTACTO_OK = 14;
 const CONTACTO_RIESGO = 30;
 const DIAS_SEGUIMIENTO = 22;
 
+type FiltroProspectos =
+  | 'todos'
+  | 'para_hoy'
+  | 'vencidos'
+  | 'nuevo'
+  | 'seguimiento'
+  | 'interesado';
+
 function getSaludProspecto({
   fechaCreacion,
   ultimaVisita,
@@ -138,6 +146,20 @@ function getEstadoProspectoClass(estado?: ClienteFS['estadoProspecto']) {
   }
 }
 
+function esMismoDia(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function inicioDelDia(fecha = new Date()) {
+  const d = new Date(fecha);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 /* ------------------ página ------------------ */
 
 export default function ProspectosPage() {
@@ -150,6 +172,7 @@ export default function ProspectosPage() {
   const [convirtiendoId, setConvirtiendoId] = useState<string | null>(null);
   const [marcandoId, setMarcandoId] = useState<string | null>(null);
   const [seguimientoId, setSeguimientoId] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<FiltroProspectos>('todos');
 
   const [denueOpen, setDenueOpen] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
@@ -178,6 +201,71 @@ export default function ProspectosPage() {
 
     return map;
   }, [visitas]);
+
+  const hoy = useMemo(() => inicioDelDia(new Date()), []);
+
+  const prospectosEnriquecidos = useMemo(() => {
+    return prospectos.map((p) => {
+      const ultimaVisitaReal =
+        p.ultimaVisita?.toDate?.() ??
+        (p.id ? ultimaVisitaMap.get(p.id) : undefined);
+
+      const proximaVisitaReal = p.proximaVisita?.toDate?.()
+        ? p.proximaVisita.toDate()
+        : undefined;
+
+      const salud = getSaludProspecto({
+        fechaCreacion: p.createdAt?.toDate?.(),
+        ultimaVisita: ultimaVisitaReal,
+      });
+
+      const esParaHoy = !!proximaVisitaReal && esMismoDia(proximaVisitaReal, hoy);
+      const esVencido = !!proximaVisitaReal && inicioDelDia(proximaVisitaReal) < hoy;
+
+      return {
+        ...p,
+        ultimaVisitaReal,
+        proximaVisitaReal,
+        salud,
+        esParaHoy,
+        esVencido,
+      };
+    });
+  }, [prospectos, ultimaVisitaMap, hoy]);
+
+  const resumen = useMemo(() => {
+    return {
+      paraHoy: prospectosEnriquecidos.filter((p) => p.esParaHoy).length,
+      vencidos: prospectosEnriquecidos.filter((p) => p.esVencido).length,
+      nuevos: prospectosEnriquecidos.filter((p) => p.estadoProspecto === 'nuevo')
+        .length,
+      seguimiento: prospectosEnriquecidos.filter(
+        (p) => p.estadoProspecto === 'seguimiento'
+      ).length,
+    };
+  }, [prospectosEnriquecidos]);
+
+  const prospectosFiltrados = useMemo(() => {
+    switch (filtro) {
+      case 'para_hoy':
+        return prospectosEnriquecidos.filter((p) => p.esParaHoy);
+      case 'vencidos':
+        return prospectosEnriquecidos.filter((p) => p.esVencido);
+      case 'nuevo':
+        return prospectosEnriquecidos.filter((p) => p.estadoProspecto === 'nuevo');
+      case 'seguimiento':
+        return prospectosEnriquecidos.filter(
+          (p) => p.estadoProspecto === 'seguimiento'
+        );
+      case 'interesado':
+        return prospectosEnriquecidos.filter(
+          (p) => p.estadoProspecto === 'interesado'
+        );
+      case 'todos':
+      default:
+        return prospectosEnriquecidos;
+    }
+  }, [filtro, prospectosEnriquecidos]);
 
   const buscarDenue = () => {
     if (!navigator.geolocation) {
@@ -243,7 +331,7 @@ export default function ProspectosPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-3 flex-wrap">
         <h1 className="text-2xl font-bold">Prospectos</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={buscarDenue}>
@@ -254,24 +342,114 @@ export default function ProspectosPage() {
         </div>
       </div>
 
+      {!loading && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <button
+            type="button"
+            onClick={() => setFiltro('para_hoy')}
+            className={cn(
+              'rounded-lg border bg-white p-4 text-left shadow-sm',
+              filtro === 'para_hoy' && 'ring-2 ring-blue-500'
+            )}
+          >
+            <p className="text-sm text-gray-500">Para hoy</p>
+            <p className="text-2xl font-bold">{resumen.paraHoy}</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFiltro('vencidos')}
+            className={cn(
+              'rounded-lg border bg-white p-4 text-left shadow-sm',
+              filtro === 'vencidos' && 'ring-2 ring-red-500'
+            )}
+          >
+            <p className="text-sm text-gray-500">Vencidos</p>
+            <p className="text-2xl font-bold">{resumen.vencidos}</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFiltro('nuevo')}
+            className={cn(
+              'rounded-lg border bg-white p-4 text-left shadow-sm',
+              filtro === 'nuevo' && 'ring-2 ring-blue-500'
+            )}
+          >
+            <p className="text-sm text-gray-500">Nuevos</p>
+            <p className="text-2xl font-bold">{resumen.nuevos}</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFiltro('seguimiento')}
+            className={cn(
+              'rounded-lg border bg-white p-4 text-left shadow-sm',
+              filtro === 'seguimiento' && 'ring-2 ring-orange-500'
+            )}
+          >
+            <p className="text-sm text-gray-500">Seguimiento</p>
+            <p className="text-2xl font-bold">{resumen.seguimiento}</p>
+          </button>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant={filtro === 'todos' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFiltro('todos')}
+          >
+            Todos
+          </Button>
+          <Button
+            variant={filtro === 'para_hoy' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFiltro('para_hoy')}
+          >
+            Para hoy
+          </Button>
+          <Button
+            variant={filtro === 'vencidos' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFiltro('vencidos')}
+          >
+            Vencidos
+          </Button>
+          <Button
+            variant={filtro === 'nuevo' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFiltro('nuevo')}
+          >
+            Nuevos
+          </Button>
+          <Button
+            variant={filtro === 'seguimiento' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFiltro('seguimiento')}
+          >
+            Seguimiento
+          </Button>
+          <Button
+            variant={filtro === 'interesado' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFiltro('interesado')}
+          >
+            Interesados
+          </Button>
+        </div>
+      )}
+
       {loading ? (
         <p className="text-gray-500 italic">Cargando...</p>
-      ) : prospectos.length === 0 ? (
+      ) : prospectosFiltrados.length === 0 ? (
         <p className="text-gray-500 italic text-center">
-          No hay prospectos registrados
+          No hay prospectos para este filtro
         </p>
       ) : (
         <div className="grid gap-4">
-          {prospectos.map((p) => {
-            const ultimaVisitaReal =
-              p.ultimaVisita?.toDate?.() ??
-              (p.id ? ultimaVisitaMap.get(p.id) : undefined);
-
-            const salud = getSaludProspecto({
-              fechaCreacion: p.createdAt?.toDate?.(),
-              ultimaVisita: ultimaVisitaReal,
-            });
-
+          {prospectosFiltrados.map((p) => {
             return (
               <div
                 key={p.id}
@@ -280,22 +458,22 @@ export default function ProspectosPage() {
                 <div className="flex justify-between gap-3">
                   <div>
                     <h3 className="font-semibold">{p.nombre}</h3>
-                    <p className="text-sm text-gray-500 mt-1">{salud.texto}</p>
+                    <p className="text-sm text-gray-500 mt-1">{p.salud.texto}</p>
                   </div>
 
                   <div className="flex flex-col items-end gap-2">
                     <span
                       className={cn(
                         'text-xs px-2 py-1 rounded-full',
-                        salud.estado === 'activo' &&
+                        p.salud.estado === 'activo' &&
                           'bg-green-100 text-green-700',
-                        salud.estado === 'riesgo' &&
+                        p.salud.estado === 'riesgo' &&
                           'bg-orange-100 text-orange-700',
-                        salud.estado === 'perdido' &&
+                        p.salud.estado === 'perdido' &&
                           'bg-red-100 text-red-700'
                       )}
                     >
-                      {salud.estado}
+                      {p.salud.estado}
                     </span>
 
                     <span
@@ -306,6 +484,18 @@ export default function ProspectosPage() {
                     >
                       {getEstadoProspectoLabel(p.estadoProspecto)}
                     </span>
+
+                    {p.esParaHoy && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                        Para hoy
+                      </span>
+                    )}
+
+                    {p.esVencido && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">
+                        Vencido
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -320,14 +510,14 @@ export default function ProspectosPage() {
                   </p>
                   <p>
                     <span className="font-medium">Última visita:</span>{' '}
-                    {ultimaVisitaReal
-                      ? formatearFecha(ultimaVisitaReal)
+                    {p.ultimaVisitaReal
+                      ? formatearFecha(p.ultimaVisitaReal)
                       : 'Sin visitas'}
                   </p>
                   <p>
                     <span className="font-medium">Próxima visita:</span>{' '}
-                    {p.proximaVisita
-                      ? formatearFecha(p.proximaVisita)
+                    {p.proximaVisitaReal
+                      ? formatearFecha(p.proximaVisitaReal)
                       : 'Sin programar'}
                   </p>
                 </div>
