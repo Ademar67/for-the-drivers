@@ -15,6 +15,13 @@ import {
   where,
 } from 'firebase/firestore'
 
+export type EstadoProspecto =
+  | 'nuevo'
+  | 'visitado'
+  | 'seguimiento'
+  | 'interesado'
+  | 'no_interesado'
+
 export type ClienteFS = {
   id?: string
   nombre: string
@@ -32,12 +39,18 @@ export type ClienteFS = {
   lat?: number
   lng?: number
   origen?: string
+
+  estadoProspecto?: EstadoProspecto
+  ultimaVisita?: Timestamp | null
+  proximaVisita?: Timestamp | null
+
   denue?: {
     id: string
     actividad?: string
     tipoNegocio?: 'taller' | 'refaccionaria'
     fechaImportado: Timestamp
   }
+
   updatedAt?: Timestamp
 }
 
@@ -48,7 +61,7 @@ export function listenClientes(callback: (clientes: ClienteFS[]) => void) {
     const clientes = snapshot.docs.map((d) => ({
       id: d.id,
       ...(d.data() as any),
-    }))
+    })) as ClienteFS[]
 
     callback(clientes)
   })
@@ -118,6 +131,11 @@ export async function crearProspectoDesdeDenue(input: {
   const prospectoData: Record<string, any> = {
     nombre: input.nombre?.trim() || 'Prospecto DENUE',
     tipo: 'prospecto',
+
+    estadoProspecto: 'nuevo',
+    ultimaVisita: null,
+    proximaVisita: null,
+
     ciudad: input.ciudad?.trim() || 'N/A',
     domicilio: input.domicilio?.trim() || 'N/A',
     diaVisita: null,
@@ -141,11 +159,11 @@ export async function crearProspectoDesdeDenue(input: {
     prospectoData.telefono = input.telefono.trim()
   }
 
-  if (typeof input.lat === 'number') {
+  if (typeof input.lat === 'number' && Number.isFinite(input.lat)) {
     prospectoData.lat = input.lat
   }
 
-  if (typeof input.lng === 'number') {
+  if (typeof input.lng === 'number' && Number.isFinite(input.lng)) {
     prospectoData.lng = input.lng
   }
 
@@ -182,4 +200,61 @@ export async function cambiarTipoCliente(
     tipo,
     updatedAt: serverTimestamp(),
   })
+}
+
+export async function marcarVisitaProspecto(
+  id: string,
+  opciones?: {
+    estado?: Exclude<EstadoProspecto, 'nuevo'>
+    nota?: string
+  }
+) {
+  if (!id) {
+    throw new Error('Falta id del prospecto')
+  }
+
+  const ref = doc(db, 'clientes', id)
+
+  const data: Record<string, any> = {
+    ultimaVisita: serverTimestamp(),
+    estadoProspecto: opciones?.estado ?? 'visitado',
+    updatedAt: serverTimestamp(),
+  }
+
+  if (opciones?.nota?.trim()) {
+    data.nota = opciones.nota.trim()
+  }
+
+  await updateDoc(ref, data)
+}
+
+export async function programarSeguimientoProspecto(
+  id: string,
+  proximaVisita: Date,
+  opciones?: {
+    estado?: Extract<EstadoProspecto, 'seguimiento' | 'interesado'>
+    nota?: string
+  }
+) {
+  if (!id) {
+    throw new Error('Falta id del prospecto')
+  }
+
+  if (!(proximaVisita instanceof Date) || Number.isNaN(proximaVisita.getTime())) {
+    throw new Error('La fecha de próxima visita no es válida')
+  }
+
+  const ref = doc(db, 'clientes', id)
+
+  const data: Record<string, any> = {
+    proximaVisita: Timestamp.fromDate(proximaVisita),
+    estadoProspecto: opciones?.estado ?? 'seguimiento',
+    updatedAt: serverTimestamp(),
+  }
+
+  if (opciones?.nota?.trim()) {
+    data.nota = opciones.nota.trim()
+  }
+
+  await updateDoc(ref, data)
 }
