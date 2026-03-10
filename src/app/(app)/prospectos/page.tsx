@@ -2,13 +2,23 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { MapPin, Calendar, StickyNote, Trash2, CheckCircle2 } from 'lucide-react';
+import {
+  MapPin,
+  Calendar,
+  StickyNote,
+  Trash2,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock3,
+} from 'lucide-react';
 
 import {
   listenClientes,
   ClienteFS,
   cambiarTipoCliente,
   eliminarCliente,
+  marcarVisitaProspecto,
+  programarSeguimientoProspecto,
 } from '@/lib/firestore/clientes';
 
 import { obtenerVisitas, Visita } from '@/lib/firestore/visitas';
@@ -74,6 +84,59 @@ function getSaludProspecto({
   return { estado: 'perdido', texto: `Sin contacto ${dias} días` };
 }
 
+function formatearFecha(fecha?: any) {
+  if (!fecha) return 'Sin fecha';
+
+  try {
+    const date =
+      typeof fecha?.toDate === 'function' ? fecha.toDate() : new Date(fecha);
+
+    if (Number.isNaN(date.getTime())) return 'Sin fecha';
+
+    return date.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  } catch {
+    return 'Sin fecha';
+  }
+}
+
+function getEstadoProspectoLabel(estado?: ClienteFS['estadoProspecto']) {
+  switch (estado) {
+    case 'nuevo':
+      return 'Nuevo';
+    case 'visitado':
+      return 'Visitado';
+    case 'seguimiento':
+      return 'Seguimiento';
+    case 'interesado':
+      return 'Interesado';
+    case 'no_interesado':
+      return 'No interesado';
+    default:
+      return 'Nuevo';
+  }
+}
+
+function getEstadoProspectoClass(estado?: ClienteFS['estadoProspecto']) {
+  switch (estado) {
+    case 'nuevo':
+      return 'bg-blue-100 text-blue-700';
+    case 'visitado':
+      return 'bg-green-100 text-green-700';
+    case 'seguimiento':
+      return 'bg-orange-100 text-orange-700';
+    case 'interesado':
+      return 'bg-emerald-100 text-emerald-700';
+    case 'no_interesado':
+      return 'bg-gray-200 text-gray-700';
+    default:
+      return 'bg-blue-100 text-blue-700';
+  }
+}
+
 /* ------------------ página ------------------ */
 
 export default function ProspectosPage() {
@@ -84,6 +147,8 @@ export default function ProspectosPage() {
   const [crearOpen, setCrearOpen] = useState(false);
   const [nota, setNota] = useState<string | null>(null);
   const [convirtiendoId, setConvirtiendoId] = useState<string | null>(null);
+  const [marcandoId, setMarcandoId] = useState<string | null>(null);
+  const [seguimientoId, setSeguimientoId] = useState<string | null>(null);
 
   // DENUE
   const [denueOpen, setDenueOpen] = useState(false);
@@ -106,11 +171,13 @@ export default function ProspectosPage() {
 
   const ultimaVisitaMap = useMemo(() => {
     const map = new Map<string, Date>();
+
     visitas.forEach((v) => {
       const d = new Date(v.fecha);
       const actual = map.get(v.clienteId);
       if (!actual || d > actual) map.set(v.clienteId, d);
     });
+
     return map;
   }, [visitas]);
 
@@ -142,8 +209,39 @@ export default function ProspectosPage() {
     try {
       setConvirtiendoId(id);
       await cambiarTipoCliente(id, 'cliente');
+    } catch (error) {
+      console.error(error);
+      alert('No se pudo convertir el prospecto a cliente');
     } finally {
       setConvirtiendoId(null);
+    }
+  };
+
+  const marcarVisita = async (id: string) => {
+    try {
+      setMarcandoId(id);
+      await marcarVisitaProspecto(id);
+    } catch (error) {
+      console.error(error);
+      alert('No se pudo marcar la visita');
+    } finally {
+      setMarcandoId(null);
+    }
+  };
+
+  const programarSeguimiento7Dias = async (id: string) => {
+    try {
+      setSeguimientoId(id);
+
+      const fecha = new Date();
+      fecha.setDate(fecha.getDate() + 7);
+
+      await programarSeguimientoProspecto(id, fecha);
+    } catch (error) {
+      console.error(error);
+      alert('No se pudo programar el seguimiento');
+    } finally {
+      setSeguimientoId(null);
     }
   };
 
@@ -171,36 +269,73 @@ export default function ProspectosPage() {
       ) : (
         <div className="grid gap-4">
           {prospectos.map((p) => {
+            const ultimaVisitaReal = p.ultimaVisita?.toDate?.()
+              ?? (p.id ? ultimaVisitaMap.get(p.id) : undefined);
+
             const salud = getSaludProspecto({
-              fechaCreacion: p.createdAt?.toDate(),
-              ultimaVisita: p.id
-                ? ultimaVisitaMap.get(p.id)
-                : undefined,
+              fechaCreacion: p.createdAt?.toDate?.(),
+              ultimaVisita: ultimaVisitaReal,
             });
 
             return (
               <div
                 key={p.id}
-                className="border rounded-lg p-4 bg-white shadow-sm"
+                className="border rounded-lg p-4 bg-white shadow-sm space-y-3"
               >
-                <div className="flex justify-between">
-                  <h3 className="font-semibold">{p.nombre}</h3>
-                  <span
-                    className={cn(
-                      'text-xs px-2 py-1 rounded-full',
-                      salud.estado === 'activo' &&
-                        'bg-green-100 text-green-700',
-                      salud.estado === 'riesgo' &&
-                        'bg-orange-100 text-orange-700',
-                      salud.estado === 'perdido' &&
-                        'bg-red-100 text-red-700'
-                    )}
-                  >
-                    {salud.estado}
-                  </span>
+                <div className="flex justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">{p.nombre}</h3>
+                    <p className="text-sm text-gray-500 mt-1">{salud.texto}</p>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2">
+                    <span
+                      className={cn(
+                        'text-xs px-2 py-1 rounded-full',
+                        salud.estado === 'activo' &&
+                          'bg-green-100 text-green-700',
+                        salud.estado === 'riesgo' &&
+                          'bg-orange-100 text-orange-700',
+                        salud.estado === 'perdido' &&
+                          'bg-red-100 text-red-700'
+                      )}
+                    >
+                      {salud.estado}
+                    </span>
+
+                    <span
+                      className={cn(
+                        'text-xs px-2 py-1 rounded-full',
+                        getEstadoProspectoClass(p.estadoProspecto)
+                      )}
+                    >
+                      {getEstadoProspectoLabel(p.estadoProspecto)}
+                    </span>
+                  </div>
                 </div>
 
-                <p className="text-sm text-gray-500 mt-1">{salud.texto}</p>
+                <div className="grid gap-1 text-sm text-gray-600">
+                  <p>
+                    <span className="font-medium">Ciudad:</span>{' '}
+                    {p.ciudad || 'Sin ciudad'}
+                  </p>
+                  <p>
+                    <span className="font-medium">Domicilio:</span>{' '}
+                    {p.domicilio || 'Sin domicilio'}
+                  </p>
+                  <p>
+                    <span className="font-medium">Última visita:</span>{' '}
+                    {ultimaVisitaReal
+                      ? formatearFecha(ultimaVisitaReal)
+                      : 'Sin visitas'}
+                  </p>
+                  <p>
+                    <span className="font-medium">Próxima visita:</span>{' '}
+                    {p.proximaVisita
+                      ? formatearFecha(p.proximaVisita)
+                      : 'Sin programar'}
+                  </p>
+                </div>
 
                 <div className="flex gap-2 mt-3 flex-wrap">
                   <Button
@@ -217,6 +352,28 @@ export default function ProspectosPage() {
                       <Calendar className="h-4 w-4 mr-1" />
                       Agenda
                     </Link>
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => p.id && marcarVisita(p.id)}
+                    disabled={marcandoId === p.id}
+                  >
+                    <ClipboardCheck className="h-4 w-4 mr-1" />
+                    {marcandoId === p.id ? 'Guardando...' : 'Marcar visita'}
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => p.id && programarSeguimiento7Dias(p.id)}
+                    disabled={seguimientoId === p.id}
+                  >
+                    <Clock3 className="h-4 w-4 mr-1" />
+                    {seguimientoId === p.id
+                      ? 'Programando...'
+                      : 'Seguimiento +7 días'}
                   </Button>
 
                   <AlertDialog>
@@ -265,7 +422,6 @@ export default function ProspectosPage() {
         </div>
       )}
 
-      {/* Modales */}
       <CrearClienteModal open={crearOpen} onClose={() => setCrearOpen(false)} />
 
       <DenueSearchModal
