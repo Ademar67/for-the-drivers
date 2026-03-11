@@ -612,249 +612,253 @@ export default function DenueSearchModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl">
-        <DialogHeader>
-          <DialogTitle>Buscar Negocios Cercanos en DENUE</DialogTitle>
-          <DialogDescription>
-            Encuentra talleres mecánicos o refaccionarias cerca de tu ubicación.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="w-[95vw] max-w-7xl h-[95vh] max-h-[95vh] overflow-hidden p-0">
+        <div className="flex h-full flex-col">
+          <DialogHeader className="shrink-0 border-b px-4 py-4 md:px-6">
+            <DialogTitle>Buscar Negocios Cercanos en DENUE</DialogTitle>
+            <DialogDescription>
+              Encuentra talleres mecánicos o refaccionarias cerca de tu ubicación.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="py-4 space-y-4">
-          <div className="rounded-lg border p-3 bg-slate-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="text-sm">
-              <span className="font-semibold">Ruta prospectada:</span>{' '}
-              {routeItems.length} negocio
-              {routeItems.length === 1 ? '' : 's'} seleccionado
-              {routeItems.length > 0 && (
-                <span className="text-slate-500"> para visita</span>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="default"
-                onClick={generarRuta}
-                disabled={routeItems.length === 0}
-              >
-                <Route className="mr-2 h-4 w-4" />
-                Generar ruta
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={limpiarRuta}
-                disabled={routeItems.length === 0}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Limpiar
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <RadioGroup
-              value={searchType}
-              onValueChange={(val: any) => setSearchType(val)}
-              className="flex flex-col gap-2 sm:flex-row sm:gap-6"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="taller" id="r-taller" />
-                <Label htmlFor="r-taller">Talleres Mecánicos</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="refaccionaria" id="r-refaccionaria" />
-                <Label htmlFor="r-refaccionaria">Refaccionarias</Label>
-              </div>
-            </RadioGroup>
-
-            <Button onClick={handleSearch} disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Buscar
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_420px_minmax(0,1fr)]">
-            <div className="border rounded-lg p-3 space-y-3 bg-white max-h-[60vh] overflow-y-auto">
-              <div className="flex items-center gap-2">
-                <Flame className="h-4 w-4" />
-                <h3 className="font-semibold">Zonas calientes</h3>
-              </div>
-
-              {zonasCalientes.length === 0 ? (
-                <p className="text-sm text-gray-500">
-                  Busca negocios para detectar las zonas con más concentración.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {zonasCalientes.map((zona, index) => {
-                    const active = selectedZona === zona.nombre;
-
-                    return (
-                      <button
-                        key={zona.nombre}
-                        type="button"
-                        onClick={() => centrarZona(zona.nombre)}
-                        className={`w-full text-left border rounded-lg p-3 transition ${
-                          active
-                            ? 'border-blue-600 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium text-sm">
-                            #{index + 1} {zona.nombre}
-                          </span>
-                          <span className="text-xs px-2 py-1 rounded-full bg-slate-100">
-                            {zona.total}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  {selectedZona && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setSelectedZona(null)}
-                    >
-                      Quitar filtro de zona
-                    </Button>
+          <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6">
+            <div className="space-y-4">
+              <div className="rounded-lg border p-3 bg-slate-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="text-sm">
+                  <span className="font-semibold">Ruta prospectada:</span>{' '}
+                  {routeItems.length} negocio
+                  {routeItems.length === 1 ? '' : 's'} seleccionado
+                  {routeItems.length > 0 && (
+                    <span className="text-slate-500"> para visita</span>
                   )}
                 </div>
-              )}
-            </div>
 
-            <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-3">
-              {loading && (
-                <p className="text-center text-gray-500">Buscando...</p>
-              )}
-
-              {error && <p className="text-center text-red-500">{error}</p>}
-
-              {!loading && !error && results.length === 0 && (
-                <p className="text-center text-gray-500">
-                  No se encontraron resultados.
-                </p>
-              )}
-
-              {!loading && !error && results.length > 0 && (
-                <div className="text-xs text-slate-500">
-                  Mostrando {filteredResults.length} de {results.length}{' '}
-                  resultados
-                  {selectedZona ? ` en ${selectedZona}` : ''}
-                </div>
-              )}
-
-              {filteredResults.map((item) => {
-                const keyId = getDenueKey(item);
-                const domicilio = buildAddress(item) || buildDomicilio(item);
-                const telefono =
-                  item?.telefono ??
-                  item?.tel ??
-                  item?.phone ??
-                  item?.Telefono ??
-                  'No disponible';
-
-                const isAdding = addingId === keyId;
-                const isAdded = !!addedIds[keyId];
-                const isSavedForRoute = routeItems.some(
-                  (routeItem) => routeItem.key === keyId
-                );
-
-                return (
-                  <div
-                    key={keyId}
-                    className="p-3 border rounded-lg flex flex-col gap-3"
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={generarRuta}
+                    disabled={routeItems.length === 0}
                   >
-                    <div>
-                      <p className="font-semibold">
-                        {item?.nom_estab ??
-                          item?.name ??
-                          item?.Nombre ??
-                          'SIN NOMBRE'}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {domicilio || 'Sin dirección'}
-                      </p>
-                      <p className="text-xs text-gray-500">Tel: {telefono}</p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Zona: {getZonaNombre(item)}
-                      </p>
+                    <Route className="mr-2 h-4 w-4" />
+                    Generar ruta
+                  </Button>
 
-                      {isSavedForRoute && (
-                        <p className="text-xs text-green-600 mt-2 font-medium">
-                          Guardado para ruta ✅
-                        </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={limpiarRuta}
+                    disabled={routeItems.length === 0}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Limpiar
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <RadioGroup
+                  value={searchType}
+                  onValueChange={(val: any) => setSearchType(val)}
+                  className="flex flex-col gap-2 sm:flex-row sm:gap-6"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="taller" id="r-taller" />
+                    <Label htmlFor="r-taller">Talleres Mecánicos</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="refaccionaria" id="r-refaccionaria" />
+                    <Label htmlFor="r-refaccionaria">Refaccionarias</Label>
+                  </div>
+                </RadioGroup>
+
+                <Button onClick={handleSearch} disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Buscar
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_420px_minmax(0,1fr)]">
+                <div className="border rounded-lg p-3 space-y-3 bg-white max-h-[40vh] xl:max-h-[calc(95vh-260px)] overflow-y-auto">
+                  <div className="flex items-center gap-2">
+                    <Flame className="h-4 w-4" />
+                    <h3 className="font-semibold">Zonas calientes</h3>
+                  </div>
+
+                  {zonasCalientes.length === 0 ? (
+                    <p className="text-sm text-gray-500">
+                      Busca negocios para detectar las zonas con más concentración.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {zonasCalientes.map((zona, index) => {
+                        const active = selectedZona === zona.nombre;
+
+                        return (
+                          <button
+                            key={zona.nombre}
+                            type="button"
+                            onClick={() => centrarZona(zona.nombre)}
+                            className={`w-full text-left border rounded-lg p-3 transition ${
+                              active
+                                ? 'border-blue-600 bg-blue-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-sm">
+                                #{index + 1} {zona.nombre}
+                              </span>
+                              <span className="text-xs px-2 py-1 rounded-full bg-slate-100">
+                                {zona.total}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+
+                      {selectedZona && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setSelectedZona(null)}
+                        >
+                          Quitar filtro de zona
+                        </Button>
                       )}
                     </div>
+                  )}
+                </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => addFromDenue(item, searchType)}
-                        disabled={isAdding || isAdded}
-                      >
-                        {isAdded
-                          ? 'Agregado ✅'
-                          : isAdding
-                          ? 'Agregando...'
-                          : 'Agregar'}
-                      </Button>
+                <div className="max-h-[50vh] xl:max-h-[calc(95vh-260px)] overflow-y-auto pr-1 space-y-3">
+                  {loading && (
+                    <p className="text-center text-gray-500">Buscando...</p>
+                  )}
 
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleAddAndNavigate(item)}
-                        disabled={isAdding}
-                      >
-                        <Navigation className="mr-2 h-4 w-4" />
-                        {isAdding ? 'Agregando...' : 'Agregar + Navegar'}
-                      </Button>
+                  {error && <p className="text-center text-red-500">{error}</p>}
 
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => guardarParaRuta(item)}
-                        disabled={isSavedForRoute}
-                      >
-                        <Route className="mr-2 h-4 w-4" />
-                        {isSavedForRoute
-                          ? 'Guardado en ruta'
-                          : 'Guardar para ruta'}
-                      </Button>
+                  {!loading && !error && results.length === 0 && (
+                    <p className="text-center text-gray-500">
+                      No se encontraron resultados.
+                    </p>
+                  )}
 
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => abrirEnGoogleMaps(item)}
-                      >
-                        <MapPin className="mr-2 h-4 w-4" />
-                        Ver en Maps
-                      </Button>
+                  {!loading && !error && results.length > 0 && (
+                    <div className="text-xs text-slate-500">
+                      Mostrando {filteredResults.length} de {results.length}{' '}
+                      resultados
+                      {selectedZona ? ` en ${selectedZona}` : ''}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  )}
 
-            <div className="border rounded-lg overflow-hidden h-[60vh] bg-muted">
-              <div ref={mapRef} className="w-full h-full" />
+                  {filteredResults.map((item) => {
+                    const keyId = getDenueKey(item);
+                    const domicilio = buildAddress(item) || buildDomicilio(item);
+                    const telefono =
+                      item?.telefono ??
+                      item?.tel ??
+                      item?.phone ??
+                      item?.Telefono ??
+                      'No disponible';
+
+                    const isAdding = addingId === keyId;
+                    const isAdded = !!addedIds[keyId];
+                    const isSavedForRoute = routeItems.some(
+                      (routeItem) => routeItem.key === keyId
+                    );
+
+                    return (
+                      <div
+                        key={keyId}
+                        className="p-3 border rounded-lg flex flex-col gap-3"
+                      >
+                        <div>
+                          <p className="font-semibold">
+                            {item?.nom_estab ??
+                              item?.name ??
+                              item?.Nombre ??
+                              'SIN NOMBRE'}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {domicilio || 'Sin dirección'}
+                          </p>
+                          <p className="text-xs text-gray-500">Tel: {telefono}</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Zona: {getZonaNombre(item)}
+                          </p>
+
+                          {isSavedForRoute && (
+                            <p className="text-xs text-green-600 mt-2 font-medium">
+                              Guardado para ruta ✅
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => addFromDenue(item, searchType)}
+                            disabled={isAdding || isAdded}
+                          >
+                            {isAdded
+                              ? 'Agregado ✅'
+                              : isAdding
+                              ? 'Agregando...'
+                              : 'Agregar'}
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleAddAndNavigate(item)}
+                            disabled={isAdding}
+                          >
+                            <Navigation className="mr-2 h-4 w-4" />
+                            {isAdding ? 'Agregando...' : 'Agregar + Navegar'}
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => guardarParaRuta(item)}
+                            disabled={isSavedForRoute}
+                          >
+                            <Route className="mr-2 h-4 w-4" />
+                            {isSavedForRoute
+                              ? 'Guardado en ruta'
+                              : 'Guardar para ruta'}
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => abrirEnGoogleMaps(item)}
+                          >
+                            <MapPin className="mr-2 h-4 w-4" />
+                            Ver en Maps
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="border rounded-lg overflow-hidden bg-muted h-[280px] md:h-[360px] xl:h-[calc(95vh-260px)]">
+                  <div ref={mapRef} className="w-full h-full" />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="secondary" onClick={onClose}>
-            Cerrar
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="shrink-0 border-t px-4 py-4 md:px-6">
+            <Button variant="secondary" onClick={onClose}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
