@@ -20,7 +20,7 @@ export default function SplashScreen({
       setVisible(false);
       localStorage.setItem('splashSeen', 'true');
       onFinish();
-    }, 1900);
+    }, 2000);
 
     return () => {
       clearTimeout(exitTimer);
@@ -32,29 +32,38 @@ export default function SplashScreen({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-[#0054A6] transition-opacity duration-500 ${
+      className={`fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#0054A6] transition-opacity duration-500 ${
         animateOut ? 'opacity-0' : 'opacity-100'
       }`}
     >
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute left-0 top-0 h-full w-full bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_45%)]" />
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 h-2 bg-red-600" />
+      <div className="absolute bottom-2 left-0 right-0 h-2 bg-white" />
+
       <div
-        className={`flex flex-col items-center justify-center px-6 transition-all duration-700 ${
+        className={`relative z-10 flex flex-col items-center justify-center px-6 transition-all duration-700 ${
           animateOut
-            ? 'scale-95 translate-y-2 opacity-0'
-            : 'scale-100 translate-y-0 opacity-100'
+            ? 'translate-y-2 scale-95 opacity-0'
+            : 'translate-y-0 scale-100 opacity-100'
         }`}
       >
-        <div className="mb-8 flex justify-center">
-          <Image
-            src="/liquimoly-logo.png"
-            alt="Liqui Moly"
-            width={700}
-            height={700}
-            priority
-            className="h-auto w-[260px] sm:w-[320px] md:w-[380px] object-contain drop-shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
-          />
-        </div>
+        <Image
+          src="/liquimoly-logo.png"
+          alt="Liqui Moly"
+          width={800}
+          height={800}
+          priority
+          className="h-auto w-[280px] sm:w-[340px] md:w-[400px] object-contain drop-shadow-[0_12px_35px_rgba(0,0,0,0.35)]"
+        />
 
-        <div className="h-1.5 w-32 overflow-hidden rounded-full bg-white/25">
+        <p className="mt-5 text-center text-sm font-semibold tracking-[0.28em] text-white/90 sm:text-base">
+          FOR THE DRIVERS
+        </p>
+
+        <div className="mt-8 h-1.5 w-36 overflow-hidden rounded-full bg-white/20">
           <div className="h-full w-full animate-pulse rounded-full bg-white" />
         </div>
       </div>
