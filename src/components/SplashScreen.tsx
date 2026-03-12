@@ -51,13 +51,14 @@ export default function SplashScreen({
         }`}
       >
         <Image
-          src="/liquimoly-logo.png"
-          alt="Liqui Moly"
-          width={800}
-          height={800}
-          priority
-          className="h-auto w-[280px] sm:w-[340px] md:w-[400px] object-contain drop-shadow-[0_12px_35px_rgba(0,0,0,0.35)]"
-        />
+  src="/liquimoly-logo-v2.png"
+  alt="Liqui Moly"
+  width={500}
+  height={500}
+  priority
+  quality={100}
+  className="h-auto w-[180px] sm:w-[220px] md:w-[260px] object-contain"
+/>
 
         <p className="mt-5 text-center text-sm font-semibold tracking-[0.28em] text-white/90 sm:text-base">
           FOR THE DRIVERS
