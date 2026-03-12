@@ -51,7 +51,7 @@ export default function SplashScreen({
         }`}
       >
         <Image
-  src="/liquimoly-logo-v2.png"
+  src="/liquimoly-logo-v3.png"
   alt="Liqui Moly"
   width={500}
   height={500}
