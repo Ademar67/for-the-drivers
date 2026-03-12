@@ -12,15 +12,17 @@ export default function SplashScreen({
   const [animateOut, setAnimateOut] = useState(false);
 
   useEffect(() => {
+    // empieza animación de salida
     const exitTimer = setTimeout(() => {
       setAnimateOut(true);
-    }, 1500);
+    }, 3500);
 
+    // termina splash
     const finishTimer = setTimeout(() => {
       setVisible(false);
       localStorage.setItem('splashSeen', 'true');
       onFinish();
-    }, 2000);
+    }, 4500);
 
     return () => {
       clearTimeout(exitTimer);
@@ -32,7 +34,7 @@ export default function SplashScreen({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#0054A6] transition-opacity duration-500 ${
+      className={`fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#0054A6] transition-opacity duration-700 ${
         animateOut ? 'opacity-0' : 'opacity-100'
       }`}
     >
@@ -44,21 +46,21 @@ export default function SplashScreen({
       <div className="absolute bottom-2 left-0 right-0 h-2 bg-white" />
 
       <div
-        className={`relative z-10 flex flex-col items-center justify-center px-6 transition-all duration-700 ${
+        className={`relative z-10 flex flex-col items-center justify-center px-6 transition-all duration-1000 ${
           animateOut
             ? 'translate-y-2 scale-95 opacity-0'
             : 'translate-y-0 scale-100 opacity-100'
         }`}
       >
         <Image
-  src="/liquimoly-logo-v4.png"
-  alt="Liqui Moly"
-  width={500}
-  height={500}
-  priority
-  quality={100}
-  className="h-auto w-[180px] sm:w-[220px] md:w-[260px] object-contain"
-/>
+          src="/liquimoly-logo-v4.png"
+          alt="Liqui Moly"
+          width={500}
+          height={500}
+          priority
+          quality={100}
+          className="h-auto w-[220px] sm:w-[260px] md:w-[300px] object-contain"
+        />
 
         <p className="mt-5 text-center text-sm font-semibold tracking-[0.28em] text-white/90 sm:text-base">
           FOR THE DRIVERS
