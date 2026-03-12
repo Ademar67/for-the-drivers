@@ -109,7 +109,7 @@ export default function ClientesPage() {
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <Image
-            src="/logo-liqui-moly.png"
+            src="/liquimoly-logo-v4.png"
             alt="Cargando..."
             width={128}
             height={128}

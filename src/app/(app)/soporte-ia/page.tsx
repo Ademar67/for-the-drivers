@@ -135,7 +135,7 @@ export default function SoporteIAPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] max-w-3xl mx-auto bg-white rounded-lg shadow-xl border">
       <header className="p-4 border-b flex items-center gap-4 bg-gray-50/50">
-        <Image src="/logo-liqui-moly.png" alt="Liqui Moly" width={40} height={40} className="rounded-sm"/>
+        <Image src="/liquimoly-logo-v4.png" alt="Liqui Moly" width={40} height={40} className="rounded-sm"/>
         <div>
             <h1 className="text-lg font-bold text-[#00468E]">Asesor Digital Liqui Moly</h1>
             <p className="text-xs text-gray-500">Recomendaciones de productos (MX)</p>
@@ -172,7 +172,7 @@ export default function SoporteIAPage() {
           >
             {message.role === 'assistant' && (
               <Avatar className="w-8 h-8">
-                <AvatarImage src="/logo-liqui-moly.png" alt="Asesor Liqui Moly" />
+                <AvatarImage src="/liquimoly-logo-v4.png" alt="Asesor Liqui Moly" />
                 <AvatarFallback>LM</AvatarFallback>
               </Avatar>
             )}
@@ -233,7 +233,7 @@ export default function SoporteIAPage() {
          {loading && (
             <div className="flex items-start gap-4 justify-start">
                <Avatar className="w-8 h-8">
-                <AvatarImage src="/logo-liqui-moly.png" alt="Asesor" />
+                <AvatarImage src="/liquimoly-logo-v4.png" alt="Asesor" />
                 <AvatarFallback>LM</AvatarFallback>
               </Avatar>
               <div className="flex flex-col gap-1 max-w-md">

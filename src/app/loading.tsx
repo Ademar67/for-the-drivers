@@ -7,7 +7,7 @@ export default function Loading() {
     <div className="flex h-screen w-screen items-center justify-center bg-white">
       <div className="flex flex-col items-center gap-4 animate-splash">
         <Image
-          src="/logo-liqui-moly.png"
+          src="/liquimoly-logo-v4.png"
           alt="Liqui Moly"
           width={160}
           height={160}

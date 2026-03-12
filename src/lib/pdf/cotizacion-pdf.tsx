@@ -230,7 +230,7 @@ export function CotizacionPDF({ data }: { data: CotizacionPDFData }) {
         {/* Header */}
         <View style={styles.header}>
             <View style={styles.headerTop}>
-                <Image style={styles.logo} src="/logo-liqui-moly.png" />
+                <Image style={styles.logo} src="/liquimoly-logo-v4.png" />
                 <View style={styles.metaInfo}>
                     <Text style={styles.title}>Cotización</Text>
                     <Text style={styles.metaText}>Folio: {folio}</Text>

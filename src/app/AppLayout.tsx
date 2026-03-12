@@ -188,7 +188,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Sidebar>
                 <SidebarHeader>
                 <img
-                    src="/logo-liqui-moly.png"
+                    src="/liquimoly-logo-v4.png"
                     alt="Liqui Moly"
                     className="h-10 w-10 rounded-sm"
                 />
