@@ -12,17 +12,15 @@ export default function SplashScreen({
   const [animateOut, setAnimateOut] = useState(false);
 
   useEffect(() => {
-    // empieza animación de salida
     const exitTimer = setTimeout(() => {
       setAnimateOut(true);
-    }, 3500);
+    }, 2500);
 
-    // termina splash
     const finishTimer = setTimeout(() => {
       setVisible(false);
       localStorage.setItem('splashSeen', 'true');
       onFinish();
-    }, 4500);
+    }, 3200);
 
     return () => {
       clearTimeout(exitTimer);
@@ -34,41 +32,29 @@ export default function SplashScreen({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#0054A6] transition-opacity duration-700 ${
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-[#0054A6] transition-opacity duration-500 ${
         animateOut ? 'opacity-0' : 'opacity-100'
       }`}
     >
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute left-0 top-0 h-full w-full bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_45%)]" />
-      </div>
-
-      <div className="absolute bottom-0 left-0 right-0 h-2 bg-red-600" />
-      <div className="absolute bottom-2 left-0 right-0 h-2 bg-white" />
-
       <div
-        className={`relative z-10 flex flex-col items-center justify-center px-6 transition-all duration-1000 ${
+        className={`flex flex-col items-center justify-center transition-all duration-700 ${
           animateOut
-            ? 'translate-y-2 scale-95 opacity-0'
-            : 'translate-y-0 scale-100 opacity-100'
+            ? 'scale-95 translate-y-2 opacity-0'
+            : 'scale-100 translate-y-0 opacity-100'
         }`}
       >
         <Image
-          src="/liquimoly-logo-v4.png"
+          src="/splash-car.png"
           alt="Liqui Moly"
-          width={500}
-          height={500}
+          width={420}
+          height={420}
           priority
-          quality={100}
-          className="h-auto w-[220px] sm:w-[260px] md:w-[300px] object-contain"
+          className="object-contain"
         />
 
-        <p className="mt-5 text-center text-sm font-semibold tracking-[0.28em] text-white/90 sm:text-base">
+        <p className="mt-6 text-white text-sm tracking-[0.35em] font-semibold">
           FOR THE DRIVERS
         </p>
-
-        <div className="mt-8 h-1.5 w-36 overflow-hidden rounded-full bg-white/20">
-          <div className="h-full w-full animate-pulse rounded-full bg-white" />
-        </div>
       </div>
     </div>
   );
