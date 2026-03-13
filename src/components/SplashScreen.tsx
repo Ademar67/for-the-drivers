@@ -14,13 +14,13 @@ export default function SplashScreen({
   useEffect(() => {
     const exitTimer = setTimeout(() => {
       setAnimateOut(true);
-    }, 2500);
+    }, 4200);
 
     const finishTimer = setTimeout(() => {
       setVisible(false);
       localStorage.setItem('splashSeen', 'true');
       onFinish();
-    }, 3200);
+    }, 5200);
 
     return () => {
       clearTimeout(exitTimer);
@@ -32,12 +32,12 @@ export default function SplashScreen({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-[#0054A6] transition-opacity duration-500 ${
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-[#0054A6] transition-opacity duration-700 ${
         animateOut ? 'opacity-0' : 'opacity-100'
       }`}
     >
       <div
-        className={`flex flex-col items-center justify-center transition-all duration-700 ${
+        className={`flex flex-col items-center justify-center transition-all duration-1000 ${
           animateOut
             ? 'scale-95 translate-y-2 opacity-0'
             : 'scale-100 translate-y-0 opacity-100'
@@ -46,13 +46,13 @@ export default function SplashScreen({
         <Image
           src="/splash-car.png"
           alt="Liqui Moly"
-          width={420}
-          height={420}
+          width={520}
+          height={520}
           priority
-          className="object-contain"
+          className="w-[280px] sm:w-[320px] object-contain"
         />
 
-        <p className="mt-6 text-white text-sm tracking-[0.35em] font-semibold">
+        <p className="mt-6 text-sm font-semibold tracking-[0.35em] text-white">
           FOR THE DRIVERS
         </p>
       </div>
