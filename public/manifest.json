@@ -1,7 +1,7 @@
 {
   "name": "Liqui Moly Sales Hub",
   "short_name": "Liqui Moly",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "display": "standalone",
   "background_color": "#0054A6",
   "theme_color": "#0054A6",

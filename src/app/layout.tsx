@@ -4,6 +4,7 @@ import AppLayout from "./AppLayout";
 export const metadata: Metadata = {
   title: "Liqui Moly Sales Hub",
   description: "Sales Hub for Liqui Moly team.",
+  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -13,15 +14,18 @@ export const metadata: Metadata = {
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
     ]
-  },
-  manifest: "/manifest.json"
+  }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0054A6",
+  themeColor: "#0054A6"
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="es">
       <body>
