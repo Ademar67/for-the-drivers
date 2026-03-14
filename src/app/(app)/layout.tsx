@@ -1,9 +1,15 @@
-import { AuthGate } from '@/components/auth/AuthGate';
+import { AuthGate } from "@/components/auth/AuthGate";
 
-export default function AppLayout({
-  children,
-}: {
+type AppLayoutProps = {
   children: React.ReactNode;
-}) {
-  return <AuthGate>{children}</AuthGate>;
+};
+
+export default function AppLayout({ children }: AppLayoutProps) {
+  return (
+    <AuthGate>
+      <div className="min-h-screen">
+        {children}
+      </div>
+    </AuthGate>
+  );
 }

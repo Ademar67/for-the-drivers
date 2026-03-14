@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import SplashScreen from "@/components/SplashScreen";
 import "./globals.css";
-import Link from "next/link";
 import ConnectionStatus from "@/components/ConnectionStatus";
-import FirestoreSyncStatus from '@/components/FirestoreSyncStatus';
-import LogoutButton from '@/components/auth/LogoutButton';
+import FirestoreSyncStatus from "@/components/FirestoreSyncStatus";
+import LogoutButton from "@/components/auth/LogoutButton";
 
 import {
   Sidebar,
@@ -41,185 +43,123 @@ import { FirebaseClientProvider } from "@/firebase/client-provider";
 
 function SidebarNavigation() {
   const { isMobile, setOpenMobile } = useSidebar();
+  const pathname = usePathname();
 
   const handleLinkClick = () => {
     if (isMobile) setOpenMobile(false);
   };
 
+  const menuItems = [
+    { href: "/dashboard", label: "Dashboard", icon: Home },
+    { href: "/clientes", label: "Clientes", icon: Users },
+    { href: "/prospectos", label: "Prospectos", icon: UserPlus },
+    { href: "/agenda", label: "Agenda", icon: Calendar },
+    { href: "/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
+    { href: "/mapa-visitas", label: "Mapa de Visitas", icon: Map },
+    { href: "/productos", label: "Productos", icon: Package },
+    { href: "/facturas", label: "Cobranza", icon: FileText },
+    { href: "/mapa-clientes", label: "Mapa de Clientes", icon: MapPin },
+    { href: "/guias-liqui-moly", label: "Guías Liqui Moly", icon: BookOpen },
+    { href: "/fichas-tecnicas", label: "Fichas Técnicas", icon: FileSearch },
+    { href: "/materiales", label: "Materiales", icon: FileText },
+    { href: "/soporte-ia", label: "Soporte IA", icon: Bot },
+  ];
+
   return (
     <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/dashboard" onClick={handleLinkClick}>
-            <Home />
-            <span>Dashboard</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
+      {menuItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = pathname === item.href;
 
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/clientes" onClick={handleLinkClick}>
-            <Users />
-            <span>Clientes</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/prospectos" onClick={handleLinkClick}>
-            <UserPlus />
-            <span>Prospectos</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/agenda" onClick={handleLinkClick}>
-            <Calendar />
-            <span>Agenda</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/cotizaciones" onClick={handleLinkClick}>
-            <ClipboardList />
-            <span>Cotizaciones</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/mapa-visitas" onClick={handleLinkClick}>
-            <Map />
-            <span>Mapa de Visitas</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/productos" onClick={handleLinkClick}>
-            <Package />
-            <span>Productos</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/facturas" onClick={handleLinkClick}>
-            <FileText />
-            <span>Cobranza</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/mapa-clientes" onClick={handleLinkClick}>
-            <MapPin />
-            <span>Mapa de Clientes</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/guias-liqui-moly" onClick={handleLinkClick}>
-            <BookOpen />
-            <span>Guías Liqui Moly</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/fichas-tecnicas" onClick={handleLinkClick}>
-            <FileSearch />
-            <span>Fichas Técnicas</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/materiales" onClick={handleLinkClick}>
-            <FileText />
-            <span>Materiales</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/soporte-ia" onClick={handleLinkClick}>
-            <Bot />
-            <span>Soporte IA</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
+        return (
+          <SidebarMenuItem key={item.href}>
+            <SidebarMenuButton asChild size="lg" isActive={isActive}>
+              <Link href={item.href} onClick={handleLinkClick}>
+                <Icon />
+                <span>{item.label}</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
     </SidebarMenu>
   );
 }
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-    const [showSplash, setShowSplash] = useState(false);
-  
-    useEffect(() => {
-      const seen = localStorage.getItem("splashSeen");
-      if (!seen) {
-        setShowSplash(true);
-        localStorage.setItem("splashSeen", "1");
-      }
-    }, []);
-  
+export default function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [showSplash, setShowSplash] = useState(false);
 
-    return (
-        <SidebarProvider>
-            <ConnectionStatus />
-            <FirestoreSyncStatus />
-            <div className="flex min-h-screen w-full pt-10">
-            <Sidebar>
-                <SidebarHeader>
-                <img
-                    src="/liquimoly-logo-v4.png"
-                    alt="Liqui Moly"
-                    className="h-10 w-10 rounded-sm"
+  useEffect(() => {
+    const seen = localStorage.getItem("splashSeen");
+    if (!seen) {
+      setShowSplash(true);
+      localStorage.setItem("splashSeen", "1");
+    }
+  }, []);
+
+  return (
+    <SidebarProvider>
+      <ConnectionStatus />
+      <FirestoreSyncStatus />
+
+      <div className="flex min-h-screen w-full bg-background pt-10">
+        <Sidebar>
+          <SidebarHeader className="border-b border-sidebar-border/60 px-4 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-white/10">
+                <Image
+                  src="/liquimoly-logo-v4.png"
+                  alt="Liqui Moly"
+                  width={44}
+                  height={44}
+                  className="h-10 w-10 object-contain"
+                  priority
                 />
-                </SidebarHeader>
+              </div>
 
-                <SidebarContent>
-                <SidebarGroup>
-                    <SidebarGroupLabel>Menú</SidebarGroupLabel>
-                    <SidebarNavigation />
-                </SidebarGroup>
-                </SidebarContent>
-
-                <div className="mt-auto p-4">
-                  <LogoutButton />
-                </div>
-            </Sidebar>
-
-            <main className="flex-1 p-6">
-                {showSplash && (
-                  <SplashScreen
-                    onFinish={() => {
-                      setShowSplash(false);
-                    }}
-                  />
-                )}
-                <SidebarTrigger />
-                <FirebaseClientProvider>
-                    {children}
-                </FirebaseClientProvider>
-            </main>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-sidebar-foreground">
+                  Liqui Moly
+                </p>
+                <p className="truncate text-xs text-sidebar-foreground/70">
+                  Sales Hub
+                </p>
+              </div>
             </div>
-        </SidebarProvider>
-    );
-  }
+          </SidebarHeader>
+
+          <SidebarContent className="px-2 py-3">
+            <SidebarGroup>
+              <SidebarGroupLabel>Menú</SidebarGroupLabel>
+              <SidebarNavigation />
+            </SidebarGroup>
+          </SidebarContent>
+
+          <div className="mt-auto border-t border-sidebar-border/60 p-4">
+            <LogoutButton />
+          </div>
+        </Sidebar>
+
+        <main className="flex-1 p-4 md:p-6">
+          <div className="mb-4 flex items-center">
+            <SidebarTrigger />
+          </div>
+
+          {showSplash && (
+            <SplashScreen
+              onFinish={() => {
+                setShowSplash(false);
+              }}
+            />
+          )}
+
+          <FirebaseClientProvider>{children}</FirebaseClientProvider>
+        </main>
+      </div>
+    </SidebarProvider>
+  );
+}
