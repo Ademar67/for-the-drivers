@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { Copy, FilePlus2, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,12 +29,22 @@ interface Message {
   products?: ProductCardData[];
 }
 
+const WELCOME_MESSAGE: Message = {
+  role: 'assistant',
+  content:
+    'Hola 👋 soy tu asesor Liqui Moly 💧.\n\nDescribe el síntoma o problema del vehículo y te recomendaré el producto adecuado.',
+};
+
 export default function SoporteIAPage() {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setMessages([WELCOME_MESSAGE]);
+  }, []);
 
   const lastValidAssistantMessage = useMemo(
     () =>
@@ -84,7 +94,7 @@ export default function SoporteIAPage() {
   };
 
   const handleNewCase = () => {
-    setMessages([]);
+    setMessages([WELCOME_MESSAGE]);
     setQuery('');
     setError(null);
   };
@@ -185,25 +195,6 @@ export default function SoporteIAPage() {
               <FilePlus2 className="mr-2 h-4 w-4" />
               Nuevo caso
             </Button>
-          </div>
-        )}
-
-        {messages.length === 0 && !loading && (
-          <div className="pt-10 text-center text-gray-500">
-            <div className="mb-4 flex justify-center">
-              <Image
-                src="/gotita.png"
-                alt="Asesor Liqui Moly"
-                width={110}
-                height={110}
-                className="object-contain"
-              />
-            </div>
-
-            <p>
-              Describe un síntoma o problema de tu vehículo para recibir una
-              recomendación de productos Liqui Moly.
-            </p>
           </div>
         )}
 
