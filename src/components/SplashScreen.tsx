@@ -13,22 +13,19 @@ export default function SplashScreen({
   const [animateOut, setAnimateOut] = useState(false);
 
   useEffect(() => {
-    // entrada suave del carro
     const startTimer = setTimeout(() => {
       setAnimateIn(true);
     }, 200);
 
-    // empieza salida
     const exitTimer = setTimeout(() => {
       setAnimateOut(true);
-    }, 4500);
+    }, 9000);
 
-    // termina splash
     const finishTimer = setTimeout(() => {
       setVisible(false);
       localStorage.setItem('splashSeen', 'true');
       onFinish();
-    }, 5500);
+    }, 10200);
 
     return () => {
       clearTimeout(startTimer);
@@ -47,20 +44,14 @@ export default function SplashScreen({
     >
       <div
         className={`flex flex-col items-center justify-center transition-all duration-1000 ${
-          animateIn
-            ? 'scale-100 opacity-100'
-            : 'scale-90 opacity-0'
-        } ${
-          animateOut
-            ? 'scale-95 translate-y-2 opacity-0'
-            : ''
-        }`}
+          animateIn ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
+        } ${animateOut ? 'scale-95 translate-y-2 opacity-0' : ''}`}
       >
         <Image
           src="/splash-car.png"
           alt="Liqui Moly"
-          width={600}
-          height={600}
+          width={620}
+          height={620}
           priority
           className="w-[320px] sm:w-[380px] object-contain"
         />
