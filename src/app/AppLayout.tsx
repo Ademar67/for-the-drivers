@@ -37,6 +37,7 @@ import {
   UserPlus,
   ClipboardList,
   FileSearch,
+  Calculator,
 } from "lucide-react";
 
 import { FirebaseClientProvider } from "@/firebase/client-provider";
@@ -55,6 +56,7 @@ function SidebarNavigation() {
     { href: "/prospectos", label: "Prospectos", icon: UserPlus },
     { href: "/agenda", label: "Agenda", icon: Calendar },
     { href: "/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
+    { href: "/precios", label: "Precios", icon: Calculator },
     { href: "/mapa-visitas", label: "Mapa de Visitas", icon: Map },
     { href: "/productos", label: "Productos", icon: Package },
     { href: "/facturas", label: "Cobranza", icon: FileText },

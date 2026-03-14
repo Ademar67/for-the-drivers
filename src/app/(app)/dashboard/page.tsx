@@ -51,6 +51,12 @@ const dashboardCards = [
     icon: ClipboardList,
   },
   {
+    title: "Precios",
+    description: "Calculadora de precios y descuentos",
+    href: "/precios",
+    icon: Calculator,
+  },
+  {
     title: "Mapa de Clientes",
     description: "Visualiza y gestiona tus clientes y prospectos",
     href: "/mapa-clientes",
