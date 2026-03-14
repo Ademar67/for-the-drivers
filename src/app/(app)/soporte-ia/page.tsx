@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -42,7 +41,11 @@ export default function SoporteIAPage() {
       messages
         .slice()
         .reverse()
-        .find(m => m.role === 'assistant' && !m.content.toLowerCase().includes('lo siento')),
+        .find(
+          m =>
+            m.role === 'assistant' &&
+            !m.content.toLowerCase().includes('lo siento')
+        ),
     [messages]
   );
 
@@ -51,7 +54,10 @@ export default function SoporteIAPage() {
 
     const recommendationParts = [lastValidAssistantMessage.content];
 
-    if (lastValidAssistantMessage.products && lastValidAssistantMessage.products.length > 0) {
+    if (
+      lastValidAssistantMessage.products &&
+      lastValidAssistantMessage.products.length > 0
+    ) {
       const productsText = lastValidAssistantMessage.products
         .map(p => {
           return (
@@ -65,6 +71,7 @@ export default function SoporteIAPage() {
           );
         })
         .join('\n');
+
       recommendationParts.push(productsText);
     }
 
@@ -75,7 +82,7 @@ export default function SoporteIAPage() {
       setTimeout(() => setCopied(false), 2000);
     });
   };
-  
+
   const handleNewCase = () => {
     setMessages([]);
     setQuery('');
@@ -88,6 +95,7 @@ export default function SoporteIAPage() {
 
     const userMessage: Message = { role: 'user', content: query };
     setMessages(prev => [...prev, userMessage]);
+
     const currentQuery = query;
     setQuery('');
     setLoading(true);
@@ -101,31 +109,43 @@ export default function SoporteIAPage() {
       });
 
       if (!response.ok) {
-        throw new Error('No se pudo obtener una respuesta del asesor. Código: ' + response.status);
+        throw new Error(
+          'No se pudo obtener una respuesta del asesor. Código: ' +
+            response.status
+        );
       }
 
       const data = await response.json();
-      
+
       if (!data || !data.diagnostico_orientativo) {
-         throw new Error('La respuesta de la API está vacía o no tiene el formato esperado.');
+        throw new Error(
+          'La respuesta de la API está vacía o no tiene el formato esperado.'
+        );
       }
 
-      const assistantMessageContent = `${data.diagnostico_orientativo}${data.advertencia ? `\n\nAdvertencia: ${data.advertencia}` : ''}`;
+      const assistantMessageContent = `${data.diagnostico_orientativo}${
+        data.advertencia ? `\n\nAdvertencia: ${data.advertencia}` : ''
+      }`;
 
       const assistantMessage: Message = {
         role: 'assistant',
         content: assistantMessageContent,
         products: data.productos_recomendados || [],
       };
-      setMessages(prev => [...prev, assistantMessage]);
 
+      setMessages(prev => [...prev, assistantMessage]);
     } catch (err: any) {
-      const errorMessageContent = err.message || 'Lo siento, no pude procesar tu solicitud en este momento.';
+      const errorMessageContent =
+        err.message ||
+        'Lo siento, no pude procesar tu solicitud en este momento.';
+
       setError(errorMessageContent);
+
       const errorMessage: Message = {
         role: 'assistant',
         content: errorMessageContent,
       };
+
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setLoading(false);
@@ -133,33 +153,58 @@ export default function SoporteIAPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] max-w-3xl mx-auto bg-white rounded-lg shadow-xl border">
-      <header className="p-4 border-b flex items-center gap-4 bg-gray-50/50">
-        <Image src="/liquimoly-logo-v4.png" alt="Liqui Moly" width={40} height={40} className="rounded-sm"/>
+    <div className="mx-auto flex h-[calc(100vh-80px)] max-w-3xl flex-col rounded-lg border bg-white shadow-xl">
+      <header className="flex items-center gap-4 border-b bg-gray-50/50 p-4">
+        <Image
+          src="/gotita.png"
+          alt="Asesor Digital Liqui Moly"
+          width={56}
+          height={56}
+          className="object-contain"
+        />
+
         <div>
-            <h1 className="text-lg font-bold text-[#00468E]">Asesor Digital Liqui Moly</h1>
-            <p className="text-xs text-gray-500">Recomendaciones de productos (MX)</p>
+          <h1 className="text-lg font-bold text-[#00468E]">
+            Asesor Digital Liqui Moly
+          </h1>
+          <p className="text-xs text-gray-500">
+            Recomendaciones de productos (MX)
+          </p>
         </div>
       </header>
 
-      <div className="flex-1 p-6 overflow-y-auto space-y-6">
+      <div className="flex-1 space-y-6 overflow-y-auto p-6">
         {lastValidAssistantMessage && !loading && (
-            <div className="border-b pb-4 flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleCopy}>
-                    <Copy className="mr-2 h-4 w-4" />
-                    {copied ? 'Copiado!' : 'Copiar recomendación'}
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleNewCase}>
-                    <FilePlus2 className="mr-2 h-4 w-4" />
-                    Nuevo caso
-                </Button>
-            </div>
+          <div className="flex items-center gap-2 border-b pb-4">
+            <Button variant="outline" size="sm" onClick={handleCopy}>
+              <Copy className="mr-2 h-4 w-4" />
+              {copied ? 'Copiado!' : 'Copiar recomendación'}
+            </Button>
+
+            <Button variant="outline" size="sm" onClick={handleNewCase}>
+              <FilePlus2 className="mr-2 h-4 w-4" />
+              Nuevo caso
+            </Button>
+          </div>
         )}
 
         {messages.length === 0 && !loading && (
-             <div className="text-center text-gray-500 pt-10">
-                <p>Describe un síntoma o problema de tu vehículo para recibir una recomendación de productos Liqui Moly.</p>
-             </div>
+          <div className="pt-10 text-center text-gray-500">
+            <div className="mb-4 flex justify-center">
+              <Image
+                src="/gotita.png"
+                alt="Asesor Liqui Moly"
+                width={110}
+                height={110}
+                className="object-contain"
+              />
+            </div>
+
+            <p>
+              Describe un síntoma o problema de tu vehículo para recibir una
+              recomendación de productos Liqui Moly.
+            </p>
+          </div>
         )}
 
         {messages.map((message, index) => (
@@ -171,86 +216,135 @@ export default function SoporteIAPage() {
             )}
           >
             {message.role === 'assistant' && (
-              <Avatar className="w-8 h-8">
-                <AvatarImage src="/liquimoly-logo-v4.png" alt="Asesor Liqui Moly" />
-                <AvatarFallback>LM</AvatarFallback>
+              <Avatar className="h-10 w-10">
+                <AvatarImage src="/gotita.png" alt="Asesor Liqui Moly" />
+                <AvatarFallback>AI</AvatarFallback>
               </Avatar>
             )}
-            <div className="flex flex-col gap-1 max-w-md">
-                 {message.role === 'assistant' && <span className="text-xs font-semibold text-gray-700">Asesor Liqui Moly</span>}
-                <div
-                  className={cn(
-                    'p-3 rounded-lg',
-                    message.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-br-none'
-                      : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                  )}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                </div>
-                
-                {message.products && message.products.length > 0 && (
-                    <div className="grid grid-cols-1 gap-3 mt-2">
-                        {message.products.map((product, pIndex) => (
-                            <Card key={pIndex} className="bg-gray-50">
-                                <CardHeader className="p-4">
-                                  <CardTitle className="text-base">{product.nombre}</CardTitle>
-                                  <p className="text-sm text-muted-foreground">{product.tipo}</p>
-                                </CardHeader>
-                                <CardContent className="p-4 pt-0 text-sm text-gray-600 space-y-3">
-                                  <p><strong>Descripción:</strong> {product.descripcion}</p>
-                                  <p><strong>Modo de uso:</strong> {product.como_usar}</p>
-                                  
-                                  {product.cuando_usar && product.cuando_usar.length > 0 && (
-                                    <div>
-                                        <strong className='text-gray-700'>Cuándo usar:</strong>
-                                        <ul className="list-disc list-inside mt-1 space-y-1">
-                                            {product.cuando_usar.map((item, i) => <li key={i}>{item}</li>)}
-                                        </ul>
-                                    </div>
-                                  )}
-                                   {product.cuando_no_usar && product.cuando_no_usar.length > 0 && (
-                                    <div>
-                                        <strong className='text-gray-700'>Cuándo NO usar:</strong>
-                                        <ul className="list-disc list-inside mt-1 space-y-1">
-                                            {product.cuando_no_usar.map((item, i) => <li key={i}>{item}</li>)}
-                                        </ul>
-                                    </div>
-                                  )}
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+
+            <div className="flex max-w-md flex-col gap-1">
+              {message.role === 'assistant' && (
+                <span className="text-xs font-semibold text-gray-700">
+                  Asesor Liqui Moly
+                </span>
+              )}
+
+              <div
+                className={cn(
+                  'rounded-lg p-3',
+                  message.role === 'user'
+                    ? 'rounded-br-none bg-blue-600 text-white'
+                    : 'rounded-bl-none bg-gray-100 text-gray-800'
                 )}
+              >
+                <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+              </div>
+
+              {message.products && message.products.length > 0 && (
+                <div className="mt-2 grid grid-cols-1 gap-3">
+                  {message.products.map((product, pIndex) => (
+                    <Card key={pIndex} className="bg-gray-50">
+                      <CardHeader className="p-4">
+                        <CardTitle className="text-base">
+                          {product.nombre}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          {product.tipo}
+                        </p>
+                      </CardHeader>
+
+                      <CardContent className="space-y-3 p-4 pt-0 text-sm text-gray-600">
+                        <p>
+                          <strong>Descripción:</strong> {product.descripcion}
+                        </p>
+
+                        <p>
+                          <strong>Modo de uso:</strong> {product.como_usar}
+                        </p>
+
+                        {product.cuando_usar &&
+                          product.cuando_usar.length > 0 && (
+                            <div>
+                              <strong className="text-gray-700">
+                                Cuándo usar:
+                              </strong>
+                              <ul className="mt-1 list-inside list-disc space-y-1">
+                                {product.cuando_usar.map((item, i) => (
+                                  <li key={i}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                        {product.cuando_no_usar &&
+                          product.cuando_no_usar.length > 0 && (
+                            <div>
+                              <strong className="text-gray-700">
+                                Cuándo NO usar:
+                              </strong>
+                              <ul className="mt-1 list-inside list-disc space-y-1">
+                                {product.cuando_no_usar.map((item, i) => (
+                                  <li key={i}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
-             {message.role === 'user' && (
-              <Avatar className="w-8 h-8">
-                 <AvatarFallback><User/></AvatarFallback>
+
+            {message.role === 'user' && (
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>
+                  <User />
+                </AvatarFallback>
               </Avatar>
             )}
           </div>
         ))}
-         {loading && (
-            <div className="flex items-start gap-4 justify-start">
-               <Avatar className="w-8 h-8">
-                <AvatarImage src="/liquimoly-logo-v4.png" alt="Asesor" />
-                <AvatarFallback>LM</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col gap-1 max-w-md">
-                 <span className="text-xs font-semibold text-gray-700">Asesor Liqui Moly</span>
-                <div className="max-w-md p-3 rounded-lg bg-gray-100 text-gray-800 rounded-bl-none">
-                    <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                        <span className="h-2 w-2 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                        <span className="h-2 w-2 bg-blue-600 rounded-full animate-bounce"></span>
-                    </div>
+
+        {loading && (
+          <div className="flex items-start justify-start gap-4">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src="/gotita.png" alt="Asesor Liqui Moly" />
+              <AvatarFallback>AI</AvatarFallback>
+            </Avatar>
+
+            <div className="flex max-w-md flex-col gap-1">
+              <span className="text-xs font-semibold text-gray-700">
+                Asesor Liqui Moly
+              </span>
+
+              <div className="rounded-lg rounded-bl-none bg-gray-100 p-3 text-gray-800">
+                <div className="mb-2 flex justify-center">
+                  <Image
+                    src="/gotita.png"
+                    alt="Asesor pensando"
+                    width={78}
+                    height={78}
+                    className="animate-bounce object-contain"
+                  />
+                </div>
+
+                <p className="mb-2 text-xs text-gray-500">
+                  Analizando recomendación...
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.3s]"></span>
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.15s]"></span>
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-blue-600"></span>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
       </div>
 
-      <div className="p-4 border-t border-gray-200 bg-white">
+      <div className="border-t border-gray-200 bg-white p-4">
         <form onSubmit={handleSubmit} className="flex items-center gap-3">
           <Textarea
             value={query}
@@ -258,18 +352,20 @@ export default function SoporteIAPage() {
             placeholder="Describe el problema del vehículo..."
             className="flex-1 resize-none"
             rows={1}
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSubmit(e);
               }
             }}
           />
+
           <Button type="submit" disabled={loading || !query.trim()}>
             {loading ? 'Consultando...' : 'Consultar'}
           </Button>
         </form>
-         {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
+
+        {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
       </div>
     </div>
   );
