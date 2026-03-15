@@ -20,7 +20,7 @@ import type { ClienteFS } from '@/lib/firestore/clientes';
 import type { Cotizacion } from '@/lib/firestore/cotizaciones';
 import type { Visita } from '@/lib/firestore/visitas';
 
-export default function ClienteDetailClient({ id }: { id: string }) {
+export default function AgendaPage() {
   const [cliente, setCliente] = useState<ClienteFS | null>(null);
   const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
   const [visitas, setVisitas] = useState<Visita[]>([]);
