@@ -31,13 +31,6 @@ export default function AgendaPage() {
       try {
         setLoading(true);
 
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          setCliente({ id: docSnap.id, ...docSnap.data() } as ClienteFS);
-        } else {
-          setCliente(null);
-        }
 
         const cotizacionesSnap = await getDocs(collection(db, 'cotizaciones'));
         const cotizacionesCliente = cotizacionesSnap.docs
