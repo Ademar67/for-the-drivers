@@ -31,7 +31,6 @@ export default function AgendaPage() {
       try {
         setLoading(true);
 
-        const docRef = doc(db, 'clientes', id);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
