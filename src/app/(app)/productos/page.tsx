@@ -41,8 +41,7 @@ type ExcelRow = {
   CODIGO?: string | number
   PRODUCTO?: string
   ENVASE?: string
-  'PRECIO MAYOREO MÁS IVA'?: string | number
-  'PRECIO MAYOREO MAS IVA'?: string | number
+  [key: string]: string | number | undefined
 }
 
 export default function ProductosPage() {
@@ -128,6 +127,34 @@ export default function ProductosPage() {
     return isNaN(numero) ? 0 : numero
   }
 
+  const obtenerPrecioDesdeFila = (row: ExcelRow) => {
+    const clavesPosibles = [
+      'PRECIO MAYOREO MÁS IVA',
+      'PRECIO MAYOREO MAS IVA',
+      'PRECIO MAYOREO\nMÁS IVA',
+      'PRECIO MAYOREO\nMAS IVA',
+    ]
+
+    for (const clave of clavesPosibles) {
+      const valor = row[clave]
+      if (valor !== undefined && valor !== null && String(valor).trim() !== '') {
+        return parsePrecio(valor)
+      }
+    }
+
+    for (const key of Object.keys(row)) {
+      const keyNormalizada = key.replace(/\s+/g, ' ').trim().toUpperCase()
+      if (
+        keyNormalizada.includes('PRECIO MAYOREO') &&
+        keyNormalizada.includes('IVA')
+      ) {
+        return parsePrecio(row[key])
+      }
+    }
+
+    return 0
+  }
+
   const handleImportExcel = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -154,12 +181,7 @@ export default function ProductosPage() {
         const codigo = String(row.CODIGO ?? '').trim()
         const nombre = String(row.PRODUCTO ?? '').trim()
         const capacidad = String(row.ENVASE ?? '').trim()
-        const precio = parsePrecio(
-          row['PRECIO MAYOREO MÁS IVA'] ??
-          row['PRECIO MAYOREO MAS IVA'] ??
-          row['PRECIO MAYOREO\nMÁS IVA'] ??
-          row['PRECIO MAYOREO\nMAS IVA']
-        )
+        const precio = obtenerPrecioDesdeFila(row)
 
         if (!codigo || !nombre || !capacidad || !precio) {
           omitidos++
