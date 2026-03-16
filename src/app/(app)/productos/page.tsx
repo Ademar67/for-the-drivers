@@ -155,7 +155,10 @@ export default function ProductosPage() {
         const nombre = String(row.PRODUCTO ?? '').trim()
         const capacidad = String(row.ENVASE ?? '').trim()
         const precio = parsePrecio(
-          row['PRECIO MAYOREO MÁS IVA'] ?? row['PRECIO MAYOREO MAS IVA']
+          row['PRECIO MAYOREO MÁS IVA'] ??
+          row['PRECIO MAYOREO MAS IVA'] ??
+          row['PRECIO MAYOREO\nMÁS IVA'] ??
+          row['PRECIO MAYOREO\nMAS IVA']
         )
 
         if (!codigo || !nombre || !capacidad || !precio) {
