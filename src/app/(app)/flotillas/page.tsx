@@ -16,21 +16,24 @@ import { db } from "@/firebase/config";
 
 type FlotillaEstado = "Prospecto" | "Seguimiento" | "Activo";
 
-type Flotilla = {
-  id?: string;
-  empresa: string;
-  contacto: string;
-  unidades: number;
-  estado: FlotillaEstado;
-  createdAt?: unknown;
-};
-
 type Unidad = {
   eco: string;
   placas: string;
   tipo: string;
   km: string;
   aceite: string;
+};
+
+type Flotilla = {
+  id?: string;
+  empresa: string;
+  contacto: string;
+  operativo: string;
+  pago: string;
+  unidades: number;
+  estado: FlotillaEstado;
+  unidadesDetalle: Unidad[];
+  createdAt?: unknown;
 };
 
 export default function FlotillasPage() {
@@ -47,33 +50,12 @@ export default function FlotillasPage() {
   const [nuevaFlotilla, setNuevaFlotilla] = useState<Flotilla>({
     empresa: "",
     contacto: "",
+    operativo: "",
+    pago: "",
     unidades: 0,
     estado: "Prospecto",
+    unidadesDetalle: [],
   });
-
-  const unidades: Unidad[] = [
-    {
-      eco: "TR-014",
-      placas: "AB-123-CD",
-      tipo: "Camioneta",
-      km: "128,400",
-      aceite: "Top Tec 4100 5W-40",
-    },
-    {
-      eco: "TR-021",
-      placas: "EF-456-GH",
-      tipo: "Camión ligero",
-      km: "210,800",
-      aceite: "Molygen 5W-30",
-    },
-    {
-      eco: "TR-031",
-      placas: "IJ-789-KL",
-      tipo: "Van",
-      km: "86,200",
-      aceite: "Leichtlauf 5W-40",
-    },
-  ];
 
   async function cargarFlotillas() {
     try {
@@ -88,6 +70,10 @@ export default function FlotillasPage() {
       const data: Flotilla[] = snapshot.docs.map((docItem) => ({
         id: docItem.id,
         ...(docItem.data() as Omit<Flotilla, "id">),
+        operativo: (docItem.data() as Partial<Flotilla>).operativo ?? "",
+        pago: (docItem.data() as Partial<Flotilla>).pago ?? "",
+        unidadesDetalle:
+          (docItem.data() as Partial<Flotilla>).unidadesDetalle ?? [],
       }));
 
       setFlotillas(data);
@@ -121,8 +107,11 @@ export default function FlotillasPage() {
       const payload = {
         empresa: nuevaFlotilla.empresa.trim(),
         contacto: nuevaFlotilla.contacto.trim(),
+        operativo: nuevaFlotilla.operativo.trim(),
+        pago: nuevaFlotilla.pago.trim(),
         unidades: Number(nuevaFlotilla.unidades) || 0,
         estado: nuevaFlotilla.estado,
+        unidadesDetalle: nuevaFlotilla.unidadesDetalle ?? [],
       };
 
       if (modoEdicion && editandoId) {
@@ -158,8 +147,11 @@ export default function FlotillasPage() {
       setNuevaFlotilla({
         empresa: "",
         contacto: "",
+        operativo: "",
+        pago: "",
         unidades: 0,
         estado: "Prospecto",
+        unidadesDetalle: [],
       });
 
       setMostrarFormulario(false);
@@ -175,10 +167,13 @@ export default function FlotillasPage() {
 
   function editarFlotilla(flotilla: Flotilla) {
     setNuevaFlotilla({
-      empresa: flotilla.empresa,
-      contacto: flotilla.contacto,
-      unidades: flotilla.unidades,
-      estado: flotilla.estado,
+      empresa: flotilla.empresa ?? "",
+      contacto: flotilla.contacto ?? "",
+      operativo: flotilla.operativo ?? "",
+      pago: flotilla.pago ?? "",
+      unidades: flotilla.unidades ?? 0,
+      estado: flotilla.estado ?? "Prospecto",
+      unidadesDetalle: flotilla.unidadesDetalle ?? [],
     });
 
     setModoEdicion(true);
@@ -213,8 +208,11 @@ export default function FlotillasPage() {
     setNuevaFlotilla({
       empresa: "",
       contacto: "",
+      operativo: "",
+      pago: "",
       unidades: 0,
       estado: "Prospecto",
+      unidadesDetalle: [],
     });
     setMostrarFormulario(false);
   }
@@ -279,6 +277,40 @@ export default function FlotillasPage() {
                 }
                 className="w-full rounded-xl border px-3 py-2 outline-none"
                 placeholder="Ej. Juan Pérez"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">Operativo</label>
+              <input
+                type="text"
+                value={nuevaFlotilla.operativo}
+                onChange={(e) =>
+                  setNuevaFlotilla((prev) => ({
+                    ...prev,
+                    operativo: e.target.value,
+                  }))
+                }
+                className="w-full rounded-xl border px-3 py-2 outline-none"
+                placeholder="Ej. Marisol Vega"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                Condición de pago
+              </label>
+              <input
+                type="text"
+                value={nuevaFlotilla.pago}
+                onChange={(e) =>
+                  setNuevaFlotilla((prev) => ({
+                    ...prev,
+                    pago: e.target.value,
+                  }))
+                }
+                className="w-full rounded-xl border px-3 py-2 outline-none"
+                placeholder="Ej. Crédito 15 días"
               />
             </div>
 
@@ -457,28 +489,34 @@ export default function FlotillasPage() {
                 Contacto: {empresaSeleccionada.contacto}
               </div>
               <div className="rounded bg-slate-50 p-3">
-                Operativo: Marisol Vega
+                Operativo: {empresaSeleccionada.operativo || "Sin dato"}
               </div>
               <div className="rounded bg-slate-50 p-3">
-                Pago: Crédito 15 días
+                Pago: {empresaSeleccionada.pago || "Sin dato"}
               </div>
             </div>
 
             <div className="mt-5">
               <h3 className="mb-2 font-bold">Unidades</h3>
 
-              {unidades.map((u) => (
-                <div
-                  key={u.eco}
-                  className="mb-2 grid gap-2 rounded border p-3 md:grid-cols-5"
-                >
-                  <span>{u.eco}</span>
-                  <span>{u.placas}</span>
-                  <span>{u.tipo}</span>
-                  <span>{u.km}</span>
-                  <span>{u.aceite}</span>
-                </div>
-              ))}
+              {(empresaSeleccionada.unidadesDetalle ?? []).length > 0 ? (
+                empresaSeleccionada.unidadesDetalle.map((u) => (
+                  <div
+                    key={u.eco}
+                    className="mb-2 grid gap-2 rounded border p-3 md:grid-cols-5"
+                  >
+                    <span>{u.eco}</span>
+                    <span>{u.placas}</span>
+                    <span>{u.tipo}</span>
+                    <span>{u.km}</span>
+                    <span>{u.aceite}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">
+                  No hay unidades registradas.
+                </p>
+              )}
             </div>
           </>
         ) : (
@@ -508,4 +546,3 @@ export default function FlotillasPage() {
     </div>
   );
 }
-
