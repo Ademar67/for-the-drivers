@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   addDoc,
   collection,
@@ -15,6 +15,7 @@ import {
 import { db } from "@/firebase/config";
 
 type FlotillaEstado = "Prospecto" | "Seguimiento" | "Activo";
+type FiltroEstado = "Todos" | FlotillaEstado;
 
 type Unidad = {
   eco: string;
@@ -36,16 +37,53 @@ type Flotilla = {
   createdAt?: unknown;
 };
 
+const unidadVacia: Unidad = {
+  eco: "",
+  placas: "",
+  tipo: "",
+  km: "",
+  aceite: "",
+};
+
+function obtenerClasesEstado(estado: FlotillaEstado) {
+  switch (estado) {
+    case "Activo":
+      return "bg-green-100 text-green-700";
+    case "Seguimiento":
+      return "bg-amber-100 text-amber-700";
+    case "Prospecto":
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
+function obtenerPrioridadEstado(estado: FlotillaEstado) {
+  switch (estado) {
+    case "Activo":
+      return 0;
+    case "Seguimiento":
+      return 1;
+    case "Prospecto":
+    default:
+      return 2;
+  }
+}
+
 export default function FlotillasPage() {
   const [flotillas, setFlotillas] = useState<Flotilla[]>([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [guardandoUnidad, setGuardandoUnidad] = useState(false);
+  const [agregandoUnidadGuardada, setAgregandoUnidadGuardada] = useState(false);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
 
   const [empresaSeleccionada, setEmpresaSeleccionada] =
     useState<Flotilla | null>(null);
+
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>("Todos");
 
   const [nuevaFlotilla, setNuevaFlotilla] = useState<Flotilla>({
     empresa: "",
@@ -56,6 +94,20 @@ export default function FlotillasPage() {
     estado: "Prospecto",
     unidadesDetalle: [],
   });
+
+  const [nuevaUnidad, setNuevaUnidad] = useState<Unidad>(unidadVacia);
+  const [nuevaUnidadGuardada, setNuevaUnidadGuardada] =
+    useState<Unidad>(unidadVacia);
+
+  const [indiceUnidadEditandoFormulario, setIndiceUnidadEditandoFormulario] =
+    useState<number | null>(null);
+  const [unidadEditandoFormulario, setUnidadEditandoFormulario] =
+    useState<Unidad>(unidadVacia);
+
+  const [indiceUnidadEditandoGuardada, setIndiceUnidadEditandoGuardada] =
+    useState<number | null>(null);
+  const [unidadEditandoGuardada, setUnidadEditandoGuardada] =
+    useState<Unidad>(unidadVacia);
 
   async function cargarFlotillas() {
     try {
@@ -79,7 +131,10 @@ export default function FlotillasPage() {
       setFlotillas(data);
 
       if (data.length > 0) {
-        setEmpresaSeleccionada(data[0]);
+        setEmpresaSeleccionada((prev) => {
+          if (!prev?.id) return data[0];
+          return data.find((f) => f.id === prev.id) ?? data[0];
+        });
       } else {
         setEmpresaSeleccionada(null);
       }
@@ -95,6 +150,160 @@ export default function FlotillasPage() {
     cargarFlotillas();
   }, []);
 
+  const flotillasFiltradas = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase();
+
+    return [...flotillas]
+      .filter((f) => {
+        const coincideBusqueda =
+          termino === "" ||
+          f.empresa.toLowerCase().includes(termino) ||
+          f.contacto.toLowerCase().includes(termino);
+
+        const coincideEstado =
+          filtroEstado === "Todos" || f.estado === filtroEstado;
+
+        return coincideBusqueda && coincideEstado;
+      })
+      .sort((a, b) => {
+        const prioridadA = obtenerPrioridadEstado(a.estado);
+        const prioridadB = obtenerPrioridadEstado(b.estado);
+
+        if (prioridadA !== prioridadB) {
+          return prioridadA - prioridadB;
+        }
+
+        return a.empresa.localeCompare(b.empresa, "es", {
+          sensitivity: "base",
+        });
+      });
+  }, [flotillas, busqueda, filtroEstado]);
+
+  const totalActivas = useMemo(() => {
+    return flotillasFiltradas.filter((f) => f.estado === "Activo").length;
+  }, [flotillasFiltradas]);
+
+  const totalSeguimiento = useMemo(() => {
+    return flotillasFiltradas.filter((f) => f.estado === "Seguimiento").length;
+  }, [flotillasFiltradas]);
+
+  const totalProspectos = useMemo(() => {
+    return flotillasFiltradas.filter((f) => f.estado === "Prospecto").length;
+  }, [flotillasFiltradas]);
+
+  const totalUnidades = useMemo(() => {
+    return flotillasFiltradas.reduce((acc, item) => acc + item.unidades, 0);
+  }, [flotillasFiltradas]);
+
+  function limpiarFormularioFlotilla() {
+    setNuevaFlotilla({
+      empresa: "",
+      contacto: "",
+      operativo: "",
+      pago: "",
+      unidades: 0,
+      estado: "Prospecto",
+      unidadesDetalle: [],
+    });
+    setNuevaUnidad(unidadVacia);
+    cancelarEdicionUnidadFormulario();
+  }
+
+  function validarUnidad(unidad: Unidad) {
+    return (
+      unidad.eco.trim() !== "" &&
+      unidad.placas.trim() !== "" &&
+      unidad.tipo.trim() !== ""
+    );
+  }
+
+  function agregarUnidadAlFormulario() {
+    if (!validarUnidad(nuevaUnidad)) {
+      alert("Completa al menos económico, placas y tipo.");
+      return;
+    }
+
+    const unidadParaAgregar: Unidad = {
+      eco: nuevaUnidad.eco.trim(),
+      placas: nuevaUnidad.placas.trim(),
+      tipo: nuevaUnidad.tipo.trim(),
+      km: nuevaUnidad.km.trim(),
+      aceite: nuevaUnidad.aceite.trim(),
+    };
+
+    setNuevaFlotilla((prev) => {
+      const nuevasUnidades = [...(prev.unidadesDetalle ?? []), unidadParaAgregar];
+      return {
+        ...prev,
+        unidadesDetalle: nuevasUnidades,
+        unidades: nuevasUnidades.length,
+      };
+    });
+
+    setNuevaUnidad(unidadVacia);
+  }
+
+  function eliminarUnidadDelFormulario(index: number) {
+    setNuevaFlotilla((prev) => {
+      const nuevasUnidades = (prev.unidadesDetalle ?? []).filter(
+        (_, i) => i !== index
+      );
+
+      return {
+        ...prev,
+        unidadesDetalle: nuevasUnidades,
+        unidades: nuevasUnidades.length,
+      };
+    });
+
+    if (indiceUnidadEditandoFormulario === index) {
+      cancelarEdicionUnidadFormulario();
+    }
+  }
+
+  function iniciarEdicionUnidadFormulario(index: number) {
+    const unidad = nuevaFlotilla.unidadesDetalle?.[index];
+    if (!unidad) return;
+
+    setIndiceUnidadEditandoFormulario(index);
+    setUnidadEditandoFormulario({ ...unidad });
+  }
+
+  function cancelarEdicionUnidadFormulario() {
+    setIndiceUnidadEditandoFormulario(null);
+    setUnidadEditandoFormulario(unidadVacia);
+  }
+
+  function guardarEdicionUnidadFormulario() {
+    if (indiceUnidadEditandoFormulario === null) return;
+
+    if (!validarUnidad(unidadEditandoFormulario)) {
+      alert("Completa al menos económico, placas y tipo.");
+      return;
+    }
+
+    const unidadActualizada: Unidad = {
+      eco: unidadEditandoFormulario.eco.trim(),
+      placas: unidadEditandoFormulario.placas.trim(),
+      tipo: unidadEditandoFormulario.tipo.trim(),
+      km: unidadEditandoFormulario.km.trim(),
+      aceite: unidadEditandoFormulario.aceite.trim(),
+    };
+
+    setNuevaFlotilla((prev) => {
+      const nuevasUnidades = [...(prev.unidadesDetalle ?? [])];
+      nuevasUnidades[indiceUnidadEditandoFormulario] = unidadActualizada;
+
+      return {
+        ...prev,
+        unidadesDetalle: nuevasUnidades,
+        unidades: nuevasUnidades.length,
+      };
+    });
+
+    cancelarEdicionUnidadFormulario();
+  }
+
   async function guardarFlotilla() {
     if (!nuevaFlotilla.empresa.trim() || !nuevaFlotilla.contacto.trim()) {
       alert("Completa empresa y contacto.");
@@ -109,7 +318,7 @@ export default function FlotillasPage() {
         contacto: nuevaFlotilla.contacto.trim(),
         operativo: nuevaFlotilla.operativo.trim(),
         pago: nuevaFlotilla.pago.trim(),
-        unidades: Number(nuevaFlotilla.unidades) || 0,
+        unidades: (nuevaFlotilla.unidadesDetalle ?? []).length,
         estado: nuevaFlotilla.estado,
         unidadesDetalle: nuevaFlotilla.unidadesDetalle ?? [],
       };
@@ -126,7 +335,10 @@ export default function FlotillasPage() {
           prev.map((f) => (f.id === editandoId ? flotillaActualizada : f))
         );
 
-        setEmpresaSeleccionada(flotillaActualizada);
+        setEmpresaSeleccionada((prev) =>
+          prev?.id === editandoId ? flotillaActualizada : prev
+        );
+
         alert("Flotilla actualizada.");
       } else {
         const docRef = await addDoc(collection(db, "flotillas"), {
@@ -144,16 +356,7 @@ export default function FlotillasPage() {
         alert("Flotilla guardada.");
       }
 
-      setNuevaFlotilla({
-        empresa: "",
-        contacto: "",
-        operativo: "",
-        pago: "",
-        unidades: 0,
-        estado: "Prospecto",
-        unidadesDetalle: [],
-      });
-
+      limpiarFormularioFlotilla();
       setMostrarFormulario(false);
       setModoEdicion(false);
       setEditandoId(null);
@@ -176,6 +379,8 @@ export default function FlotillasPage() {
       unidadesDetalle: flotilla.unidadesDetalle ?? [],
     });
 
+    setNuevaUnidad(unidadVacia);
+    cancelarEdicionUnidadFormulario();
     setModoEdicion(true);
     setEditandoId(flotilla.id ?? null);
     setMostrarFormulario(true);
@@ -205,16 +410,165 @@ export default function FlotillasPage() {
   function cancelarEdicion() {
     setModoEdicion(false);
     setEditandoId(null);
-    setNuevaFlotilla({
-      empresa: "",
-      contacto: "",
-      operativo: "",
-      pago: "",
-      unidades: 0,
-      estado: "Prospecto",
-      unidadesDetalle: [],
-    });
+    limpiarFormularioFlotilla();
     setMostrarFormulario(false);
+  }
+
+  async function eliminarUnidadGuardada(index: number) {
+    if (!empresaSeleccionada?.id) return;
+
+    const confirmar = confirm("¿Eliminar esta unidad?");
+    if (!confirmar) return;
+
+    try {
+      const nuevasUnidades = (empresaSeleccionada.unidadesDetalle ?? []).filter(
+        (_, i) => i !== index
+      );
+
+      const flotillaActualizada: Flotilla = {
+        ...empresaSeleccionada,
+        unidadesDetalle: nuevasUnidades,
+        unidades: nuevasUnidades.length,
+      };
+
+      await updateDoc(doc(db, "flotillas", empresaSeleccionada.id), {
+        unidadesDetalle: nuevasUnidades,
+        unidades: nuevasUnidades.length,
+      });
+
+      setEmpresaSeleccionada(flotillaActualizada);
+      setFlotillas((prev) =>
+        prev.map((f) =>
+          f.id === empresaSeleccionada.id ? flotillaActualizada : f
+        )
+      );
+
+      if (indiceUnidadEditandoGuardada === index) {
+        cancelarEdicionUnidadGuardada();
+      }
+
+      alert("Unidad eliminada.");
+    } catch (error) {
+      console.error("Error al eliminar unidad:", error);
+      alert("No se pudo eliminar la unidad.");
+    }
+  }
+
+  function iniciarEdicionUnidadGuardada(index: number) {
+    const unidad = empresaSeleccionada?.unidadesDetalle?.[index];
+    if (!unidad) return;
+
+    setIndiceUnidadEditandoGuardada(index);
+    setUnidadEditandoGuardada({ ...unidad });
+  }
+
+  function cancelarEdicionUnidadGuardada() {
+    setIndiceUnidadEditandoGuardada(null);
+    setUnidadEditandoGuardada(unidadVacia);
+  }
+
+  async function guardarEdicionUnidadGuardada() {
+    if (!empresaSeleccionada?.id || indiceUnidadEditandoGuardada === null) {
+      return;
+    }
+
+    if (!validarUnidad(unidadEditandoGuardada)) {
+      alert("Completa al menos económico, placas y tipo.");
+      return;
+    }
+
+    try {
+      setGuardandoUnidad(true);
+
+      const unidadActualizada: Unidad = {
+        eco: unidadEditandoGuardada.eco.trim(),
+        placas: unidadEditandoGuardada.placas.trim(),
+        tipo: unidadEditandoGuardada.tipo.trim(),
+        km: unidadEditandoGuardada.km.trim(),
+        aceite: unidadEditandoGuardada.aceite.trim(),
+      };
+
+      const nuevasUnidades = [...(empresaSeleccionada.unidadesDetalle ?? [])];
+      nuevasUnidades[indiceUnidadEditandoGuardada] = unidadActualizada;
+
+      const flotillaActualizada: Flotilla = {
+        ...empresaSeleccionada,
+        unidadesDetalle: nuevasUnidades,
+        unidades: nuevasUnidades.length,
+      };
+
+      await updateDoc(doc(db, "flotillas", empresaSeleccionada.id), {
+        unidadesDetalle: nuevasUnidades,
+        unidades: nuevasUnidades.length,
+      });
+
+      setEmpresaSeleccionada(flotillaActualizada);
+      setFlotillas((prev) =>
+        prev.map((f) =>
+          f.id === empresaSeleccionada.id ? flotillaActualizada : f
+        )
+      );
+
+      cancelarEdicionUnidadGuardada();
+      alert("Unidad actualizada.");
+    } catch (error) {
+      console.error("Error al actualizar unidad:", error);
+      alert("No se pudo actualizar la unidad.");
+    } finally {
+      setGuardandoUnidad(false);
+    }
+  }
+
+  async function agregarUnidadAFichaEmpresa() {
+    if (!empresaSeleccionada?.id) return;
+
+    if (!validarUnidad(nuevaUnidadGuardada)) {
+      alert("Completa al menos económico, placas y tipo.");
+      return;
+    }
+
+    try {
+      setAgregandoUnidadGuardada(true);
+
+      const unidadParaAgregar: Unidad = {
+        eco: nuevaUnidadGuardada.eco.trim(),
+        placas: nuevaUnidadGuardada.placas.trim(),
+        tipo: nuevaUnidadGuardada.tipo.trim(),
+        km: nuevaUnidadGuardada.km.trim(),
+        aceite: nuevaUnidadGuardada.aceite.trim(),
+      };
+
+      const nuevasUnidades = [
+        ...(empresaSeleccionada.unidadesDetalle ?? []),
+        unidadParaAgregar,
+      ];
+
+      const flotillaActualizada: Flotilla = {
+        ...empresaSeleccionada,
+        unidadesDetalle: nuevasUnidades,
+        unidades: nuevasUnidades.length,
+      };
+
+      await updateDoc(doc(db, "flotillas", empresaSeleccionada.id), {
+        unidadesDetalle: nuevasUnidades,
+        unidades: nuevasUnidades.length,
+      });
+
+      setEmpresaSeleccionada(flotillaActualizada);
+      setFlotillas((prev) =>
+        prev.map((f) =>
+          f.id === empresaSeleccionada.id ? flotillaActualizada : f
+        )
+      );
+
+      setNuevaUnidadGuardada(unidadVacia);
+      alert("Unidad agregada.");
+    } catch (error) {
+      console.error("Error al agregar unidad:", error);
+      alert("No se pudo agregar la unidad.");
+    } finally {
+      setAgregandoUnidadGuardada(false);
+    }
   }
 
   return (
@@ -315,22 +669,6 @@ export default function FlotillasPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Unidades</label>
-              <input
-                type="number"
-                value={nuevaFlotilla.unidades}
-                onChange={(e) =>
-                  setNuevaFlotilla((prev) => ({
-                    ...prev,
-                    unidades: Number(e.target.value),
-                  }))
-                }
-                className="w-full rounded-xl border px-3 py-2 outline-none"
-                placeholder="0"
-              />
-            </div>
-
-            <div>
               <label className="mb-1 block text-sm font-medium">Estado</label>
               <select
                 value={nuevaFlotilla.estado}
@@ -346,6 +684,199 @@ export default function FlotillasPage() {
                 <option value="Seguimiento">Seguimiento</option>
                 <option value="Activo">Activo</option>
               </select>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-slate-200 p-4">
+            <h3 className="mb-4 text-lg font-bold">Agregar unidad</h3>
+
+            <div className="grid gap-4 md:grid-cols-5">
+              <input
+                type="text"
+                value={nuevaUnidad.eco}
+                onChange={(e) =>
+                  setNuevaUnidad((prev) => ({ ...prev, eco: e.target.value }))
+                }
+                className="w-full rounded-xl border px-3 py-2 outline-none"
+                placeholder="Económico"
+              />
+              <input
+                type="text"
+                value={nuevaUnidad.placas}
+                onChange={(e) =>
+                  setNuevaUnidad((prev) => ({
+                    ...prev,
+                    placas: e.target.value,
+                  }))
+                }
+                className="w-full rounded-xl border px-3 py-2 outline-none"
+                placeholder="Placas"
+              />
+              <input
+                type="text"
+                value={nuevaUnidad.tipo}
+                onChange={(e) =>
+                  setNuevaUnidad((prev) => ({ ...prev, tipo: e.target.value }))
+                }
+                className="w-full rounded-xl border px-3 py-2 outline-none"
+                placeholder="Tipo"
+              />
+              <input
+                type="text"
+                value={nuevaUnidad.km}
+                onChange={(e) =>
+                  setNuevaUnidad((prev) => ({ ...prev, km: e.target.value }))
+                }
+                className="w-full rounded-xl border px-3 py-2 outline-none"
+                placeholder="Kilometraje"
+              />
+              <input
+                type="text"
+                value={nuevaUnidad.aceite}
+                onChange={(e) =>
+                  setNuevaUnidad((prev) => ({
+                    ...prev,
+                    aceite: e.target.value,
+                  }))
+                }
+                className="w-full rounded-xl border px-3 py-2 outline-none"
+                placeholder="Aceite"
+              />
+            </div>
+
+            <div className="mt-4">
+              <button
+                onClick={agregarUnidadAlFormulario}
+                type="button"
+                className="rounded-xl bg-slate-900 px-4 py-2 text-white hover:bg-slate-800"
+              >
+                Agregar unidad
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {(nuevaFlotilla.unidadesDetalle ?? []).length > 0 ? (
+                nuevaFlotilla.unidadesDetalle.map((u, index) => {
+                  const estaEditando = indiceUnidadEditandoFormulario === index;
+
+                  return (
+                    <div
+                      key={`${u.eco}-${index}`}
+                      className="rounded border p-3"
+                    >
+                      {estaEditando ? (
+                        <>
+                          <div className="grid gap-2 md:grid-cols-5">
+                            <input
+                              type="text"
+                              value={unidadEditandoFormulario.eco}
+                              onChange={(e) =>
+                                setUnidadEditandoFormulario((prev) => ({
+                                  ...prev,
+                                  eco: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-3 py-2 outline-none"
+                              placeholder="Económico"
+                            />
+                            <input
+                              type="text"
+                              value={unidadEditandoFormulario.placas}
+                              onChange={(e) =>
+                                setUnidadEditandoFormulario((prev) => ({
+                                  ...prev,
+                                  placas: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-3 py-2 outline-none"
+                              placeholder="Placas"
+                            />
+                            <input
+                              type="text"
+                              value={unidadEditandoFormulario.tipo}
+                              onChange={(e) =>
+                                setUnidadEditandoFormulario((prev) => ({
+                                  ...prev,
+                                  tipo: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-3 py-2 outline-none"
+                              placeholder="Tipo"
+                            />
+                            <input
+                              type="text"
+                              value={unidadEditandoFormulario.km}
+                              onChange={(e) =>
+                                setUnidadEditandoFormulario((prev) => ({
+                                  ...prev,
+                                  km: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-3 py-2 outline-none"
+                              placeholder="Kilometraje"
+                            />
+                            <input
+                              type="text"
+                              value={unidadEditandoFormulario.aceite}
+                              onChange={(e) =>
+                                setUnidadEditandoFormulario((prev) => ({
+                                  ...prev,
+                                  aceite: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-3 py-2 outline-none"
+                              placeholder="Aceite"
+                            />
+                          </div>
+
+                          <div className="mt-3 flex gap-3">
+                            <button
+                              type="button"
+                              onClick={guardarEdicionUnidadFormulario}
+                              className="text-sm text-green-600"
+                            >
+                              Guardar cambios
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelarEdicionUnidadFormulario}
+                              className="text-sm text-slate-600"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="grid gap-2 md:grid-cols-7">
+                          <span>{u.eco}</span>
+                          <span>{u.placas}</span>
+                          <span>{u.tipo}</span>
+                          <span>{u.km}</span>
+                          <span>{u.aceite}</span>
+                          <button
+                            type="button"
+                            onClick={() => iniciarEdicionUnidadFormulario(index)}
+                            className="text-sm text-amber-600"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => eliminarUnidadDelFormulario(index)}
+                            className="text-sm text-red-600"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-slate-500">
+                  Aún no agregas unidades a esta flotilla.
+                </p>
+              )}
             </div>
           </div>
 
@@ -376,42 +907,74 @@ export default function FlotillasPage() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-slate-500">Flotillas activas</p>
-          <p className="text-2xl font-bold">
-            {flotillas.filter((f) => f.estado === "Activo").length}
-          </p>
+          <p className="text-sm text-slate-500">Activos</p>
+          <p className="text-2xl font-bold">{totalActivas}</p>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-4 shadow-sm">
+          <p className="text-sm text-slate-500">Seguimiento</p>
+          <p className="text-2xl font-bold">{totalSeguimiento}</p>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-4 shadow-sm">
+          <p className="text-sm text-slate-500">Prospectos</p>
+          <p className="text-2xl font-bold">{totalProspectos}</p>
         </div>
 
         <div className="rounded-2xl border bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">Unidades</p>
-          <p className="text-2xl font-bold">
-            {flotillas.reduce((acc, item) => acc + item.unidades, 0)}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-slate-500">Visitas</p>
-          <p className="text-2xl font-bold">7</p>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-slate-500">Cotización abierta</p>
-          <p className="text-2xl font-bold">$248k</p>
+          <p className="text-2xl font-bold">{totalUnidades}</p>
         </div>
       </div>
 
       <section className="rounded-3xl border bg-white p-5 shadow-sm">
-        <h2 className="mb-4 text-xl font-bold">Empresas</h2>
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-xl font-bold">Empresas</h2>
+            <p className="text-sm text-slate-500">
+              Busca por empresa o contacto y filtra por estado
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium">Buscar</label>
+              <input
+                type="text"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                className="w-full rounded-xl border px-3 py-2 outline-none"
+                placeholder="Empresa o contacto"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">Estado</label>
+              <select
+                value={filtroEstado}
+                onChange={(e) =>
+                  setFiltroEstado(e.target.value as FiltroEstado)
+                }
+                className="w-full rounded-xl border px-3 py-2 outline-none"
+              >
+                <option value="Todos">Todos</option>
+                <option value="Prospecto">Prospecto</option>
+                <option value="Seguimiento">Seguimiento</option>
+                <option value="Activo">Activo</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
         {cargando ? (
           <p className="text-sm text-slate-500">Cargando flotillas...</p>
-        ) : flotillas.length === 0 ? (
+        ) : flotillasFiltradas.length === 0 ? (
           <p className="text-sm text-slate-500">
-            Aún no hay flotillas guardadas.
+            No hay resultados con esos filtros.
           </p>
         ) : (
           <div className="space-y-3">
-            {flotillas.map((f) => (
+            {flotillasFiltradas.map((f) => (
               <div
                 key={f.id ?? f.empresa}
                 className="rounded-2xl border p-4 hover:bg-slate-50"
@@ -424,7 +987,11 @@ export default function FlotillasPage() {
                     </p>
                   </div>
 
-                  <span className="rounded bg-slate-100 px-2 py-1 text-xs">
+                  <span
+                    className={`rounded px-2 py-1 text-xs ${obtenerClasesEstado(
+                      f.estado
+                    )}`}
+                  >
                     {f.estado}
                   </span>
                 </div>
@@ -436,7 +1003,11 @@ export default function FlotillasPage() {
 
                   <div className="flex gap-3">
                     <button
-                      onClick={() => setEmpresaSeleccionada(f)}
+                      onClick={() => {
+                        setEmpresaSeleccionada(f);
+                        cancelarEdicionUnidadGuardada();
+                        setNuevaUnidadGuardada(unidadVacia);
+                      }}
                       className="text-sm text-blue-600"
                     >
                       Ver detalle
@@ -468,12 +1039,16 @@ export default function FlotillasPage() {
           <div>
             <h2 className="text-xl font-bold">Ficha de empresa</h2>
             <p className="text-sm text-slate-500">
-              Vista ejemplo para control técnico
+              Detalle comercial y técnico de la flotilla seleccionada
             </p>
           </div>
 
           {empresaSeleccionada && (
-            <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-700">
+            <span
+              className={`rounded px-2 py-1 text-xs ${obtenerClasesEstado(
+                empresaSeleccionada.estado
+              )}`}
+            >
               {empresaSeleccionada.estado}
             </span>
           )}
@@ -496,22 +1071,205 @@ export default function FlotillasPage() {
               </div>
             </div>
 
+            <div className="mt-5 rounded-2xl border border-slate-200 p-4">
+              <h3 className="mb-4 text-lg font-bold">
+                Agregar unidad a la empresa
+              </h3>
+
+              <div className="grid gap-4 md:grid-cols-5">
+                <input
+                  type="text"
+                  value={nuevaUnidadGuardada.eco}
+                  onChange={(e) =>
+                    setNuevaUnidadGuardada((prev) => ({
+                      ...prev,
+                      eco: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border px-3 py-2 outline-none"
+                  placeholder="Económico"
+                />
+                <input
+                  type="text"
+                  value={nuevaUnidadGuardada.placas}
+                  onChange={(e) =>
+                    setNuevaUnidadGuardada((prev) => ({
+                      ...prev,
+                      placas: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border px-3 py-2 outline-none"
+                  placeholder="Placas"
+                />
+                <input
+                  type="text"
+                  value={nuevaUnidadGuardada.tipo}
+                  onChange={(e) =>
+                    setNuevaUnidadGuardada((prev) => ({
+                      ...prev,
+                      tipo: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border px-3 py-2 outline-none"
+                  placeholder="Tipo"
+                />
+                <input
+                  type="text"
+                  value={nuevaUnidadGuardada.km}
+                  onChange={(e) =>
+                    setNuevaUnidadGuardada((prev) => ({
+                      ...prev,
+                      km: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border px-3 py-2 outline-none"
+                  placeholder="Kilometraje"
+                />
+                <input
+                  type="text"
+                  value={nuevaUnidadGuardada.aceite}
+                  onChange={(e) =>
+                    setNuevaUnidadGuardada((prev) => ({
+                      ...prev,
+                      aceite: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border px-3 py-2 outline-none"
+                  placeholder="Aceite"
+                />
+              </div>
+
+              <div className="mt-4">
+                <button
+                  onClick={agregarUnidadAFichaEmpresa}
+                  disabled={agregandoUnidadGuardada}
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {agregandoUnidadGuardada
+                    ? "Agregando..."
+                    : "Agregar unidad a esta empresa"}
+                </button>
+              </div>
+            </div>
+
             <div className="mt-5">
               <h3 className="mb-2 font-bold">Unidades</h3>
 
               {(empresaSeleccionada.unidadesDetalle ?? []).length > 0 ? (
-                empresaSeleccionada.unidadesDetalle.map((u) => (
-                  <div
-                    key={u.eco}
-                    className="mb-2 grid gap-2 rounded border p-3 md:grid-cols-5"
-                  >
-                    <span>{u.eco}</span>
-                    <span>{u.placas}</span>
-                    <span>{u.tipo}</span>
-                    <span>{u.km}</span>
-                    <span>{u.aceite}</span>
-                  </div>
-                ))
+                empresaSeleccionada.unidadesDetalle.map((u, index) => {
+                  const estaEditando = indiceUnidadEditandoGuardada === index;
+
+                  return (
+                    <div
+                      key={`${u.eco}-${index}`}
+                      className="mb-2 rounded border p-3"
+                    >
+                      {estaEditando ? (
+                        <>
+                          <div className="grid gap-2 md:grid-cols-5">
+                            <input
+                              type="text"
+                              value={unidadEditandoGuardada.eco}
+                              onChange={(e) =>
+                                setUnidadEditandoGuardada((prev) => ({
+                                  ...prev,
+                                  eco: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-3 py-2 outline-none"
+                              placeholder="Económico"
+                            />
+                            <input
+                              type="text"
+                              value={unidadEditandoGuardada.placas}
+                              onChange={(e) =>
+                                setUnidadEditandoGuardada((prev) => ({
+                                  ...prev,
+                                  placas: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-3 py-2 outline-none"
+                              placeholder="Placas"
+                            />
+                            <input
+                              type="text"
+                              value={unidadEditandoGuardada.tipo}
+                              onChange={(e) =>
+                                setUnidadEditandoGuardada((prev) => ({
+                                  ...prev,
+                                  tipo: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-3 py-2 outline-none"
+                              placeholder="Tipo"
+                            />
+                            <input
+                              type="text"
+                              value={unidadEditandoGuardada.km}
+                              onChange={(e) =>
+                                setUnidadEditandoGuardada((prev) => ({
+                                  ...prev,
+                                  km: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-3 py-2 outline-none"
+                              placeholder="Kilometraje"
+                            />
+                            <input
+                              type="text"
+                              value={unidadEditandoGuardada.aceite}
+                              onChange={(e) =>
+                                setUnidadEditandoGuardada((prev) => ({
+                                  ...prev,
+                                  aceite: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-3 py-2 outline-none"
+                              placeholder="Aceite"
+                            />
+                          </div>
+
+                          <div className="mt-3 flex gap-3">
+                            <button
+                              onClick={guardarEdicionUnidadGuardada}
+                              disabled={guardandoUnidad}
+                              className="text-sm text-green-600 disabled:opacity-60"
+                            >
+                              {guardandoUnidad ? "Guardando..." : "Guardar cambios"}
+                            </button>
+                            <button
+                              onClick={cancelarEdicionUnidadGuardada}
+                              disabled={guardandoUnidad}
+                              className="text-sm text-slate-600 disabled:opacity-60"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="grid gap-2 md:grid-cols-7">
+                          <span>{u.eco}</span>
+                          <span>{u.placas}</span>
+                          <span>{u.tipo}</span>
+                          <span>{u.km}</span>
+                          <span>{u.aceite}</span>
+                          <button
+                            onClick={() => iniciarEdicionUnidadGuardada(index)}
+                            className="text-sm text-amber-600"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => eliminarUnidadGuardada(index)}
+                            className="text-sm text-red-600"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               ) : (
                 <p className="text-sm text-slate-500">
                   No hay unidades registradas.
@@ -524,24 +1282,6 @@ export default function FlotillasPage() {
             Selecciona una flotilla para ver su detalle.
           </p>
         )}
-      </section>
-
-      <section className="rounded-3xl border bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-xl font-bold">
-          Oportunidades para vender más
-        </h2>
-
-        <div className="space-y-2 text-sm">
-          <div className="rounded bg-yellow-100 p-3">
-            6 unidades requieren servicio
-          </div>
-          <div className="rounded bg-blue-100 p-3">
-            Oportunidad de convenio mensual
-          </div>
-          <div className="rounded bg-green-100 p-3">
-            3 clientes sin recompra programada
-          </div>
-        </div>
       </section>
     </div>
   );
