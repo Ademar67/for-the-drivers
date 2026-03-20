@@ -9,20 +9,7 @@ import "./globals.css";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import FirestoreSyncStatus from "@/components/FirestoreSyncStatus";
 import LogoutButton from "@/components/auth/LogoutButton";
-
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from "@/components/ui/sidebar";
+import { FirebaseClientProvider } from "@/firebase/client-provider";
 
 import {
   Home,
@@ -38,61 +25,33 @@ import {
   ClipboardList,
   FileSearch,
   Calculator,
+  Truck,
 } from "lucide-react";
 
-import { FirebaseClientProvider } from "@/firebase/client-provider";
-
-function SidebarNavigation() {
-  const { isMobile, setOpenMobile } = useSidebar();
-  const pathname = usePathname();
-
-  const handleLinkClick = () => {
-    if (isMobile) setOpenMobile(false);
-  };
-
-  const menuItems = [
-    { href: "/dashboard", label: "Dashboard", icon: Home },
-    { href: "/clientes", label: "Clientes", icon: Users },
-    { href: "/prospectos", label: "Prospectos", icon: UserPlus },
-    { href: "/agenda", label: "Agenda", icon: Calendar },
-    { href: "/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
-    { href: "/precios", label: "Precios", icon: Calculator },
-    { href: "/mapa-visitas", label: "Mapa de Visitas", icon: Map },
-    { href: "/productos", label: "Productos", icon: Package },
-    { href: "/facturas", label: "Cobranza", icon: FileText },
-    { href: "/mapa-clientes", label: "Mapa de Clientes", icon: MapPin },
-    { href: "/guias-liqui-moly", label: "Guías Liqui Moly", icon: BookOpen },
-    { href: "/fichas-tecnicas", label: "Fichas Técnicas", icon: FileSearch },
-    { href: "/materiales", label: "Materiales", icon: FileText },
-    { href: "/soporte-ia", label: "Soporte IA", icon: Bot },
-  ];
-
-  return (
-    <SidebarMenu>
-      {menuItems.map((item) => {
-        const Icon = item.icon;
-        const isActive = pathname === item.href;
-
-        return (
-          <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton asChild size="lg" isActive={isActive}>
-              <Link href={item.href} onClick={handleLinkClick}>
-                <Icon />
-                <span>{item.label}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        );
-      })}
-    </SidebarMenu>
-  );
-}
+const menuItems = [
+  { href: "/dashboard", label: "Dashboard", icon: Home },
+  { href: "/clientes", label: "Clientes", icon: Users },
+  { href: "/prospectos", label: "Prospectos", icon: UserPlus },
+  { href: "/agenda", label: "Agenda", icon: Calendar },
+  { href: "/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
+  { href: "/precios", label: "Precios", icon: Calculator },
+  { href: "/mapa-visitas", label: "Mapa de Visitas", icon: Map },
+  { href: "/productos", label: "Productos", icon: Package },
+  { href: "/facturas", label: "Cobranza", icon: FileText },
+  { href: "/mapa-clientes", label: "Mapa de Clientes", icon: MapPin },
+  { href: "/guias-liqui-moly", label: "Guías Liqui Moly", icon: BookOpen },
+  { href: "/fichas-tecnicas", label: "Fichas Técnicas", icon: FileSearch },
+  { href: "/materiales", label: "Materiales", icon: FileText },
+  { href: "/soporte-ia", label: "Soporte IA", icon: Bot },
+  { href: "/flotillas", label: "Flotillas", icon: Truck },
+];
 
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const [showSplash, setShowSplash] = useState(false);
 
   useEffect(() => {
@@ -103,14 +62,29 @@ export default function AppLayout({
     }
   }, []);
 
+  const isAuthPage = pathname === "/login" || pathname === "/sign-up";
+
+  if (isAuthPage) {
+    return (
+      <FirebaseClientProvider>
+        <ConnectionStatus />
+        <FirestoreSyncStatus />
+        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+        <main className="min-h-screen bg-background">{children}</main>
+      </FirebaseClientProvider>
+    );
+  }
+
   return (
-    <SidebarProvider>
+    <FirebaseClientProvider>
       <ConnectionStatus />
       <FirestoreSyncStatus />
 
-      <div className="flex min-h-screen w-full bg-background pt-10">
-        <Sidebar>
-          <SidebarHeader className="border-b border-sidebar-border/60 px-4 py-4">
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+
+      <div className="flex min-h-screen w-full bg-background">
+        <aside className="flex w-64 flex-col border-r bg-[#0f3b82] text-white">
+          <div className="border-b px-4 py-4">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-white/10">
                 <Image
@@ -123,45 +97,42 @@ export default function AppLayout({
                 />
               </div>
 
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-sidebar-foreground">
-                  Liqui Moly
-                </p>
-                <p className="truncate text-xs text-sidebar-foreground/70">
-                  Sales Hub
-                </p>
+              <div>
+                <p className="text-sm font-semibold">Liqui Moly</p>
+                <p className="text-xs text-white/70">Sales Hub</p>
               </div>
             </div>
-          </SidebarHeader>
+          </div>
 
-          <SidebarContent className="px-2 py-3">
-            <SidebarGroup>
-              <SidebarGroupLabel>Menú</SidebarGroupLabel>
-              <SidebarNavigation />
-            </SidebarGroup>
-          </SidebarContent>
+          <nav className="flex flex-1 flex-col gap-1 p-3">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
 
-          <div className="mt-auto border-t border-sidebar-border/60 p-4">
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition ${
+                    isActive
+                      ? "bg-white/20 font-semibold"
+                      : "hover:bg-white/10"
+                  }`}
+                >
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="p-4">
             <LogoutButton />
           </div>
-        </Sidebar>
+        </aside>
 
-        <main className="flex-1 p-4 md:p-6">
-          <div className="mb-4 flex items-center">
-            <SidebarTrigger />
-          </div>
-
-          {showSplash && (
-            <SplashScreen
-              onFinish={() => {
-                setShowSplash(false);
-              }}
-            />
-          )}
-
-          <FirebaseClientProvider>{children}</FirebaseClientProvider>
-        </main>
+        <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
-    </SidebarProvider>
+    </FirebaseClientProvider>
   );
 }
