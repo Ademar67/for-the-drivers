@@ -107,6 +107,19 @@ service cloud.firestore {
     }
 
     /**
+     * @description Manages sales quotations. Only authenticated staff can access or modify quote data.
+     * @path /cotizaciones/{cotizacionId}
+     * @allow (get) An authenticated user reads a quote at '/cotizaciones/quote_123'.
+     * @deny (get) An unauthenticated user attempts to read a quote.
+     * @principle Restricts all access to a collection to authenticated users (internal staff).
+     */
+    match /cotizaciones/{cotizacionId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if canWriteExistingDocIfSignedIn();
+    }
+
+    /**
      * @description Manages invoices. This is sensitive financial data accessible only by authenticated staff.
      * @path /facturas/{facturaId}
      * @allow (list) An authenticated user lists all invoices.
