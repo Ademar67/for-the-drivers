@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+
 import { stores } from "@/lib/stores";
+import { db } from "@/firebase/config";
 
 type ChainOption = "AutoZone" | "OReilly" | "Liverpool" | "";
 
@@ -19,6 +22,22 @@ type VisitRow = {
   tiendaId: string;
   observaciones: string;
   productos: ProductRow[];
+};
+
+type InventarioConstruido = {
+  nombre: string;
+  fecha: string;
+  observacionesGenerales: string;
+  visitas: Array<{
+    id: string;
+    cadena: ChainOption;
+    tiendaId: string;
+    tiendaNombre: string;
+    ciudad: string;
+    estado: string;
+    observaciones: string;
+    productos: ProductRow[];
+  }>;
 };
 
 function formatToday() {
@@ -55,6 +74,7 @@ export default function InventarioPage() {
   const [fecha, setFecha] = useState(formatToday());
   const [observacionesGenerales, setObservacionesGenerales] = useState("");
   const [visitas, setVisitas] = useState<VisitRow[]>([createVisitRow()]);
+  const [guardandoFirebase, setGuardandoFirebase] = useState(false);
 
   const totalProductosValidos = useMemo(() => {
     return visitas.reduce((acc, visita) => {
@@ -71,7 +91,10 @@ export default function InventarioPage() {
   }
 
   function eliminarVisita(visitId: string) {
-    setVisitas((prev) => prev.filter((visita) => visita.id !== visitId));
+    setVisitas((prev) => {
+      const nuevasVisitas = prev.filter((visita) => visita.id !== visitId);
+      return nuevasVisitas.length > 0 ? nuevasVisitas : [createVisitRow()];
+    });
   }
 
   function actualizarVisita(
@@ -169,7 +192,7 @@ export default function InventarioPage() {
     );
   }
 
-  function construirInventario() {
+  function construirInventario(): InventarioConstruido {
     return {
       nombre: nombre.trim(),
       fecha,
@@ -179,10 +202,13 @@ export default function InventarioPage() {
           const tienda = stores.find((store) => store.id === visita.tiendaId);
 
           return {
-            ...visita,
+            id: visita.id,
+            cadena: visita.cadena,
+            tiendaId: visita.tiendaId,
             tiendaNombre: tienda?.name || "",
             ciudad: tienda?.city || "",
             estado: tienda?.state || "",
+            observaciones: visita.observaciones.trim(),
             productos: visita.productos.filter(
               (item) => item.product.trim() !== "" && item.quantity !== ""
             ),
@@ -190,8 +216,8 @@ export default function InventarioPage() {
         })
         .filter(
           (visita) =>
-            visita.cadena &&
-            visita.tiendaId &&
+            visita.cadena !== "" &&
+            visita.tiendaId !== "" &&
             visita.productos.length > 0
         ),
     };
@@ -199,8 +225,54 @@ export default function InventarioPage() {
 
   function handleGuardarBorrador() {
     const inventario = construirInventario();
-    localStorage.setItem("inventario-diario-borrador", JSON.stringify(inventario));
+    localStorage.setItem(
+      "inventario-diario-borrador",
+      JSON.stringify(inventario)
+    );
     alert("Inventario diario guardado temporalmente en este dispositivo.");
+  }
+
+  async function handleGuardarFirebase() {
+    const inventario = construirInventario();
+
+    if (!inventario.nombre) {
+      alert("Escribe tu nombre antes de guardar.");
+      return;
+    }
+
+    if (!inventario.fecha) {
+      alert("Selecciona una fecha antes de guardar.");
+      return;
+    }
+
+    if (inventario.visitas.length === 0) {
+      alert("Agrega al menos una tienda con productos válidos.");
+      return;
+    }
+
+    try {
+      setGuardandoFirebase(true);
+
+      await addDoc(collection(db, "inventarios"), {
+        nombre: inventario.nombre,
+        fecha: inventario.fecha,
+        observacionesGenerales: inventario.observacionesGenerales,
+        visitas: inventario.visitas,
+        totalTiendas: inventario.visitas.length,
+        totalProductos: inventario.visitas.reduce(
+          (acc, visita) => acc + visita.productos.length,
+          0
+        ),
+        createdAt: serverTimestamp(),
+      });
+
+      alert("Inventario guardado correctamente en Firebase.");
+    } catch (error) {
+      console.error("Error al guardar inventario en Firebase:", error);
+      alert("Ocurrió un error al guardar en Firebase.");
+    } finally {
+      setGuardandoFirebase(false);
+    }
   }
 
   function handleGenerarPDF() {
@@ -241,6 +313,7 @@ export default function InventarioPage() {
       `Observaciones generales: ${observacionesTexto}`,
       pageWidth - 28
     );
+
     doc.text(observacionesLineas, 14, 40);
 
     let y = 40 + observacionesLineas.length * 6 + 6;
@@ -264,9 +337,7 @@ export default function InventarioPage() {
 
       const detalleTienda = [
         `Ciudad / Estado: ${visita.ciudad || "-"} / ${visita.estado || "-"}`,
-        `Observaciones: ${
-          visita.observaciones?.trim() || "Sin observaciones"
-        }`,
+        `Observaciones: ${visita.observaciones || "Sin observaciones"}`,
       ];
 
       const detalleLineas = doc.splitTextToSize(
@@ -295,11 +366,13 @@ export default function InventarioPage() {
         margin: { left: 14, right: 14 },
       });
 
-      y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
-        ?.finalY
-        ? ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable!
-            .finalY + 10)
-        : y + 10;
+      const finalY = (
+        doc as jsPDF & {
+          lastAutoTable?: { finalY: number };
+        }
+      ).lastAutoTable?.finalY;
+
+      y = finalY ? finalY + 10 : y + 10;
     });
 
     const fechaArchivo = inventario.fecha || formatToday();
@@ -631,6 +704,15 @@ export default function InventarioPage() {
                 className="rounded-xl bg-gray-900 px-5 py-3 text-sm font-medium text-white hover:bg-black"
               >
                 Guardar borrador
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGuardarFirebase}
+                disabled={guardandoFirebase}
+                className="rounded-xl bg-green-600 px-5 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {guardandoFirebase ? "Guardando..." : "Guardar en sistema"}
               </button>
 
               <button
