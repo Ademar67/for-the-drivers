@@ -18,6 +18,7 @@ import {
   PhoneCall,
   ArrowUpRight,
   Search,
+  Boxes,
 } from "lucide-react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 
@@ -60,6 +61,12 @@ const dashboardCards = [
     description: "Calculadora de precios y descuentos",
     href: "/precios",
     icon: Calculator,
+  },
+  {
+    title: "Inventario",
+    description: "Captura inventario diario por tienda y producto",
+    href: "/inventario",
+    icon: Boxes,
   },
   {
     title: "Mapa de Clientes",
@@ -306,7 +313,7 @@ export default function DashboardPage() {
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Acciones rápidas</h2>
 
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
           <Link href="/clientes" className="block">
             <Card className="cursor-pointer border border-border bg-card/90 transition-all duration-200 hover:border-blue-200 hover:bg-blue-50 hover:shadow-md">
               <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
@@ -339,6 +346,15 @@ export default function DashboardPage() {
               <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
                 <Calculator className="h-5 w-5 text-amber-600" />
                 Consultar precio
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/inventario" className="block">
+            <Card className="cursor-pointer border border-border bg-card/90 transition-all duration-200 hover:border-cyan-200 hover:bg-cyan-50 hover:shadow-md">
+              <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
+                <Boxes className="h-5 w-5 text-cyan-600" />
+                Nuevo inventario
               </CardContent>
             </Card>
           </Link>

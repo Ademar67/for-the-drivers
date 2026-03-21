@@ -26,6 +26,7 @@ import {
   FileSearch,
   Calculator,
   Truck,
+  Boxes,
 } from "lucide-react";
 
 const menuItems = [
@@ -35,6 +36,7 @@ const menuItems = [
   { href: "/agenda", label: "Agenda", icon: Calendar },
   { href: "/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
   { href: "/precios", label: "Precios", icon: Calculator },
+  { href: "/inventario", label: "Inventario", icon: Boxes },
   { href: "/mapa-visitas", label: "Mapa de Visitas", icon: Map },
   { href: "/productos", label: "Productos", icon: Package },
   { href: "/facturas", label: "Cobranza", icon: FileText },
