@@ -35,7 +35,7 @@ export async function POST(req: Request) {
             role: msg.role,
             content: msg.content.trim(),
           }))
-          .filter((msg) => msg.content.length > 0)
+          .filter((msg: HistoryMessage) => msg.content.length > 0)
       : [];
 
     if (!query) {
