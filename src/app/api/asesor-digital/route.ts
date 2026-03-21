@@ -28,10 +28,10 @@ export async function POST(req: Request) {
     const query =
       typeof body?.query === 'string' ? body.query.trim() : '';
 
-    const history: HistoryMessage[] = Array.isArray(body?.history)
+      const history: HistoryMessage[] = Array.isArray(body?.history)
       ? body.history
           .filter(isHistoryMessage)
-          .map((msg) => ({
+          .map((msg: HistoryMessage) => ({
             role: msg.role,
             content: msg.content.trim(),
           }))
