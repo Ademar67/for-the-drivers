@@ -32,7 +32,7 @@ interface Message {
   products?: ProductCardData[];
   isError?: boolean;
   severity?: "baja" | "media" | "alta";
-  preguntasClaritficacion?: string[];
+  preguntasClarificacion?: string[];
 }
 
 interface AsesorDigitalResponse {
@@ -115,8 +115,16 @@ export default function SoporteIAPage() {
             `Objetivo: ${p.objetivo || "No especificado"}\n` +
             `Compatibilidad: ${p.compatibilidad || "No especificada"}\n` +
             `Cómo usar: ${p.como_usar || "Sin instrucciones"}\n` +
-            `Cuándo usar:\n- ${(p.cuando_usar ?? []).join("\n- ")}\n` +
-            `Cuándo NO usar:\n- ${(p.cuando_no_usar ?? []).join("\n- ")}`
+            `Cuándo usar:\n- ${
+              p.cuando_usar && p.cuando_usar.length > 0
+                ? p.cuando_usar.join("\n- ")
+                : "No especificado"
+            }\n` +
+            `Cuándo NO usar:\n- ${
+              p.cuando_no_usar && p.cuando_no_usar.length > 0
+                ? p.cuando_no_usar.join("\n- ")
+                : "No especificado"
+            }`
           );
         })
         .join("\n");
@@ -198,7 +206,7 @@ export default function SoporteIAPage() {
           ? data.productos_recomendados
           : [],
         severity: data.severidad ?? "media",
-        preguntasClaritficacion: Array.isArray(data.preguntas_clarificacion)
+        preguntasClarificacion: Array.isArray(data.preguntas_clarificacion)
           ? data.preguntas_clarificacion
           : [],
       };
@@ -276,12 +284,6 @@ export default function SoporteIAPage() {
             )}
 
             <div className="flex max-w-2xl flex-col gap-1">
-              {message.role === "assistant" && (
-                <span className="text-xs font-semibold text-gray-700">
-                  Asesor Liqui Moly
-                </span>
-              )}
-
               <div
                 className={cn(
                   "rounded-lg p-3",
@@ -306,12 +308,12 @@ export default function SoporteIAPage() {
                 <p className="whitespace-pre-wrap text-sm">{message.content}</p>
               </div>
 
-              {message.preguntasClaritficacion &&
-                message.preguntasClaritficacion.length > 0 && (
+              {message.preguntasClarificacion &&
+                message.preguntasClarificacion.length > 0 && (
                   <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                     <strong>Preguntas de aclaración:</strong>
                     <ul className="mt-2 list-inside list-disc space-y-1">
-                      {message.preguntasClaritficacion.map((pregunta, i) => (
+                      {message.preguntasClarificacion.map((pregunta, i) => (
                         <li key={i}>{pregunta}</li>
                       ))}
                     </ul>
@@ -431,10 +433,6 @@ export default function SoporteIAPage() {
             </Avatar>
 
             <div className="flex max-w-md flex-col gap-1">
-              <span className="text-xs font-semibold text-gray-700">
-                Asesor Liqui Moly
-              </span>
-
               <div className="rounded-lg rounded-bl-none bg-gray-100 p-3 text-gray-800">
                 <div className="mb-2 flex justify-center">
                   <Image
