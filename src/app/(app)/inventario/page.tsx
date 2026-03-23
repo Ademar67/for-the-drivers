@@ -1,19 +1,32 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  serverTimestamp,
+} from "firebase/firestore";
 
 import { stores } from "@/lib/stores";
 import { db } from "@/firebase/config";
 
 type ChainOption = "AutoZone" | "OReilly" | "Liverpool" | "";
 
+type ProductoCatalogo = {
+  id: string;
+  nombre: string;
+  codigo?: string;
+};
+
 type ProductRow = {
   id: string;
   product: string;
-  quantity: number | "";
+  quantity: number;
+  productId?: string;
+  codigo?: string;
 };
 
 type VisitRow = {
@@ -51,21 +64,13 @@ function createId() {
     : Math.random().toString(36).slice(2);
 }
 
-function createProductRow(): ProductRow {
-  return {
-    id: createId(),
-    product: "",
-    quantity: "",
-  };
-}
-
 function createVisitRow(): VisitRow {
   return {
     id: createId(),
     cadena: "",
     tiendaId: "",
     observaciones: "",
-    productos: [createProductRow()],
+    productos: [],
   };
 }
 
@@ -76,18 +81,64 @@ export default function InventarioPage() {
   const [visitas, setVisitas] = useState<VisitRow[]>([createVisitRow()]);
   const [guardandoFirebase, setGuardandoFirebase] = useState(false);
 
+  const [productos, setProductos] = useState<ProductoCatalogo[]>([]);
+  const [busquedas, setBusquedas] = useState<Record<string, string>>({});
+  const [cargandoCatalogo, setCargandoCatalogo] = useState(true);
+
+  useEffect(() => {
+    async function fetchProductos() {
+      try {
+        const snap = await getDocs(collection(db, "productos"));
+
+        const prods = snap.docs
+          .map((doc) => {
+            const data = doc.data() as Record<string, unknown>;
+
+            const nombre =
+              (typeof data.nombre === "string" && data.nombre) ||
+              (typeof data.name === "string" && data.name) ||
+              (typeof data.producto === "string" && data.producto) ||
+              "";
+
+            const codigo =
+              (typeof data.codigo === "string" && data.codigo) ||
+              (typeof data.code === "string" && data.code) ||
+              "";
+
+            return {
+              id: doc.id,
+              nombre: nombre.trim(),
+              codigo: codigo.trim(),
+            };
+          })
+          .filter((p) => p.nombre !== "");
+
+        setProductos(prods);
+      } catch (error) {
+        console.error("Error cargando catálogo de productos:", error);
+      } finally {
+        setCargandoCatalogo(false);
+      }
+    }
+
+    fetchProductos();
+  }, []);
+
   const totalProductosValidos = useMemo(() => {
     return visitas.reduce((acc, visita) => {
-      const validos = visita.productos.filter(
-        (item) => item.product.trim() !== "" && item.quantity !== ""
-      ).length;
-
-      return acc + validos;
+      return (
+        acc +
+        visita.productos.filter(
+          (item) => item.product.trim() !== "" && item.quantity > 0
+        ).length
+      );
     }, 0);
   }, [visitas]);
 
   function agregarVisita() {
-    setVisitas((prev) => [...prev, createVisitRow()]);
+    const nueva = createVisitRow();
+    setVisitas((prev) => [...prev, nueva]);
+    setBusquedas((prev) => ({ ...prev, [nueva.id]: "" }));
   }
 
   function eliminarVisita(visitId: string) {
@@ -95,6 +146,19 @@ export default function InventarioPage() {
       const nuevasVisitas = prev.filter((visita) => visita.id !== visitId);
       return nuevasVisitas.length > 0 ? nuevasVisitas : [createVisitRow()];
     });
+
+    setBusquedas((prev) => {
+      const next = { ...prev };
+      delete next[visitId];
+      return next;
+    });
+  }
+
+  function actualizarBusqueda(visitId: string, value: string) {
+    setBusquedas((prev) => ({
+      ...prev,
+      [visitId]: value,
+    }));
   }
 
   function actualizarVisita(
@@ -129,42 +193,68 @@ export default function InventarioPage() {
     );
   }
 
-  function agregarProducto(visitId: string) {
+  function agregarProductoDesdeCatalogo(
+    visitId: string,
+    producto: ProductoCatalogo
+  ) {
     setVisitas((prev) =>
       prev.map((visita) => {
         if (visita.id !== visitId) return visita;
 
-        return {
-          ...visita,
-          productos: [...visita.productos, createProductRow()],
-        };
-      })
-    );
-  }
-
-  function eliminarProducto(visitId: string, productId: string) {
-    setVisitas((prev) =>
-      prev.map((visita) => {
-        if (visita.id !== visitId) return visita;
-
-        const nuevosProductos = visita.productos.filter(
-          (item) => item.id !== productId
+        const existente = visita.productos.find(
+          (item) => item.productId === producto.id || item.product === producto.nombre
         );
 
+        if (existente) {
+          return {
+            ...visita,
+            productos: visita.productos.map((item) =>
+              item.productId === producto.id || item.product === producto.nombre
+                ? { ...item, quantity: item.quantity + 1 }
+                : item
+            ),
+          };
+        }
+
         return {
           ...visita,
-          productos:
-            nuevosProductos.length > 0 ? nuevosProductos : [createProductRow()],
+          productos: [
+            ...visita.productos,
+            {
+              id: createId(),
+              productId: producto.id,
+              product: producto.nombre,
+              codigo: producto.codigo,
+              quantity: 1,
+            },
+          ],
+        };
+      })
+    );
+
+    setBusquedas((prev) => ({
+      ...prev,
+      [visitId]: "",
+    }));
+  }
+
+  function eliminarProducto(visitId: string, productRowId: string) {
+    setVisitas((prev) =>
+      prev.map((visita) => {
+        if (visita.id !== visitId) return visita;
+
+        return {
+          ...visita,
+          productos: visita.productos.filter((item) => item.id !== productRowId),
         };
       })
     );
   }
 
-  function actualizarProducto(
+  function handleCantidadChange(
     visitId: string,
-    productId: string,
-    field: "product" | "quantity",
-    value: string
+    productRowId: string,
+    cantidad: number
   ) {
     setVisitas((prev) =>
       prev.map((visita) => {
@@ -172,21 +262,11 @@ export default function InventarioPage() {
 
         return {
           ...visita,
-          productos: visita.productos.map((item) => {
-            if (item.id !== productId) return item;
-
-            if (field === "quantity") {
-              return {
-                ...item,
-                quantity: value === "" ? "" : Number(value),
-              };
-            }
-
-            return {
-              ...item,
-              product: value,
-            };
-          }),
+          productos: visita.productos.map((item) =>
+            item.id === productRowId
+              ? { ...item, quantity: Math.max(0, cantidad || 0) }
+              : item
+          ),
         };
       })
     );
@@ -210,7 +290,7 @@ export default function InventarioPage() {
             estado: tienda?.state || "",
             observaciones: visita.observaciones.trim(),
             productos: visita.productos.filter(
-              (item) => item.product.trim() !== "" && item.quantity !== ""
+              (item) => item.product.trim() !== "" && item.quantity > 0
             ),
           };
         })
@@ -352,7 +432,9 @@ export default function InventarioPage() {
         startY: y,
         head: [["Producto", "Cantidad"]],
         body: visita.productos.map((producto) => [
-          producto.product,
+          producto.codigo
+            ? `${producto.product} (${producto.codigo})`
+            : producto.product,
           String(producto.quantity),
         ]),
         theme: "grid",
@@ -388,6 +470,11 @@ export default function InventarioPage() {
           </h1>
           <p className="mt-2 text-sm text-gray-600">
             Captura varias tiendas en un solo inventario del día.
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            {cargandoCatalogo
+              ? "Cargando catálogo de productos..."
+              : `Catálogo cargado: ${productos.length} productos`}
           </p>
         </div>
 
@@ -469,8 +556,20 @@ export default function InventarioPage() {
                 );
 
                 const productosValidos = visita.productos.filter(
-                  (item) => item.product.trim() !== "" && item.quantity !== ""
+                  (item) => item.product.trim() !== "" && item.quantity > 0
                 ).length;
+
+                const busqueda = busquedas[visita.id] || "";
+
+                const productosFiltrados = busqueda
+                  ? productos.filter(
+                      (p) =>
+                        p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+                        (p.codigo || "")
+                          .toLowerCase()
+                          .includes(busqueda.toLowerCase())
+                    )
+                  : [];
 
                 return (
                   <div
@@ -563,84 +662,107 @@ export default function InventarioPage() {
                     </div>
 
                     <div className="mt-5">
-                      <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div className="mb-3">
+                        <h4 className="text-base font-semibold text-gray-900">
+                          Buscar productos
+                        </h4>
+                      </div>
+
+                      <input
+                        type="text"
+                        placeholder="Buscar por nombre o código..."
+                        value={busqueda}
+                        onChange={(e) =>
+                          actualizarBusqueda(visita.id, e.target.value)
+                        }
+                        className="w-full rounded-xl border border-gray-300 bg-white p-3"
+                      />
+
+                      {productosFiltrados.length > 0 && (
+                        <ul className="mt-2 max-h-60 overflow-y-auto rounded-xl border bg-white">
+                          {productosFiltrados.slice(0, 10).map((p) => (
+                            <li
+                              key={p.id}
+                              onClick={() => agregarProductoDesdeCatalogo(visita.id, p)}
+                              className="cursor-pointer border-b p-3 hover:bg-blue-50"
+                            >
+                              <p className="font-medium">{p.nombre}</p>
+                              <p className="text-sm text-gray-500">
+                                {p.codigo || "Sin código"}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <div className="mt-5">
+                      <div className="mb-3 flex items-center justify-between">
                         <div>
                           <h4 className="text-base font-semibold text-gray-900">
                             Productos de esta tienda
                           </h4>
                           <p className="text-sm text-gray-600">
-                            Agrega producto y cantidad encontrada.
+                            Seleccionados desde el catálogo.
                           </p>
                         </div>
-
-                        <button
-                          type="button"
-                          onClick={() => agregarProducto(visita.id)}
-                          className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black"
-                        >
-                          + Agregar producto
-                        </button>
                       </div>
 
-                      <div className="space-y-3">
-                        {visita.productos.map((item, productIndex) => (
-                          <div
-                            key={item.id}
-                            className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 md:grid-cols-[1fr_180px_140px]"
-                          >
-                            <div>
-                              <label className="mb-2 block text-sm font-medium text-gray-700">
-                                Producto #{productIndex + 1}
-                              </label>
-                              <input
-                                type="text"
-                                value={item.product}
-                                onChange={(e) =>
-                                  actualizarProducto(
-                                    visita.id,
-                                    item.id,
-                                    "product",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="Ej. Molygen 5W-30"
-                                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="mb-2 block text-sm font-medium text-gray-700">
-                                Cantidad
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  actualizarProducto(
-                                    visita.id,
-                                    item.id,
-                                    "quantity",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="0"
-                                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500"
-                              />
-                            </div>
-
-                            <div className="flex items-end">
-                              <button
-                                type="button"
-                                onClick={() => eliminarProducto(visita.id, item.id)}
-                                className="w-full rounded-xl border border-red-300 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50"
-                              >
-                                Eliminar
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      {visita.productos.length === 0 ? (
+                        <p className="rounded-xl border bg-white p-4 text-sm text-gray-500">
+                          Aún no has agregado productos a esta tienda.
+                        </p>
+                      ) : (
+                        <div className="overflow-hidden rounded-xl border bg-white">
+                          <table className="w-full">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="p-3 text-left">Producto</th>
+                                <th className="p-3 text-left w-28">Cantidad</th>
+                                <th className="p-3 w-24"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {visita.productos.map((item) => (
+                                <tr key={item.id} className="border-t">
+                                  <td className="p-3">
+                                    <p className="font-semibold">{item.product}</p>
+                                    <p className="text-xs text-gray-500">
+                                      {item.codigo || "Sin código"}
+                                    </p>
+                                  </td>
+                                  <td className="p-3">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={item.quantity}
+                                      onChange={(e) =>
+                                        handleCantidadChange(
+                                          visita.id,
+                                          item.id,
+                                          parseInt(e.target.value, 10)
+                                        )
+                                      }
+                                      className="w-20 rounded border p-1 text-center"
+                                    />
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        eliminarProducto(visita.id, item.id)
+                                      }
+                                      className="rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                                    >
+                                      Eliminar
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4 grid gap-3 text-sm text-gray-700 md:grid-cols-2">
