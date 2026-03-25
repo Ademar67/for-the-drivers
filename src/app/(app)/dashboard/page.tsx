@@ -28,7 +28,7 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/ui/card";
-
+import { Button } from "@/components/ui/button";
 import { db } from "@/firebase/config";
 
 const dashboardCards = [
@@ -198,7 +198,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen space-y-10 bg-gradient-to-b from-background via-background to-muted/30 p-1">
+    <div className="min-h-screen space-y-10 p-1">
       <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Panel de Control</h1>
 
@@ -208,7 +208,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="rounded-2xl border border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <Card className="rounded-2xl border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="p-6">
             <div className="mb-4 flex items-start justify-between">
               <div>
@@ -217,7 +217,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Users className="h-5 w-5" />
               </div>
             </div>
@@ -227,14 +227,14 @@ export default function DashboardPage() {
                 {loading ? "..." : stats.clientes}
               </p>
               <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                <ArrowUpRight className="h-4 w-4 text-green-600" />
+                <ArrowUpRight className="h-4 w-4 text-green-500" />
                 Base total de clientes registrados
               </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <Card className="rounded-2xl border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="p-6">
             <div className="mb-4 flex items-start justify-between">
               <div>
@@ -243,7 +243,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-100 text-violet-600">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Target className="h-5 w-5" />
               </div>
             </div>
@@ -259,7 +259,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <Card className="rounded-2xl border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="p-6">
             <div className="mb-4 flex items-start justify-between">
               <div>
@@ -268,7 +268,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <PhoneCall className="h-5 w-5" />
               </div>
             </div>
@@ -284,7 +284,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <Card className="rounded-2xl border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="p-6">
             <div className="mb-4 flex items-start justify-between">
               <div>
@@ -293,7 +293,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <MapPin className="h-5 w-5" />
               </div>
             </div>
@@ -315,45 +315,45 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
           <Link href="/clientes" className="block">
-            <Card className="cursor-pointer border border-border bg-card/90 transition-all duration-200 hover:border-blue-200 hover:bg-blue-50 hover:shadow-md">
+            <Card className="cursor-pointer border-border bg-card/90 transition-all duration-200 hover:border-primary/20 hover:bg-primary/10 hover:shadow-md">
               <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
-                <Users className="h-5 w-5 text-blue-600" />
+                <Users className="h-5 w-5 text-primary" />
                 Nuevo cliente
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/cotizaciones" className="block">
-            <Card className="cursor-pointer border border-border bg-card/90 transition-all duration-200 hover:border-emerald-200 hover:bg-emerald-50 hover:shadow-md">
+            <Card className="cursor-pointer border-border bg-card/90 transition-all duration-200 hover:border-primary/20 hover:bg-primary/10 hover:shadow-md">
               <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
-                <ClipboardList className="h-5 w-5 text-emerald-600" />
+                <ClipboardList className="h-5 w-5 text-primary" />
                 Nueva cotización
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/agenda" className="block">
-            <Card className="cursor-pointer border border-border bg-card/90 transition-all duration-200 hover:border-violet-200 hover:bg-violet-50 hover:shadow-md">
+            <Card className="cursor-pointer border-border bg-card/90 transition-all duration-200 hover:border-primary/20 hover:bg-primary/10 hover:shadow-md">
               <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
-                <Calendar className="h-5 w-5 text-violet-600" />
+                <Calendar className="h-5 w-5 text-primary" />
                 Agendar visita
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/precios" className="block">
-            <Card className="cursor-pointer border border-border bg-card/90 transition-all duration-200 hover:border-amber-200 hover:bg-amber-50 hover:shadow-md">
+            <Card className="cursor-pointer border-border bg-card/90 transition-all duration-200 hover:border-primary/20 hover:bg-primary/10 hover:shadow-md">
               <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
-                <Calculator className="h-5 w-5 text-amber-600" />
+                <Calculator className="h-5 w-5 text-primary" />
                 Consultar precio
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/inventario" className="block">
-            <Card className="cursor-pointer border border-border bg-card/90 transition-all duration-200 hover:border-cyan-200 hover:bg-cyan-50 hover:shadow-md">
+            <Card className="cursor-pointer border-border bg-card/90 transition-all duration-200 hover:border-primary/20 hover:bg-primary/10 hover:shadow-md">
               <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
-                <Boxes className="h-5 w-5 text-cyan-600" />
+                <Boxes className="h-5 w-5 text-primary" />
                 Nuevo inventario
               </CardContent>
             </Card>
@@ -361,10 +361,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <Card className="rounded-2xl border border-border/60 bg-card/90 shadow-sm backdrop-blur-sm">
+      <Card className="rounded-2xl border-border/60 bg-card/90 shadow-sm backdrop-blur-sm">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Calculator className="h-5 w-5 text-blue-600" />
+            <Calculator className="h-5 w-5 text-primary" />
             Búsqueda rápida de precios
           </CardTitle>
         </CardHeader>
@@ -383,17 +383,16 @@ export default function DashboardPage() {
                   }
                 }}
                 placeholder="Ej. Molygen 5W-30, aditivo, limpiador..."
-                className="h-11 w-full rounded-xl border border-border bg-background/80 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="h-11 w-full rounded-xl border-input bg-background/80 pl-10 pr-4 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/30"
               />
             </div>
 
-            <button
-              type="button"
+            <Button
               onClick={handleQuickPriceSearch}
-              className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-medium text-white transition hover:bg-blue-700"
+              className="h-11 rounded-xl px-5"
             >
               Buscar precio
-            </button>
+            </Button>
           </div>
 
           <p className="mt-3 text-sm text-muted-foreground">
@@ -406,7 +405,7 @@ export default function DashboardPage() {
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {dashboardCards.map((card) => (
           <Link key={card.href} href={card.href} className="group block">
-            <Card className="h-full border border-border/80 bg-card/90 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg">
+            <Card className="h-full border-border/80 bg-card/90 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg">
               <CardHeader className="pb-3 pt-5">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition duration-200 group-hover:scale-105 group-hover:bg-primary/15">
