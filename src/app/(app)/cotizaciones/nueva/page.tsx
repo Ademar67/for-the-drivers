@@ -229,17 +229,17 @@ export default function NuevaCotizacionPage() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">Nueva Cotización</h1>
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+      <h1 className="mb-6 text-2xl font-bold sm:text-3xl">Nueva Cotización</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1 space-y-6">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-lg font-semibold mb-3">Cliente</h2>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-1">
+          <div className="rounded-lg bg-white p-4 shadow">
+            <h2 className="mb-3 text-lg font-semibold">Cliente</h2>
             <select
               value={clienteSeleccionadoId}
               onChange={(e) => setClienteSeleccionadoId(e.target.value)}
-              className="w-full border p-2 rounded bg-gray-50"
+              className="w-full rounded border bg-gray-50 p-2"
             >
               <option value="">Selecciona un cliente</option>
               {clientes.map((c) => (
@@ -250,22 +250,23 @@ export default function NuevaCotizacionPage() {
             </select>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-lg font-semibold mb-3">Buscar Productos</h2>
+          <div className="rounded-lg bg-white p-4 shadow">
+            <h2 className="mb-3 text-lg font-semibold">Buscar Productos</h2>
             <input
               type="text"
               placeholder="Buscar por nombre o código..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full border p-2 rounded bg-gray-50"
+              className="w-full rounded border bg-gray-50 p-2"
             />
+
             {productosFiltrados.length > 0 && (
-              <ul className="mt-2 border rounded max-h-60 overflow-y-auto">
+              <ul className="mt-2 max-h-60 overflow-y-auto rounded border">
                 {productosFiltrados.slice(0, 10).map((p) => (
                   <li
                     key={p.id}
                     onClick={() => agregarProducto(p)}
-                    className="p-2 hover:bg-blue-100 cursor-pointer border-b"
+                    className="cursor-pointer border-b p-2 hover:bg-blue-100"
                   >
                     <p className="font-medium">{p.nombre}</p>
                     <p className="text-sm text-gray-500">
@@ -278,43 +279,50 @@ export default function NuevaCotizacionPage() {
           </div>
         </div>
 
-        <div className="md:col-span-2 bg-white p-6 rounded-lg shadow">
-          <h2 className="text-2xl font-bold mb-4">Resumen</h2>
+        <div className="rounded-lg bg-white p-4 shadow sm:p-6 xl:col-span-2">
+          <h2 className="mb-4 text-2xl font-bold">Resumen</h2>
 
           {items.length === 0 ? (
             <p className="text-gray-500">Agrega productos para comenzar.</p>
           ) : (
             <div className="space-y-4">
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full">
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="min-w-[760px] w-full">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="p-3 text-left">Producto</th>
-                      <th className="p-3 text-left w-24">Cantidad</th>
-                      <th className="p-3 text-left w-32">Precio Unit.</th>
-                      <th className="p-3 text-left w-32">Total</th>
+                      <th className="p-3 text-left min-w-[260px]">Producto</th>
+                      <th className="p-3 text-left min-w-[120px]">Cantidad</th>
+                      <th className="p-3 text-left min-w-[130px]">Precio Unit.</th>
+                      <th className="p-3 text-left min-w-[120px]">Total</th>
                       <th className="p-3 w-12"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((item) => (
-                      <tr key={item.id} className="border-t">
+                      <tr key={item.id} className="border-t align-middle">
                         <td className="p-3">
-                          <p className="font-semibold">{item.nombre}</p>
+                          <p className="font-semibold break-words">{item.nombre}</p>
                           <p className="text-xs text-gray-500">{item.codigo}</p>
                         </td>
                         <td className="p-3">
                           <input
                             type="number"
+                            inputMode="numeric"
+                            min={0}
                             value={item.cantidad}
                             onChange={(e) =>
-                              handleCantidadChange(item.id, parseInt(e.target.value, 10))
+                              handleCantidadChange(
+                                item.id,
+                                parseInt(e.target.value, 10)
+                              )
                             }
-                            className="w-20 border rounded p-1 text-center"
+                            className="h-10 w-24 rounded border p-2 text-center"
                           />
                         </td>
-                        <td className="p-3">${item.precio.toFixed(2)}</td>
-                        <td className="p-3 font-medium">
+                        <td className="p-3 whitespace-nowrap">
+                          ${item.precio.toFixed(2)}
+                        </td>
+                        <td className="p-3 font-medium whitespace-nowrap">
                           ${(item.precio * item.cantidad).toFixed(2)}
                         </td>
                         <td className="p-3 text-center">
@@ -333,14 +341,20 @@ export default function NuevaCotizacionPage() {
 
               <div className="flex justify-end">
                 <div className="w-full max-w-sm space-y-3">
-                  <div className="flex justify-between items-center">
+                  <div className="flex items-center justify-between">
                     <span className="font-semibold">Subtotal</span>
                     <span className="font-semibold">${subtotal.toFixed(2)}</span>
                   </div>
 
                   {descuentos.map((_, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <label htmlFor={`desc-${index}`} className="text-sm text-gray-600">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <label
+                        htmlFor={`desc-${index}`}
+                        className="text-sm text-gray-600"
+                      >
                         Descuento {index + 1} (%)
                       </label>
                       <input
@@ -349,19 +363,21 @@ export default function NuevaCotizacionPage() {
                         placeholder="0"
                         value={descuentos[index] || ''}
                         onChange={(e) => handleDescuentoChange(index, e.target.value)}
-                        className="w-20 border rounded p-1 text-right"
+                        className="h-10 w-24 rounded border p-2 text-right"
                       />
                     </div>
                   ))}
 
-                  <div className="flex justify-between items-center text-red-600">
+                  <div className="flex items-center justify-between text-red-600">
                     <span className="font-semibold">Total Descuentos</span>
-                    <span className="font-semibold">-${totalDescuentos.toFixed(2)}</span>
+                    <span className="font-semibold">
+                      -${totalDescuentos.toFixed(2)}
+                    </span>
                   </div>
 
-                  <div className="border-t my-2"></div>
+                  <div className="my-2 border-t"></div>
 
-                  <div className="flex justify-between items-center text-xl font-bold">
+                  <div className="flex items-center justify-between text-xl font-bold">
                     <span>Total</span>
                     <span>${total.toFixed(2)}</span>
                   </div>
@@ -371,12 +387,12 @@ export default function NuevaCotizacionPage() {
           )}
 
           <div className="mt-6 border-t pt-6">
-            <h3 className="font-semibold mb-2">Configuración del PDF</h3>
+            <h3 className="mb-2 font-semibold">Configuración del PDF</h3>
             <div className="space-y-4">
               <div>
                 <label
                   htmlFor="vigencia"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
                 >
                   Días de vigencia
                 </label>
@@ -385,13 +401,13 @@ export default function NuevaCotizacionPage() {
                   id="vigencia"
                   value={vigenciaDias}
                   onChange={(e) => setVigenciaDias(parseInt(e.target.value, 10) || 0)}
-                  className="w-full border p-2 rounded"
+                  className="w-full rounded border p-2"
                 />
               </div>
               <div>
                 <label
                   htmlFor="observaciones"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
                 >
                   Observaciones
                 </label>
@@ -401,33 +417,35 @@ export default function NuevaCotizacionPage() {
                   placeholder="• Se acepta pago con terminal bancaria..."
                   value={observaciones}
                   onChange={(e) => setObservaciones(e.target.value)}
-                  className="w-full border p-2 rounded"
+                  className="w-full rounded border p-2"
                 ></textarea>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 flex justify-end gap-4">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
             <button
               onClick={handleGenerarPDF}
               disabled={items.length === 0 || !clienteSeleccionadoId}
-              className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors disabled:bg-gray-400"
+              className="flex items-center justify-center gap-2 rounded-md bg-gray-500 px-4 py-2 text-white transition-colors hover:bg-gray-600 disabled:bg-gray-400"
             >
               <FileDown size={18} />
               Exportar a PDF
             </button>
+
             <button
               onClick={handleShareWhatsApp}
               disabled={items.length === 0 || !clienteSeleccionadoId || isSharing}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400"
+              className="flex items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:bg-gray-400"
             >
               <MessageCircle size={18} />
               {isSharing ? 'Compartiendo...' : 'Compartir WhatsApp'}
             </button>
+
             <button
               onClick={handleGuardarCotizacion}
               disabled={items.length === 0 || !clienteSeleccionadoId}
-              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+              className="rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 disabled:bg-gray-400"
             >
               Guardar Cotización
             </button>
