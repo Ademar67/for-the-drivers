@@ -4,32 +4,28 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Users,
-  Package,
-  FileText,
-  Calendar,
-  Calculator,
-  Bot,
-  MapPin,
-  UserPlus,
-  ClipboardList,
-  BookOpen,
-  Target,
-  PhoneCall,
   ArrowUpRight,
-  Search,
+  BookOpen,
+  Bot,
   Boxes,
+  Building2,
+  Calculator,
+  Calendar,
+  ClipboardList,
+  FileText,
+  MapPin,
+  Package,
+  PhoneCall,
+  Search,
+  Target,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { db } from "@/firebase/config";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const dashboardCards = [
   {
@@ -43,6 +39,12 @@ const dashboardCards = [
     description: "Seguimiento de oportunidades",
     href: "/prospectos",
     icon: UserPlus,
+  },
+  {
+    title: "Agencias",
+    description: "Gestión y seguimiento de agencias",
+    href: "/agencias",
+    icon: Building2,
   },
   {
     title: "Agenda de Visitas",
@@ -96,7 +98,7 @@ const dashboardCards = [
     title: "Fichas Técnicas",
     description: "Consulta fichas técnicas Liqui Moly",
     href: "/fichas-tecnicas",
-    icon: Calculator,
+    icon: FileText,
   },
   {
     title: "Materiales",
@@ -201,7 +203,6 @@ export default function DashboardPage() {
     <div className="min-h-screen space-y-10 p-1">
       <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Panel de Control</h1>
-
         <p className="text-muted-foreground">
           Accede rápidamente a todas las herramientas de gestión comercial.
         </p>
@@ -211,11 +212,9 @@ export default function DashboardPage() {
         <Card className="rounded-2xl border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="p-6">
             <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Clientes activos
-                </p>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Clientes activos
+              </p>
 
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Users className="h-5 w-5" />
@@ -237,11 +236,9 @@ export default function DashboardPage() {
         <Card className="rounded-2xl border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="p-6">
             <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Prospectos
-                </p>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Prospectos
+              </p>
 
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Target className="h-5 w-5" />
@@ -262,11 +259,9 @@ export default function DashboardPage() {
         <Card className="rounded-2xl border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="p-6">
             <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Seguimientos
-                </p>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Seguimientos
+              </p>
 
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <PhoneCall className="h-5 w-5" />
@@ -287,11 +282,9 @@ export default function DashboardPage() {
         <Card className="rounded-2xl border-border/60 bg-card/90 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="p-6">
             <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Visitas hoy
-                </p>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Visitas hoy
+              </p>
 
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <MapPin className="h-5 w-5" />
@@ -323,11 +316,20 @@ export default function DashboardPage() {
             </Card>
           </Link>
 
-          <Link href="/cotizaciones" className="block">
+          <Link href="/prospectos" className="block">
             <Card className="cursor-pointer border-border bg-card/90 transition-all duration-200 hover:border-primary/20 hover:bg-primary/10 hover:shadow-md">
               <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
-                <ClipboardList className="h-5 w-5 text-primary" />
-                Nueva cotización
+                <UserPlus className="h-5 w-5 text-primary" />
+                Nuevo prospecto
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/agencias" className="block">
+            <Card className="cursor-pointer border-border bg-card/90 transition-all duration-200 hover:border-primary/20 hover:bg-primary/10 hover:shadow-md">
+              <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
+                <Building2 className="h-5 w-5 text-primary" />
+                Nueva agencia
               </CardContent>
             </Card>
           </Link>
@@ -346,15 +348,6 @@ export default function DashboardPage() {
               <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
                 <Calculator className="h-5 w-5 text-primary" />
                 Consultar precio
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/inventario" className="block">
-            <Card className="cursor-pointer border-border bg-card/90 transition-all duration-200 hover:border-primary/20 hover:bg-primary/10 hover:shadow-md">
-              <CardContent className="flex items-center justify-center gap-2 p-6 text-sm font-medium">
-                <Boxes className="h-5 w-5 text-primary" />
-                Nuevo inventario
               </CardContent>
             </Card>
           </Link>
@@ -383,7 +376,7 @@ export default function DashboardPage() {
                   }
                 }}
                 placeholder="Ej. Molygen 5W-30, aditivo, limpiador..."
-                className="h-11 w-full rounded-xl border-input bg-background/80 pl-10 pr-4 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/30"
+                className="h-11 w-full rounded-xl border border-input bg-background/80 pl-10 pr-4 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/30"
               />
             </div>
 

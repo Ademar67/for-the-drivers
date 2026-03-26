@@ -27,12 +27,14 @@ import {
   Calculator,
   Truck,
   Boxes,
+  Building2,
 } from "lucide-react";
 
 const menuItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/prospectos", label: "Prospectos", icon: UserPlus },
+  { href: "/agencias", label: "Agencias", icon: Building2 },
   { href: "/agenda", label: "Agenda", icon: Calendar },
   { href: "/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
   { href: "/precios", label: "Precios", icon: Calculator },
@@ -85,10 +87,10 @@ export default function AppLayout({
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
 
       <div className="flex min-h-screen w-full bg-background">
-        <aside className="flex w-64 flex-col border-r bg-[#0f3b82] text-white">
-          <div className="border-b px-4 py-4">
+        <aside className="flex w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
+          <div className="border-b border-sidebar-border px-4 py-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-white/10">
+              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-sidebar-accent/20">
                 <Image
                   src="/liquimoly-logo-v4.png"
                   alt="Liqui Moly"
@@ -101,7 +103,7 @@ export default function AppLayout({
 
               <div>
                 <p className="text-sm font-semibold">Liqui Moly</p>
-                <p className="text-xs text-white/70">Sales Hub</p>
+                <p className="text-xs text-sidebar-foreground/70">Sales Hub</p>
               </div>
             </div>
           </div>
@@ -117,8 +119,8 @@ export default function AppLayout({
                   href={item.href}
                   className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition ${
                     isActive
-                      ? "bg-white/20 font-semibold"
-                      : "hover:bg-white/10"
+                      ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+                      : "hover:bg-sidebar-accent/80"
                   }`}
                 >
                   <Icon size={18} />
@@ -133,7 +135,7 @@ export default function AppLayout({
           </div>
         </aside>
 
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </FirebaseClientProvider>
   );
