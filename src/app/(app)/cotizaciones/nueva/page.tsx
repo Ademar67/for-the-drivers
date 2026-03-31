@@ -229,17 +229,22 @@ export default function NuevaCotizacionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <h1 className="mb-6 text-2xl font-bold sm:text-3xl">Nueva Cotización</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Nueva Cotización</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Selecciona cliente, agrega productos y genera la cotización.
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-1">
-          <div className="rounded-lg bg-white p-4 shadow">
+          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-5">
             <h2 className="mb-3 text-lg font-semibold">Cliente</h2>
             <select
               value={clienteSeleccionadoId}
               onChange={(e) => setClienteSeleccionadoId(e.target.value)}
-              className="w-full rounded border bg-gray-50 p-2"
+              className="w-full rounded-xl border bg-gray-50 p-3 outline-none"
             >
               <option value="">Selecciona un cliente</option>
               {clientes.map((c) => (
@@ -250,23 +255,23 @@ export default function NuevaCotizacionPage() {
             </select>
           </div>
 
-          <div className="rounded-lg bg-white p-4 shadow">
+          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-5">
             <h2 className="mb-3 text-lg font-semibold">Buscar Productos</h2>
             <input
               type="text"
               placeholder="Buscar por nombre o código..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full rounded border bg-gray-50 p-2"
+              className="w-full rounded-xl border bg-gray-50 p-3 outline-none"
             />
 
             {productosFiltrados.length > 0 && (
-              <ul className="mt-2 max-h-60 overflow-y-auto rounded border">
+              <ul className="mt-3 max-h-72 overflow-y-auto rounded-xl border bg-white">
                 {productosFiltrados.slice(0, 10).map((p) => (
                   <li
                     key={p.id}
                     onClick={() => agregarProducto(p)}
-                    className="cursor-pointer border-b p-2 hover:bg-blue-100"
+                    className="cursor-pointer border-b p-3 last:border-b-0 hover:bg-blue-50"
                   >
                     <p className="font-medium">{p.nombre}</p>
                     <p className="text-sm text-gray-500">
@@ -279,68 +284,128 @@ export default function NuevaCotizacionPage() {
           </div>
         </div>
 
-        <div className="rounded-lg bg-white p-4 shadow sm:p-6 xl:col-span-2">
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-6 xl:col-span-2">
           <h2 className="mb-4 text-2xl font-bold">Resumen</h2>
 
           {items.length === 0 ? (
             <p className="text-gray-500">Agrega productos para comenzar.</p>
           ) : (
-            <div className="space-y-4">
-              <div className="overflow-x-auto rounded-lg border">
-                <table className="min-w-[760px] w-full">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="p-3 text-left min-w-[260px]">Producto</th>
-                      <th className="p-3 text-left min-w-[120px]">Cantidad</th>
-                      <th className="p-3 text-left min-w-[130px]">Precio Unit.</th>
-                      <th className="p-3 text-left min-w-[120px]">Total</th>
-                      <th className="p-3 w-12"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item) => (
-                      <tr key={item.id} className="border-t align-middle">
-                        <td className="p-3">
-                          <p className="font-semibold break-words">{item.nombre}</p>
-                          <p className="text-xs text-gray-500">{item.codigo}</p>
-                        </td>
-                        <td className="p-3">
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min={0}
-                            value={item.cantidad}
-                            onChange={(e) =>
-                              handleCantidadChange(
-                                item.id,
-                                parseInt(e.target.value, 10)
-                              )
-                            }
-                            className="h-10 w-24 rounded border p-2 text-center"
-                          />
-                        </td>
-                        <td className="p-3 whitespace-nowrap">
+            <div className="space-y-5">
+              {/* Vista móvil en tarjetas */}
+              <div className="space-y-3 md:hidden">
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border bg-gray-50 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold leading-tight">{item.nombre}</p>
+                        <p className="mt-1 text-xs text-gray-500">{item.codigo}</p>
+                      </div>
+
+                      <button
+                        onClick={() => eliminarItem(item.id)}
+                        className="shrink-0 text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="mb-1 text-gray-500">Cantidad</p>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          value={item.cantidad}
+                          onChange={(e) =>
+                            handleCantidadChange(
+                              item.id,
+                              parseInt(e.target.value, 10)
+                            )
+                          }
+                          className="h-10 w-full rounded-xl border bg-white p-2 text-center"
+                        />
+                      </div>
+
+                      <div>
+                        <p className="mb-1 text-gray-500">Precio unitario</p>
+                        <div className="flex h-10 items-center rounded-xl border bg-white px-3">
                           ${item.precio.toFixed(2)}
-                        </td>
-                        <td className="p-3 font-medium whitespace-nowrap">
+                        </div>
+                      </div>
+
+                      <div className="col-span-2">
+                        <p className="mb-1 text-gray-500">Total</p>
+                        <div className="flex h-10 items-center rounded-xl border bg-white px-3 font-semibold">
                           ${(item.precio * item.cantidad).toFixed(2)}
-                        </td>
-                        <td className="p-3 text-center">
-                          <button
-                            onClick={() => eliminarItem(item.id)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </td>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Vista desktop tabla */}
+              <div className="hidden md:block">
+                <div className="overflow-hidden rounded-xl border">
+                  <table className="w-full">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="min-w-[260px] p-3 text-left">Producto</th>
+                        <th className="min-w-[120px] p-3 text-left">Cantidad</th>
+                        <th className="min-w-[130px] p-3 text-left">Precio Unit.</th>
+                        <th className="min-w-[120px] p-3 text-left">Total</th>
+                        <th className="w-12 p-3"></th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {items.map((item) => (
+                        <tr key={item.id} className="border-t align-middle">
+                          <td className="p-3">
+                            <p className="break-words font-semibold">{item.nombre}</p>
+                            <p className="text-xs text-gray-500">{item.codigo}</p>
+                          </td>
+                          <td className="p-3">
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              value={item.cantidad}
+                              onChange={(e) =>
+                                handleCantidadChange(
+                                  item.id,
+                                  parseInt(e.target.value, 10)
+                                )
+                              }
+                              className="h-10 w-24 rounded-lg border p-2 text-center"
+                            />
+                          </td>
+                          <td className="whitespace-nowrap p-3">
+                            ${item.precio.toFixed(2)}
+                          </td>
+                          <td className="whitespace-nowrap p-3 font-medium">
+                            ${(item.precio * item.cantidad).toFixed(2)}
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => eliminarItem(item.id)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div className="flex justify-end">
-                <div className="w-full max-w-sm space-y-3">
+                <div className="w-full max-w-md space-y-3 rounded-2xl border bg-gray-50 p-4">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">Subtotal</span>
                     <span className="font-semibold">${subtotal.toFixed(2)}</span>
@@ -363,7 +428,7 @@ export default function NuevaCotizacionPage() {
                         placeholder="0"
                         value={descuentos[index] || ''}
                         onChange={(e) => handleDescuentoChange(index, e.target.value)}
-                        className="h-10 w-24 rounded border p-2 text-right"
+                        className="h-10 w-24 rounded-lg border p-2 text-right"
                       />
                     </div>
                   ))}
@@ -375,11 +440,11 @@ export default function NuevaCotizacionPage() {
                     </span>
                   </div>
 
-                  <div className="my-2 border-t"></div>
-
-                  <div className="flex items-center justify-between text-xl font-bold">
-                    <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
+                  <div className="border-t pt-3">
+                    <div className="flex items-center justify-between text-xl font-bold">
+                      <span>Total</span>
+                      <span>${total.toFixed(2)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -387,8 +452,9 @@ export default function NuevaCotizacionPage() {
           )}
 
           <div className="mt-6 border-t pt-6">
-            <h3 className="mb-2 font-semibold">Configuración del PDF</h3>
-            <div className="space-y-4">
+            <h3 className="mb-3 text-lg font-semibold">Configuración del PDF</h3>
+
+            <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label
                   htmlFor="vigencia"
@@ -401,9 +467,10 @@ export default function NuevaCotizacionPage() {
                   id="vigencia"
                   value={vigenciaDias}
                   onChange={(e) => setVigenciaDias(parseInt(e.target.value, 10) || 0)}
-                  className="w-full rounded border p-2"
+                  className="w-full rounded-xl border p-3"
                 />
               </div>
+
               <div>
                 <label
                   htmlFor="observaciones"
@@ -413,11 +480,11 @@ export default function NuevaCotizacionPage() {
                 </label>
                 <textarea
                   id="observaciones"
-                  rows={3}
+                  rows={4}
                   placeholder="• Se acepta pago con terminal bancaria..."
                   value={observaciones}
                   onChange={(e) => setObservaciones(e.target.value)}
-                  className="w-full rounded border p-2"
+                  className="w-full rounded-xl border p-3"
                 ></textarea>
               </div>
             </div>
@@ -427,7 +494,7 @@ export default function NuevaCotizacionPage() {
             <button
               onClick={handleGenerarPDF}
               disabled={items.length === 0 || !clienteSeleccionadoId}
-              className="flex items-center justify-center gap-2 rounded-md bg-gray-500 px-4 py-2 text-white transition-colors hover:bg-gray-600 disabled:bg-gray-400"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-500 px-4 py-3 text-white transition-colors hover:bg-gray-600 disabled:bg-gray-400 sm:w-auto"
             >
               <FileDown size={18} />
               Exportar a PDF
@@ -436,7 +503,7 @@ export default function NuevaCotizacionPage() {
             <button
               onClick={handleShareWhatsApp}
               disabled={items.length === 0 || !clienteSeleccionadoId || isSharing}
-              className="flex items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:bg-gray-400"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-white transition-colors hover:bg-green-700 disabled:bg-gray-400 sm:w-auto"
             >
               <MessageCircle size={18} />
               {isSharing ? 'Compartiendo...' : 'Compartir WhatsApp'}
@@ -445,7 +512,7 @@ export default function NuevaCotizacionPage() {
             <button
               onClick={handleGuardarCotizacion}
               disabled={items.length === 0 || !clienteSeleccionadoId}
-              className="rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 disabled:bg-gray-400"
+              className="w-full rounded-xl bg-blue-600 px-6 py-3 text-white transition-colors hover:bg-blue-700 disabled:bg-gray-400 sm:w-auto"
             >
               Guardar Cotización
             </button>
@@ -455,3 +522,4 @@ export default function NuevaCotizacionPage() {
     </div>
   );
 }
+Qué cambi

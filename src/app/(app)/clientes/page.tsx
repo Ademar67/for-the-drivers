@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import * as XLSX from 'xlsx';
@@ -19,7 +19,16 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
-import { Calendar, Trash2, Upload } from 'lucide-react';
+import {
+  Calendar,
+  Trash2,
+  Upload,
+  Download,
+  Users,
+  MapPin,
+  UserCheck,
+  UserX,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -57,11 +66,35 @@ type ExcelClienteRow = {
   [key: string]: string | number | undefined;
 };
 
+function getTipoBadgeClasses(tipo?: string) {
+  switch (tipo) {
+    case 'cliente':
+      return 'bg-blue-100 text-blue-700 border-blue-200';
+    case 'prospecto':
+      return 'bg-green-100 text-green-700 border-green-200';
+    case 'inactivo':
+      return 'bg-slate-100 text-slate-600 border-slate-200';
+    default:
+      return 'bg-slate-100 text-slate-700 border-slate-200';
+  }
+}
+
+function getZonaBadgeClasses(zona?: string) {
+  switch (zona) {
+    case 'foraneo':
+      return 'bg-amber-100 text-amber-700 border-amber-200';
+    case 'local':
+    default:
+      return 'bg-slate-100 text-slate-700 border-slate-200';
+  }
+}
+
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [importando, setImportando] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -71,6 +104,26 @@ export default function ClientesPage() {
     });
     return () => unsub();
   }, []);
+
+  const clientesFiltrados = useMemo(() => {
+    const term = busqueda.trim().toLowerCase();
+
+    if (!term) return clientes;
+
+    return clientes.filter((c) => {
+      return (
+        (c.nombre ?? '').toLowerCase().includes(term) ||
+        (c.ciudad ?? '').toLowerCase().includes(term) ||
+        (c.tipo ?? '').toLowerCase().includes(term) ||
+        (c.tipoZona ?? '').toLowerCase().includes(term)
+      );
+    });
+  }, [clientes, busqueda]);
+
+  const totalClientes = clientesFiltrados.length;
+  const totalActivos = clientesFiltrados.filter((c) => c.tipo !== 'inactivo').length;
+  const totalInactivos = clientesFiltrados.filter((c) => c.tipo === 'inactivo').length;
+  const totalForaneos = clientesFiltrados.filter((c) => c.tipoZona === 'foraneo').length;
 
   const handleDelete = async (id: string) => {
     try {
@@ -314,11 +367,16 @@ export default function ClientesPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Clientes</h1>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Gestiona tu cartera, agenda de visitas e importación masiva.
+          </p>
+        </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
           <input
             ref={fileInputRef}
             type="file"
@@ -331,193 +389,306 @@ export default function ClientesPage() {
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
             disabled={importando}
+            className="rounded-xl"
           >
             <Upload className="mr-2 h-4 w-4" />
             {importando ? 'Importando...' : 'Importar Excel'}
           </Button>
 
-          <Button variant="secondary" onClick={exportarCSV}>
-            Exportar a CSV
+          <Button variant="secondary" onClick={exportarCSV} className="rounded-xl">
+            <Download className="mr-2 h-4 w-4" />
+            Exportar CSV
           </Button>
 
-          <Button onClick={() => setOpen(true)}>+ Agregar cliente</Button>
+          <Button onClick={() => setOpen(true)} className="rounded-xl">
+            + Agregar cliente
+          </Button>
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex h-64 items-center justify-center">
-          <Image
-            src="/liquimoly-logo-v4.png"
-            alt="Cargando..."
-            width={128}
-            height={128}
-            className="animate-pulse"
-            priority
-          />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-500">Clientes</p>
+            <Users className="h-5 w-5 text-slate-400" />
+          </div>
+          <p className="mt-2 text-2xl font-bold">{totalClientes}</p>
         </div>
-      ) : clientes.length === 0 ? (
-        <p className="mt-8 text-center italic text-gray-500">
-          No hay clientes registrados.
-        </p>
-      ) : (
-        <>
-          <div className="space-y-4 md:hidden">
-            {clientes.map((c) => (
-              <div key={c.id} className="rounded-lg border bg-white p-4 shadow-sm">
-                <div className="items-start gap-3 justify-between flex">
-                  <h3 className="text-lg font-bold text-gray-800">{c.nombre}</h3>
 
-                  <Badge
-                    variant={c.tipo === 'cliente' ? 'secondary' : 'outline'}
-                    className={cn(
-                      'capitalize',
-                      c.tipo === 'prospecto' && 'border-green-500 text-green-700',
-                      c.tipo === 'inactivo' && 'bg-gray-100 text-gray-500'
-                    )}
-                  >
-                    {c.tipo}
-                  </Badge>
-                </div>
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-500">Activos</p>
+            <UserCheck className="h-5 w-5 text-green-500" />
+          </div>
+          <p className="mt-2 text-2xl font-bold">{totalActivos}</p>
+        </div>
 
-                <div className="mt-3 space-y-1 text-sm text-gray-600">
-                  <p>
-                    <span className="font-medium text-gray-500">Zona:</span>{' '}
-                    {c.tipoZona ?? '—'}
-                  </p>
-                  <p>
-                    <span className="font-medium text-gray-500">Ciudad:</span>{' '}
-                    {c.ciudad}
-                  </p>
-                  <p>
-                    <span className="font-medium text-gray-500">Día visita:</span>{' '}
-                    {c.diaVisita ?? '—'}
-                  </p>
-                  <p>
-                    <span className="font-medium text-gray-500">Semana:</span>{' '}
-                    {c.semanaVisita ? `Semana ${c.semanaVisita}` : '—'}
-                  </p>
-                  <p>
-                    <span className="font-medium text-gray-500">Frecuencia:</span>{' '}
-                    {c.frecuencia ?? '—'}
-                  </p>
-                </div>
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-500">Inactivos</p>
+            <UserX className="h-5 w-5 text-slate-400" />
+          </div>
+          <p className="mt-2 text-2xl font-bold">{totalInactivos}</p>
+        </div>
 
-                <div className="mt-4 flex flex-col gap-2 border-t pt-3 sm:flex-row">
-                  <Button asChild variant="outline" size="lg" className="w-full">
-                    <Link href={`/agenda?clienteId=${c.id}`}>
-                      <Calendar className="h-4 w-4" />
-                      Agenda
-                    </Link>
-                  </Button>
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-500">Foráneos</p>
+            <MapPin className="h-5 w-5 text-amber-500" />
+          </div>
+          <p className="mt-2 text-2xl font-bold">{totalForaneos}</p>
+        </div>
+      </div>
 
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="lg" className="w-full">
-                        <Trash2 className="h-4 w-4" />
-                        Eliminar
-                      </Button>
-                    </AlertDialogTrigger>
+      <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Listado de clientes</h2>
+            <p className="text-sm text-slate-500">
+              Busca por nombre, ciudad, tipo o zona.
+            </p>
+          </div>
 
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
+          <div className="w-full md:max-w-sm">
+            <label className="mb-1 block text-sm font-medium">Buscar</label>
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Ej. Refaccionaria, Monterrey, foraneo..."
+              className="w-full rounded-xl border bg-white px-3 py-3 outline-none"
+            />
+          </div>
+        </div>
 
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(c.id!)}
-                          className="bg-red-600 hover:bg-red-700"
+        {!loading && (
+          <p className="mt-4 text-sm text-slate-500">
+            {clientesFiltrados.length} resultado
+            {clientesFiltrados.length === 1 ? '' : 's'}
+          </p>
+        )}
+
+        {loading ? (
+          <div className="flex h-64 items-center justify-center">
+            <Image
+              src="/liquimoly-logo-v4.png"
+              alt="Cargando..."
+              width={128}
+              height={128}
+              className="animate-pulse"
+              priority
+            />
+          </div>
+        ) : clientesFiltrados.length === 0 ? (
+          <div className="mt-6 rounded-2xl border border-dashed bg-slate-50 p-10 text-center">
+            <h3 className="text-lg font-semibold">
+              {clientes.length === 0
+                ? 'Aún no hay clientes registrados'
+                : 'No hay resultados con esa búsqueda'}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {clientes.length === 0
+                ? 'Agrega tu primer cliente o importa un archivo de Excel para comenzar.'
+                : 'Prueba con otro nombre, ciudad, tipo o zona.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="mt-6 space-y-4 md:hidden">
+              {clientesFiltrados.map((c) => (
+                <div
+                  key={c.id}
+                  className="rounded-2xl border bg-white p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-bold text-slate-800">
+                        {c.nombre}
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-500">{c.ciudad}</p>
+                    </div>
+
+                    <Badge
+                      variant="outline"
+                      className={cn('capitalize', getTipoBadgeClasses(c.tipo))}
+                    >
+                      {c.tipo ?? '—'}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-slate-500">Zona</p>
+                      <p className="mt-1 font-medium capitalize">
+                        {c.tipoZona ?? '—'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-slate-500">Frecuencia</p>
+                      <p className="mt-1 font-medium capitalize">
+                        {c.frecuencia ?? '—'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-slate-500">Día visita</p>
+                      <p className="mt-1 font-medium capitalize">
+                        {c.diaVisita ?? '—'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-slate-500">Semana</p>
+                      <p className="mt-1 font-medium">
+                        {c.semanaVisita ? `Semana ${c.semanaVisita}` : '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Badge
+                      variant="outline"
+                      className={cn('capitalize', getZonaBadgeClasses(c.tipoZona))}
+                    >
+                      {c.tipoZona ?? '—'}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row">
+                    <Button asChild variant="outline" size="lg" className="w-full rounded-xl">
+                      <Link href={`/agenda?clienteId=${c.id}`}>
+                        <Calendar className="h-4 w-4" />
+                        Agenda
+                      </Link>
+                    </Button>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="lg"
+                          className="w-full rounded-xl"
                         >
+                          <Trash2 className="h-4 w-4" />
                           Eliminar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                        </Button>
+                      </AlertDialogTrigger>
+
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(c.id!)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Eliminar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          <div className="hidden rounded-md border md:block">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-gray-100">
-                  <th className="p-3 text-left">Nombre</th>
-                  <th className="p-3 text-left">Tipo</th>
-                  <th className="p-3 text-left">Zona</th>
-                  <th className="p-3 text-left">Ciudad</th>
-                  <th className="p-3 text-left">Día visita</th>
-                  <th className="p-3 text-left">Semana</th>
-                  <th className="p-3 text-left">Frecuencia</th>
-                  <th className="p-3 text-left">Acciones</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {clientes.map((c) => (
-                  <tr key={c.id} className="border-t">
-                    <td className="p-3">{c.nombre}</td>
-                    <td className="p-3 capitalize">{c.tipo}</td>
-                    <td className="p-3 capitalize">{c.tipoZona ?? '—'}</td>
-                    <td className="p-3">{c.ciudad}</td>
-                    <td className="p-3">{c.diaVisita ?? '—'}</td>
-                    <td className="p-3">
-                      {c.semanaVisita ? `Semana ${c.semanaVisita}` : '—'}
-                    </td>
-                    <td className="p-3">{c.frecuencia ?? '—'}</td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/agenda?clienteId=${c.id}`}
-                          className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                        >
-                          <Calendar className="h-4 w-4" />
-                          Ver Agenda
-                        </Link>
-
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDelete(c.id!)}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Eliminar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </td>
+            <div className="mt-6 hidden overflow-hidden rounded-2xl border md:block">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-slate-50">
+                    <th className="p-4 text-left text-sm font-semibold">Nombre</th>
+                    <th className="p-4 text-left text-sm font-semibold">Tipo</th>
+                    <th className="p-4 text-left text-sm font-semibold">Zona</th>
+                    <th className="p-4 text-left text-sm font-semibold">Ciudad</th>
+                    <th className="p-4 text-left text-sm font-semibold">Día visita</th>
+                    <th className="p-4 text-left text-sm font-semibold">Semana</th>
+                    <th className="p-4 text-left text-sm font-semibold">Frecuencia</th>
+                    <th className="p-4 text-left text-sm font-semibold">Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+                </thead>
+
+                <tbody>
+                  {clientesFiltrados.map((c) => (
+                    <tr key={c.id} className="border-t hover:bg-slate-50/70">
+                      <td className="p-4 font-medium">{c.nombre}</td>
+                      <td className="p-4">
+                        <Badge
+                          variant="outline"
+                          className={cn('capitalize', getTipoBadgeClasses(c.tipo))}
+                        >
+                          {c.tipo ?? '—'}
+                        </Badge>
+                      </td>
+                      <td className="p-4">
+                        <Badge
+                          variant="outline"
+                          className={cn('capitalize', getZonaBadgeClasses(c.tipoZona))}
+                        >
+                          {c.tipoZona ?? '—'}
+                        </Badge>
+                      </td>
+                      <td className="p-4">{c.ciudad}</td>
+                      <td className="p-4 capitalize">{c.diaVisita ?? '—'}</td>
+                      <td className="p-4">
+                        {c.semanaVisita ? `Semana ${c.semanaVisita}` : '—'}
+                      </td>
+                      <td className="p-4 capitalize">{c.frecuencia ?? '—'}</td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <Button asChild variant="outline" size="sm" className="rounded-xl">
+                            <Link href={`/agenda?clienteId=${c.id}`}>
+                              <Calendar className="mr-2 h-4 w-4" />
+                              Agenda
+                            </Link>
+                          </Button>
+
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="rounded-xl text-red-500 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(c.id!)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
 
       <CrearClienteModal open={open} onClose={() => setOpen(false)} />
     </div>
