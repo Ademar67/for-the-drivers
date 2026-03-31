@@ -522,4 +522,3 @@ export default function NuevaCotizacionPage() {
     </div>
   );
 }
-Qué cambi
