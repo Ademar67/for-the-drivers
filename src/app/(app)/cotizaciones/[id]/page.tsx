@@ -1,3 +1,6 @@
+rnal, aquí te la dejo ya acomodada para copiar y pegar.
+Le metí los valores seguros en formatCotizacionForPDF para que no truene el build de Vercel con los undefined.
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -11,12 +14,17 @@ import { CotizacionPDFData } from '@/lib/pdf/types';
 
 const formatCotizacionForPDF = (cot: Cotizacion): CotizacionPDFData => {
   const pdfData: CotizacionPDFData = {
-    id: cot.id,
-    clienteNombre: cot.clienteNombre,
-    items: cot.items,
-    subtotal: cot.subtotal,
-    totalDescuentos: cot.totalDescuentos,
-    total: cot.total,
+    id: cot.id || '',
+    clienteNombre: cot.clienteNombre || '',
+    items: (cot.items || []).map((item) => ({
+      codigo: item.codigo || '',
+      nombre: item.nombre || '',
+      cantidad: item.cantidad || 0,
+      precio: item.precio || 0,
+    })),
+    subtotal: cot.subtotal || 0,
+    totalDescuentos: cot.totalDescuentos || 0,
+    total: cot.total || 0,
   };
 
   if (cot.fecha_creacion) {
@@ -81,9 +89,9 @@ export default function CotizacionDetallePage() {
     const pdfBlob = await generarCotizacionPDF(cotizacionDataForPdf);
 
     await sharePdfViaWhatsapp({
-      fileName: `Cotizacion-${cotizacion.id}.pdf`,
+      fileName: `Cotizacion-${cotizacion.id || 'sin-id'}.pdf`,
       pdfBlob,
-      message: `Hola, te comparto la cotización No. ${cotizacion.id}.`,
+      message: `Hola, te comparto la cotización No. ${cotizacion.id || 'sin-id'}.`,
     });
   };
 
@@ -108,7 +116,7 @@ export default function CotizacionDetallePage() {
         </div>
       </div>
 
-      <pre className="bg-white p-4 rounded border">
+      <pre className="bg-white p-4 rounded border overflow-auto">
         {JSON.stringify(cotizacion, null, 2)}
       </pre>
     </div>
