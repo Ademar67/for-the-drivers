@@ -103,7 +103,7 @@ export interface Cotizacion {
 export interface CotizacionItem {
     productoId: string;
     nombre: string;
-    codigo: string;
+    codigo?: string;
     cantidad: number;
     precio: number;
 }
