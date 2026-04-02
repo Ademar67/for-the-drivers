@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
 import { db } from '@/lib/firebase';
@@ -11,13 +11,33 @@ import { Trash2, FileDown, MessageCircle } from 'lucide-react';
 import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
 import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';
+import { useToast } from '@/components/ui/toast-provider';
 
 interface ProductoConId extends Producto {
   id: string;
+  codigo?: string;
 }
 
 interface ItemCotizacion extends ProductoConId {
   cantidad: number;
+  descuentos: [number | undefined, number | undefined, number | undefined, number | undefined];
+}
+
+function calcularTotalesLinea(item: ItemCotizacion) {
+  const subtotalLinea = item.precio * item.cantidad;
+
+  const totalLinea = item.descuentos.reduce((acumulado, descuento) => {
+    if (descuento === undefined || descuento <= 0) return acumulado;
+    return acumulado * (1 - descuento / 100);
+  }, subtotalLinea);
+
+  const descuentoLinea = subtotalLinea - totalLinea;
+
+  return {
+    subtotalLinea,
+    totalLinea,
+    descuentoLinea,
+  };
 }
 
 export default function NuevaCotizacionPage() {
@@ -26,35 +46,41 @@ export default function NuevaCotizacionPage() {
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string>('');
   const [items, setItems] = useState<ItemCotizacion[]>([]);
   const [busqueda, setBusqueda] = useState('');
-  const [descuentos, setDescuentos] = useState<(number | undefined)[]>([
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-  ]);
   const [observaciones, setObservaciones] = useState('');
   const [vigenciaDias, setVigenciaDias] = useState(7);
   const [isSharing, setIsSharing] = useState(false);
+
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const unsub = listenClientes(setClientes);
 
     async function fetchProductos() {
-      const snap = await getDocs(collection(db, 'productos'));
-      const prods = snap.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as ProductoConId)
-      );
-      setProductos(prods);
+      try {
+        const snap = await getDocs(collection(db, 'productos'));
+        const prods = snap.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() } as ProductoConId)
+        );
+        setProductos(prods);
+      } catch (error) {
+        console.error('Error al cargar productos:', error);
+        toast({
+          title: 'No se pudieron cargar los productos',
+          description: 'Intenta recargar la página.',
+          type: 'error',
+        });
+      }
     }
 
     fetchProductos();
     return () => unsub();
-  }, []);
+  }, [toast]);
 
   const agregarProducto = (producto: ProductoConId) => {
     setItems((prev) => {
       const existente = prev.find((item) => item.id === producto.id);
+
       if (existente) {
         return prev.map((item) =>
           item.id === producto.id
@@ -62,7 +88,15 @@ export default function NuevaCotizacionPage() {
             : item
         );
       }
-      return [...prev, { ...producto, cantidad: 1 }];
+
+      return [
+        ...prev,
+        {
+          ...producto,
+          cantidad: 1,
+          descuentos: [undefined, undefined, undefined, undefined],
+        },
+      ];
     });
   };
 
@@ -78,47 +112,58 @@ export default function NuevaCotizacionPage() {
     );
   };
 
-  const handleDescuentoChange = (index: number, valor: string) => {
-    const nuevosDescuentos = [...descuentos];
-    const valNum = parseFloat(valor);
-    nuevosDescuentos[index] = isNaN(valNum) ? undefined : valNum;
-    setDescuentos(nuevosDescuentos);
+  const handleDescuentoItemChange = (
+    itemId: string,
+    index: number,
+    valor: string
+  ) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+
+        const nuevosDescuentos = [...item.descuentos] as ItemCotizacion['descuentos'];
+        const valNum = parseFloat(valor);
+        nuevosDescuentos[index] = Number.isNaN(valNum) ? undefined : valNum;
+
+        return {
+          ...item,
+          descuentos: nuevosDescuentos,
+        };
+      })
+    );
   };
 
   const productosFiltrados = busqueda
     ? productos.filter(
         (p) =>
           p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-          p.codigo.toLowerCase().includes(busqueda.toLowerCase())
+          String(p.codigo ?? '').toLowerCase().includes(busqueda.toLowerCase())
       )
     : [];
 
-  const { subtotal, total, totalDescuentos } = items.reduce(
-    (acc, item) => {
-      const itemSubtotal = item.precio * item.cantidad;
-      acc.subtotal += itemSubtotal;
+  const { subtotal, total, totalDescuentos } = useMemo(() => {
+    return items.reduce(
+      (acc, item) => {
+        const { subtotalLinea, totalLinea, descuentoLinea } =
+          calcularTotalesLinea(item);
 
-      const itemTotalConDescuentos = descuentos.reduce<number>(
-        (currentPrice, d) => {
-          if (d !== undefined && d > 0) {
-            return currentPrice * (1 - d / 100);
-          }
-          return currentPrice;
-        },
-        itemSubtotal
-      );
+        acc.subtotal += subtotalLinea;
+        acc.total += totalLinea;
+        acc.totalDescuentos += descuentoLinea;
 
-      acc.total += itemTotalConDescuentos;
-      acc.totalDescuentos += itemSubtotal - itemTotalConDescuentos;
-
-      return acc;
-    },
-    { subtotal: 0, total: 0, totalDescuentos: 0 }
-  );
+        return acc;
+      },
+      { subtotal: 0, total: 0, totalDescuentos: 0 }
+    );
+  }, [items]);
 
   const handleGuardarCotizacion = async () => {
     if (!clienteSeleccionadoId || items.length === 0) {
-      alert('Por favor, selecciona un cliente y agrega al menos un producto.');
+      toast({
+        title: 'Faltan datos',
+        description: 'Selecciona un cliente y agrega al menos un producto.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -126,38 +171,63 @@ export default function NuevaCotizacionPage() {
       const cliente = clientes.find((c) => c.id === clienteSeleccionadoId);
 
       if (!cliente) {
-        alert('Cliente no encontrado');
+        toast({
+          title: 'Cliente no encontrado',
+          description: 'Selecciona un cliente válido.',
+          type: 'error',
+        });
         return;
       }
 
       if (!cliente.id) {
-        alert('Error: el cliente no tiene un ID válido.');
+        toast({
+          title: 'Cliente inválido',
+          description: 'El cliente no tiene un ID válido.',
+          type: 'error',
+        });
         return;
       }
 
       await crearCotizacion({
         clienteId: cliente.id,
         clienteNombre: cliente.nombre,
-        items: items.map((i) => ({
-          productoId: i.id,
-          nombre: i.nombre,
-          cantidad: i.cantidad,
-          precio: i.precio,
-          codigo: i.codigo,
-        })),
+        items: items.map((i) => {
+          const { subtotalLinea, descuentoLinea, totalLinea } =
+            calcularTotalesLinea(i);
+
+          return {
+            productoId: i.id,
+            nombre: i.nombre,
+            cantidad: i.cantidad,
+            precio: i.precio,
+            codigo: i.codigo,
+            descuentos: i.descuentos,
+            subtotalLinea,
+            descuentoLinea,
+            totalLinea,
+          };
+        }),
         subtotal,
-        descuentos,
         total,
         totalDescuentos,
         observaciones,
         vigenciaDias,
       });
 
-      alert('Cotización guardada con éxito');
+      toast({
+        title: 'Cotización guardada',
+        description: 'La cotización se guardó con éxito.',
+        type: 'success',
+      });
+
       router.push('/cotizaciones');
     } catch (error) {
       console.error('Error al guardar la cotización:', error);
-      alert('No se pudo guardar la cotización.');
+      toast({
+        title: 'No se pudo guardar',
+        description: 'Ocurrió un problema al guardar la cotización.',
+        type: 'error',
+      });
     }
   };
 
@@ -172,7 +242,17 @@ export default function NuevaCotizacionPage() {
       id: 'NUEVA',
       clienteNombre: cliente.nombre,
       clienteDireccion: cliente.domicilio,
-      items: items.map((item) => ({ ...item })),
+      items: items.map((item) => {
+        const { subtotalLinea, descuentoLinea, totalLinea } =
+          calcularTotalesLinea(item);
+
+        return {
+          ...item,
+          subtotalLinea,
+          descuentoLinea,
+          totalLinea,
+        };
+      }),
       subtotal,
       total,
       totalDescuentos,
@@ -185,7 +265,11 @@ export default function NuevaCotizacionPage() {
     const cotizacionParaPDF = buildCotizacionData();
 
     if (!cotizacionParaPDF) {
-      alert('Por favor, selecciona un cliente para generar el PDF.');
+      toast({
+        title: 'Falta cliente',
+        description: 'Selecciona un cliente para generar el PDF.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -198,7 +282,11 @@ export default function NuevaCotizacionPage() {
     const cotizacionParaPDF = buildCotizacionData();
 
     if (!cotizacionParaPDF) {
-      alert('Por favor, selecciona un cliente para compartir la cotización.');
+      toast({
+        title: 'Falta cliente',
+        description: 'Selecciona un cliente para compartir la cotización.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -222,7 +310,11 @@ export default function NuevaCotizacionPage() {
       });
     } catch (error) {
       console.error('Error al compartir por WhatsApp:', error);
-      alert('Ocurrió un error al intentar compartir la cotización.');
+      toast({
+        title: 'No se pudo compartir',
+        description: 'Ocurrió un error al intentar compartir la cotización.',
+        type: 'error',
+      });
     } finally {
       setIsSharing(false);
     }
@@ -233,7 +325,7 @@ export default function NuevaCotizacionPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Nueva Cotización</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Selecciona cliente, agrega productos y genera la cotización.
+          Selecciona cliente, agrega productos y asigna descuentos por producto.
         </p>
       </div>
 
@@ -275,7 +367,7 @@ export default function NuevaCotizacionPage() {
                   >
                     <p className="font-medium">{p.nombre}</p>
                     <p className="text-sm text-gray-500">
-                      {p.codigo} - ${p.precio.toFixed(2)}
+                      {String(p.codigo ?? '—')} - ${p.precio.toFixed(2)}
                     </p>
                   </li>
                 ))}
@@ -291,88 +383,124 @@ export default function NuevaCotizacionPage() {
             <p className="text-gray-500">Agrega productos para comenzar.</p>
           ) : (
             <div className="space-y-5">
-              {/* Vista móvil en tarjetas */}
-              <div className="space-y-3 md:hidden">
-                {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-2xl border bg-gray-50 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-semibold leading-tight">{item.nombre}</p>
-                        <p className="mt-1 text-xs text-gray-500">{item.codigo}</p>
+              {/* 📱 MOBILE CARDS */}
+              <div className="md:hidden space-y-4">
+                {items.map((item) => {
+                  const itemSubtotal = item.precio * item.cantidad;
+
+                  const itemTotal =
+                    item.descuentos?.reduce((acc: number, d: number | undefined) => {
+                      if (d === undefined || d <= 0) return acc;
+                      return acc * (1 - d / 100);
+                    }, itemSubtotal) ?? itemSubtotal;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border bg-gray-50 p-4 space-y-3"
+                    >
+                      {/* Header */}
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold">{item.nombre}</p>
+                          <p className="text-xs text-gray-500">{item.codigo}</p>
+                        </div>
+
+                        <button
+                          onClick={() => eliminarItem(item.id)}
+                          className="text-red-500"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
 
-                      <button
-                        onClick={() => eliminarItem(item.id)}
-                        className="shrink-0 text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      {/* Cantidad */}
                       <div>
-                        <p className="mb-1 text-gray-500">Cantidad</p>
+                        <p className="text-xs text-gray-500 mb-1">Cantidad</p>
                         <input
                           type="number"
-                          inputMode="numeric"
-                          min={0}
                           value={item.cantidad}
                           onChange={(e) =>
-                            handleCantidadChange(
-                              item.id,
-                              parseInt(e.target.value, 10)
-                            )
+                            handleCantidadChange(item.id, parseInt(e.target.value, 10))
                           }
-                          className="h-10 w-full rounded-xl border bg-white p-2 text-center"
+                          className="w-full rounded-xl border p-2 text-center"
                         />
                       </div>
 
-                      <div>
-                        <p className="mb-1 text-gray-500">Precio unitario</p>
-                        <div className="flex h-10 items-center rounded-xl border bg-white px-3">
-                          ${item.precio.toFixed(2)}
-                        </div>
+                      {/* Precio */}
+                      <div className="text-sm">
+                        <p className="text-gray-500">Precio Unitario</p>
+                        <p className="font-semibold">${item.precio.toFixed(2)}</p>
                       </div>
 
-                      <div className="col-span-2">
-                        <p className="mb-1 text-gray-500">Total</p>
-                        <div className="flex h-10 items-center rounded-xl border bg-white px-3 font-semibold">
-                          ${(item.precio * item.cantidad).toFixed(2)}
-                        </div>
+                      {/* Descuentos */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {[0, 1, 2, 3].map((i) => (
+                          <input
+                            key={i}
+                            type="number"
+                            placeholder={`Desc ${i + 1}`}
+                            value={item.descuentos?.[i] ?? ''}
+                            onChange={(e) =>
+                              handleDescuentoItemChange(item.id, i, e.target.value)
+                            }
+                            className="rounded-lg border p-2 text-center"
+                          />
+                        ))}
+                      </div>
+
+                      {/* Totales */}
+                      <div className="flex justify-between text-sm">
+                        <span>Subtotal</span>
+                        <span>${itemSubtotal.toFixed(2)}</span>
+                      </div>
+
+                      <div className="flex justify-between font-bold">
+                        <span>Total</span>
+                        <span>${itemTotal.toFixed(2)}</span>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              {/* Vista desktop tabla */}
-              <div className="hidden md:block">
-                <div className="overflow-hidden rounded-xl border">
-                  <table className="w-full">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="min-w-[260px] p-3 text-left">Producto</th>
-                        <th className="min-w-[120px] p-3 text-left">Cantidad</th>
-                        <th className="min-w-[130px] p-3 text-left">Precio Unit.</th>
-                        <th className="min-w-[120px] p-3 text-left">Total</th>
-                        <th className="w-12 p-3"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((item) => (
-                        <tr key={item.id} className="border-t align-middle">
+              {/* 💻 DESKTOP TABLE */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full min-w-[900px]">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="p-3 text-left">Producto</th>
+                      <th className="p-3 text-left">Cant.</th>
+                      <th className="p-3 text-left">Precio</th>
+                      <th className="p-3 text-left">D1</th>
+                      <th className="p-3 text-left">D2</th>
+                      <th className="p-3 text-left">D3</th>
+                      <th className="p-3 text-left">D4</th>
+                      <th className="p-3 text-left">Total</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {items.map((item) => {
+                      const itemSubtotal = item.precio * item.cantidad;
+
+                      const itemTotal =
+                        item.descuentos?.reduce((acc: number, d: number | undefined) => {
+                          if (d === undefined || d <= 0) return acc;
+                          return acc * (1 - d / 100);
+                        }, itemSubtotal) ?? itemSubtotal;
+
+                      return (
+                        <tr key={item.id} className="border-t">
                           <td className="p-3">
-                            <p className="break-words font-semibold">{item.nombre}</p>
+                            <p className="font-semibold">{item.nombre}</p>
                             <p className="text-xs text-gray-500">{item.codigo}</p>
                           </td>
+
                           <td className="p-3">
                             <input
                               type="number"
-                              inputMode="numeric"
-                              min={0}
                               value={item.cantidad}
                               onChange={(e) =>
                                 handleCantidadChange(
@@ -380,28 +508,43 @@ export default function NuevaCotizacionPage() {
                                   parseInt(e.target.value, 10)
                                 )
                               }
-                              className="h-10 w-24 rounded-lg border p-2 text-center"
+                              className="w-16 border rounded text-center"
                             />
                           </td>
-                          <td className="whitespace-nowrap p-3">
-                            ${item.precio.toFixed(2)}
+
+                          <td className="p-3">${item.precio.toFixed(2)}</td>
+
+                          {[0, 1, 2, 3].map((i) => (
+                            <td key={i} className="p-3">
+                              <input
+                                type="number"
+                                value={item.descuentos?.[i] ?? ''}
+                                onChange={(e) =>
+                                  handleDescuentoItemChange(
+                                    item.id,
+                                    i,
+                                    e.target.value
+                                  )
+                                }
+                                className="w-16 border rounded text-center"
+                              />
+                            </td>
+                          ))}
+
+                          <td className="p-3 font-bold">
+                            ${itemTotal.toFixed(2)}
                           </td>
-                          <td className="whitespace-nowrap p-3 font-medium">
-                            ${(item.precio * item.cantidad).toFixed(2)}
-                          </td>
-                          <td className="p-3 text-center">
-                            <button
-                              onClick={() => eliminarItem(item.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
+
+                          <td>
+                            <button onClick={() => eliminarItem(item.id)}>
                               <Trash2 size={18} />
                             </button>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
 
               <div className="flex justify-end">
@@ -410,28 +553,6 @@ export default function NuevaCotizacionPage() {
                     <span className="font-semibold">Subtotal</span>
                     <span className="font-semibold">${subtotal.toFixed(2)}</span>
                   </div>
-
-                  {descuentos.map((_, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between gap-3"
-                    >
-                      <label
-                        htmlFor={`desc-${index}`}
-                        className="text-sm text-gray-600"
-                      >
-                        Descuento {index + 1} (%)
-                      </label>
-                      <input
-                        id={`desc-${index}`}
-                        type="number"
-                        placeholder="0"
-                        value={descuentos[index] || ''}
-                        onChange={(e) => handleDescuentoChange(index, e.target.value)}
-                        className="h-10 w-24 rounded-lg border p-2 text-right"
-                      />
-                    </div>
-                  ))}
 
                   <div className="flex items-center justify-between text-red-600">
                     <span className="font-semibold">Total Descuentos</span>
