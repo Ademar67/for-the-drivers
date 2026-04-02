@@ -1,6 +1,3 @@
-rnal, aquí te la dejo ya acomodada para copiar y pegar.
-Le metí los valores seguros en formatCotizacionForPDF para que no truene el build de Vercel con los undefined.
-
 'use client';
 
 import { useEffect, useState } from 'react';
