@@ -13,7 +13,7 @@ import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';
 import { useToast } from '@/components/ui/toast-provider';
 
-interface ProductoConId extends Producto {
+interface ProductoConId extends Omit<Producto, 'codigo'> {
   id: string;
   codigo?: string;
 }
@@ -354,185 +354,164 @@ export default function NuevaCotizacionPage() {
           <h2 className="mb-4 text-2xl font-bold">Resumen</h2>
 
           {items.length === 0 ? (
-            <p className="text-gray-500">Agrega productos para comenzar.</p>
-          ) : (
-            <div className="space-y-5">
-              {/* 📱 MOBILE CARDS */}
-              <div className="md:hidden space-y-4">
-                {items.map((item) => {
-                  const itemSubtotal = item.precio * item.cantidad;
+  <p className="text-gray-500">Agrega productos para comenzar.</p>
+) : (
+  <div className="space-y-5">
 
-                  const itemTotal =
-                    item.descuentos?.reduce((acc: number, d: number) => {
-                      if (!d) return acc;
-                      return acc * (1 - d / 100);
-                    }, itemSubtotal) ?? itemSubtotal;
+    {/* 📱 MOBILE CARDS */}
+    <div className="md:hidden space-y-4">
+      {items.map((item) => {
+        const itemSubtotal = item.precio * item.cantidad;
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border bg-gray-50 p-4 space-y-3"
-                    >
-                      {/* Header */}
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold">{item.nombre}</p>
-                          <p className="text-xs text-gray-500">{item.codigo}</p>
-                        </div>
+        const itemTotal = item.descuentos.reduce((acc: number, d: number) => {
+          if (!d) return acc;
+          return acc * (1 - d / 100);
+        }, itemSubtotal);
 
-                        <button
-                          onClick={() => eliminarItem(item.id)}
-                          className="text-red-500"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-
-                      {/* Cantidad */}
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Cantidad</p>
-                        <input
-                          type="number"
-                          value={item.cantidad}
-                          onChange={(e) =>
-                            handleCantidadChange(
-                              item.id,
-                              parseInt(e.target.value, 10)
-                            )
-                          }
-                          className="w-full rounded-xl border p-2 text-center"
-                        />
-                      </div>
-
-                      {/* Precio */}
-                      <div className="text-sm">
-                        <p className="text-gray-500">Precio Unitario</p>
-                        <p className="font-semibold">
-                          ${item.precio.toFixed(2)}
-                        </p>
-                      </div>
-
-                      {/* Descuentos */}
-                      <div className="grid grid-cols-2 gap-2">
-                        {[0, 1, 2, 3].map((i) => (
-                          <input
-                            key={i}
-                            type="number"
-                            placeholder={`Desc ${i + 1}`}
-                            value={item.descuentos?.[i] ?? ''}
-                            onChange={(e) =>
-                              handleItemDescuentoChange(
-                                item.id,
-                                i,
-                                e.target.value
-                              )
-                            }
-                            className="rounded-lg border p-2 text-center"
-                          />
-                        ))}
-                      </div>
-
-                      {/* Totales */}
-                      <div className="flex justify-between text-sm">
-                        <span>Subtotal</span>
-                        <span>${itemSubtotal.toFixed(2)}</span>
-                      </div>
-
-                      <div className="flex justify-between font-bold">
-                        <span>Total</span>
-                        <span>${itemTotal.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+        return (
+          <div key={item.id} className="rounded-2xl border bg-gray-50 p-4 space-y-3">
+            
+            {/* Header */}
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-semibold">{item.nombre}</p>
+                <p className="text-xs text-gray-500">{item.codigo}</p>
               </div>
 
-              {/* 💻 DESKTOP TABLE */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full min-w-[900px]">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="p-3 text-left">Producto</th>
-                      <th className="p-3 text-left">Cant.</th>
-                      <th className="p-3 text-left">Precio</th>
-                      <th className="p-3 text-left">D1</th>
-                      <th className="p-3 text-left">D2</th>
-                      <th className="p-3 text-left">D3</th>
-                      <th className="p-3 text-left">D4</th>
-                      <th className="p-3 text-left">Total</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {items.map((item) => {
-                      const itemSubtotal = item.precio * item.cantidad;
-
-                      const itemTotal =
-                        item.descuentos?.reduce((acc: number, d: number) => {
-                          if (!d) return acc;
-                          return acc * (1 - d / 100);
-                        }, itemSubtotal) ?? itemSubtotal;
-
-                      return (
-                        <tr key={item.id} className="border-t">
-                          <td className="p-3">
-                            <p className="font-semibold">{item.nombre}</p>
-                            <p className="text-xs text-gray-500">
-                              {item.codigo}
-                            </p>
-                          </td>
-
-                          <td className="p-3">
-                            <input
-                              type="number"
-                              value={item.cantidad}
-                              onChange={(e) =>
-                                handleCantidadChange(
-                                  item.id,
-                                  parseInt(e.target.value, 10)
-                                )
-                              }
-                              className="w-16 border rounded text-center"
-                            />
-                          </td>
-
-                          <td className="p-3">${item.precio.toFixed(2)}</td>
-
-                          {[0, 1, 2, 3].map((i) => (
-                            <td key={i} className="p-3">
-                              <input
-                                type="number"
-                                value={item.descuentos?.[i] ?? ''}
-                                onChange={(e) =>
-                                  handleItemDescuentoChange(
-                                    item.id,
-                                    i,
-                                    e.target.value
-                                  )
-                                }
-                                className="w-16 border rounded text-center"
-                              />
-                            </td>
-                          ))}
-
-                          <td className="p-3 font-bold">
-                            ${itemTotal.toFixed(2)}
-                          </td>
-
-                          <td>
-                            <button onClick={() => eliminarItem(item.id)}>
-                              <Trash2 size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <button
+                onClick={() => eliminarItem(item.id)}
+                className="text-red-500"
+              >
+                <Trash2 size={18} />
+              </button>
             </div>
-          )}
+
+            {/* Cantidad */}
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Cantidad</p>
+              <input
+                type="number"
+                value={item.cantidad}
+                onChange={(e) =>
+                  handleCantidadChange(item.id, parseInt(e.target.value, 10))
+                }
+                className="w-full rounded-xl border p-2 text-center"
+              />
+            </div>
+
+            {/* Precio */}
+            <div className="text-sm">
+              <p className="text-gray-500">Precio Unitario</p>
+              <p className="font-semibold">${item.precio.toFixed(2)}</p>
+            </div>
+
+            {/* Descuentos */}
+            <div className="grid grid-cols-2 gap-2">
+              {[0, 1, 2, 3].map((i) => (
+                <input
+                  key={i}
+                  type="number"
+                  placeholder={`Desc ${i + 1}`}
+                  value={item.descuentos?.[i] === 0 ? '0' : item.descuentos?.[i] || ''}
+                  onChange={(e) =>
+                    handleItemDescuentoChange(item.id, i, e.target.value)
+                  }
+                  className="rounded-lg border p-2 text-center"
+                />
+              ))}
+            </div>
+
+            {/* Totales */}
+            <div className="flex justify-between text-sm">
+              <span>Subtotal</span>
+              <span>${itemSubtotal.toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-between font-bold">
+              <span>Total</span>
+              <span>${itemTotal.toFixed(2)}</span>
+            </div>
+
+          </div>
+        );
+      })}
+    </div>
+
+    {/* 💻 DESKTOP TABLE */}
+    <div className="hidden md:block overflow-x-auto">
+      <table className="w-full min-w-[900px]">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="p-3 text-left">Producto</th>
+            <th className="p-3 text-left">Cant.</th>
+            <th className="p-3 text-left">Precio</th>
+            <th className="p-3 text-left">D1</th>
+            <th className="p-3 text-left">D2</th>
+            <th className="p-3 text-left">D3</th>
+            <th className="p-3 text-left">D4</th>
+            <th className="p-3 text-left">Total</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {items.map((item) => {
+            const itemSubtotal = item.precio * item.cantidad;
+
+            const itemTotal = item.descuentos.reduce((acc: number, d: number) => {
+              if (!d) return acc;
+              return acc * (1 - d / 100);
+            }, itemSubtotal);
+
+            return (
+              <tr key={item.id} className="border-t">
+                <td className="p-3">
+                  <p className="font-semibold">{item.nombre}</p>
+                  <p className="text-xs text-gray-500">{item.codigo}</p>
+                </td>
+
+                <td className="p-3">
+                  <input
+                    type="number"
+                    value={item.cantidad}
+                    onChange={(e) =>
+                      handleCantidadChange(item.id, parseInt(e.target.value, 10))
+                    }
+                    className="w-16 border rounded text-center"
+                  />
+                </td>
+
+                <td className="p-3">${item.precio.toFixed(2)}</td>
+
+                {[0, 1, 2, 3].map((i) => (
+                  <td key={i} className="p-3">
+                    <input
+                      type="number"
+                      value={item.descuentos?.[i] === 0 ? '0' : item.descuentos?.[i] || ''}
+                      onChange={(e) =>
+                        handleItemDescuentoChange(item.id, i, e.target.value)
+                      }
+                      className="w-16 border rounded text-center"
+                    />
+                  </td>
+                ))}
+
+                <td className="p-3 font-bold">${itemTotal.toFixed(2)}</td>
+
+                <td>
+                  <button onClick={() => eliminarItem(item.id)}>
+                    <Trash2 size={18} />
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+)}
 
           <div className="mt-6 border-t pt-6">
             <h3 className="mb-3 text-lg font-semibold">Configuración del PDF</h3>
