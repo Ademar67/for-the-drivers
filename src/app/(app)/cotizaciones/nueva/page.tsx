@@ -28,6 +28,8 @@ interface ItemCotizacion extends ProductoConId {
   ];
 }
 
+type TipoPago = 'contado' | 'credito' | 'anticipado';
+
 function normalizarDescuentos(
   descuentos: ItemCotizacion['descuentos']
 ): [number, number, number, number] {
@@ -40,7 +42,7 @@ function normalizarDescuentos(
 }
 
 function calcularTotalesLinea(item: ItemCotizacion) {
-  const subtotalLinea = item.precio * item.cantidad;
+  const subtotalLinea = Number(item.precio || 0) * Number(item.cantidad || 0);
   const descuentosNormalizados = normalizarDescuentos(item.descuentos);
 
   const totalLinea = descuentosNormalizados.reduce<number>(
@@ -61,6 +63,27 @@ function calcularTotalesLinea(item: ItemCotizacion) {
   };
 }
 
+function generarCondiciones(tipo: TipoPago) {
+  switch (tipo) {
+    case 'contado':
+      return `• Precio de contado
+• Precios sujetos a disponibilidad`;
+
+    case 'credito':
+      return `• Precio bajo esquema de crédito
+• Crédito sujeto a autorización
+• Precios sujetos a disponibilidad`;
+
+    case 'anticipado':
+      return `• Pago anticipado aplica condiciones preferenciales
+• Precio especial por pronto pago
+• Precios sujetos a disponibilidad`;
+
+    default:
+      return '';
+  }
+}
+
 export default function NuevaCotizacionPage() {
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
   const [productos, setProductos] = useState<ProductoConId[]>([]);
@@ -69,7 +92,9 @@ export default function NuevaCotizacionPage() {
   const [busqueda, setBusqueda] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [vigenciaDias, setVigenciaDias] = useState(7);
+  const [tipoPago, setTipoPago] = useState<TipoPago>('contado');
   const [isSharing, setIsSharing] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -98,6 +123,11 @@ export default function NuevaCotizacionPage() {
     return () => unsub();
   }, [toast]);
 
+  const clienteSeleccionado = useMemo(
+    () => clientes.find((c) => c.id === clienteSeleccionadoId) || null,
+    [clientes, clienteSeleccionadoId]
+  );
+
   const agregarProducto = (producto: ProductoConId) => {
     setItems((prev) => {
       const existente = prev.find((item) => item.id === producto.id);
@@ -119,6 +149,8 @@ export default function NuevaCotizacionPage() {
         },
       ];
     });
+
+    setBusqueda('');
   };
 
   const eliminarItem = (id: string) => {
@@ -154,12 +186,14 @@ export default function NuevaCotizacionPage() {
     );
   };
 
-  const productosFiltrados = busqueda
-    ? productos.filter(
-        (p) =>
-          p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-          String(p.codigo ?? '').toLowerCase().includes(busqueda.toLowerCase())
-      )
+  const productosFiltrados = busqueda.trim()
+    ? productos.filter((p) => {
+        const texto = busqueda.toLowerCase();
+        return (
+          p.nombre.toLowerCase().includes(texto) ||
+          String(p.codigo ?? '').toLowerCase().includes(texto)
+        );
+      })
     : [];
 
   const { subtotal, total, totalDescuentos } = useMemo(() => {
@@ -224,7 +258,7 @@ export default function NuevaCotizacionPage() {
             productoId: i.id,
             nombre: i.nombre,
             cantidad: i.cantidad,
-            precio: i.precio,
+            precio: Number(i.precio || 0),
             codigo: i.codigo || '',
             descuentos: descuentosNormalizados,
             subtotalLinea,
@@ -257,38 +291,37 @@ export default function NuevaCotizacionPage() {
   };
 
   const buildCotizacionData = (): CotizacionPDFData | null => {
-    const cliente = clientes.find((c) => c.id === clienteSeleccionadoId);
-
-    if (!cliente) {
+    if (!clienteSeleccionado) {
       return null;
     }
 
     return {
-      id: 'NUEVA',
-      clienteNombre: cliente.nombre,
-      clienteDireccion: cliente.domicilio,
-      items: items.map((item) => {
-        const {
-          subtotalLinea,
-          descuentoLinea,
-          totalLinea,
-          descuentosNormalizados,
-        } = calcularTotalesLinea(item);
-
-        return {
-          ...item,
-          codigo: item.codigo || '',
-          descuentos: descuentosNormalizados,
-          subtotalLinea,
-          descuentoLinea,
-          totalLinea,
-        };
+      cliente: clienteSeleccionado.nombre,
+      fecha: new Date().toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
       }),
+      asesor: 'Ademar',
       subtotal,
+      descuentos: totalDescuentos,
       total,
-      totalDescuentos,
       observaciones,
       vigenciaDias,
+      items: items.map((item) => {
+        const { subtotalLinea, totalLinea, descuentosNormalizados } =
+          calcularTotalesLinea(item);
+
+        return {
+          nombre: item.nombre,
+          codigo: item.codigo || '',
+          cantidad: item.cantidad,
+          precio: Number(item.precio || 0),
+          subtotal: subtotalLinea,
+          total: totalLinea,
+          descuentos: descuentosNormalizados,
+        };
+      }),
     };
   };
 
@@ -304,9 +337,20 @@ export default function NuevaCotizacionPage() {
       return;
     }
 
-    const blob = await generarCotizacionPDF(cotizacionParaPDF);
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    try {
+      setIsGeneratingPdf(true);
+      const doc = await generarCotizacionPDF(cotizacionParaPDF);
+      window.open(doc.output('bloburl'), '_blank');
+    } catch (error) {
+      console.error('Error al generar el PDF:', error);
+      toast({
+        title: 'No se pudo generar el PDF',
+        description: 'Ocurrió un error al generar la cotización.',
+        type: 'error',
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handleShareWhatsApp = async () => {
@@ -324,15 +368,16 @@ export default function NuevaCotizacionPage() {
     setIsSharing(true);
 
     try {
-      const pdfBlob = await generarCotizacionPDF(cotizacionParaPDF);
-      const fileName = `Cotizacion-${cotizacionParaPDF.clienteNombre.replace(/\s/g, '_')}.pdf`;
+      const doc = await generarCotizacionPDF(cotizacionParaPDF);
+      const pdfBlob = doc.output('blob');
+      const fileName = `Cotizacion-${cotizacionParaPDF.cliente.replace(/\s/g, '_')}.pdf`;
 
       const totalFormatted = new Intl.NumberFormat('es-MX', {
         style: 'currency',
         currency: 'MXN',
       }).format(cotizacionParaPDF.total);
 
-      const message = `Hola, te comparto la cotización para ${cotizacionParaPDF.clienteNombre} con un total de ${totalFormatted}.`;
+      const message = `Hola, te comparto la cotización para ${cotizacionParaPDF.cliente} con un total de ${totalFormatted}.`;
 
       await sharePdfViaWhatsapp({
         fileName,
@@ -398,7 +443,7 @@ export default function NuevaCotizacionPage() {
                   >
                     <p className="font-medium">{p.nombre}</p>
                     <p className="text-sm text-gray-500">
-                      {String(p.codigo ?? '—')} - ${p.precio.toFixed(2)}
+                      {String(p.codigo ?? '—')} - ${Number(p.precio || 0).toFixed(2)}
                     </p>
                   </li>
                 ))}
@@ -420,10 +465,7 @@ export default function NuevaCotizacionPage() {
                     calcularTotalesLinea(item);
 
                   return (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border bg-gray-50 p-4"
-                    >
+                    <div key={item.id} className="rounded-2xl border bg-gray-50 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="font-semibold leading-tight">{item.nombre}</p>
@@ -435,6 +477,7 @@ export default function NuevaCotizacionPage() {
                         <button
                           onClick={() => eliminarItem(item.id)}
                           className="shrink-0 text-red-500 hover:text-red-700"
+                          type="button"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -461,7 +504,7 @@ export default function NuevaCotizacionPage() {
                         <div>
                           <p className="mb-1 text-gray-500">Precio unitario</p>
                           <div className="flex h-10 items-center rounded-xl border bg-white px-3">
-                            ${item.precio.toFixed(2)}
+                            ${Number(item.precio || 0).toFixed(2)}
                           </div>
                         </div>
 
@@ -560,7 +603,7 @@ export default function NuevaCotizacionPage() {
                             </td>
 
                             <td className="whitespace-nowrap p-3">
-                              ${item.precio.toFixed(2)}
+                              ${Number(item.precio || 0).toFixed(2)}
                             </td>
 
                             {item.descuentos.map((descuento, index) => (
@@ -593,6 +636,7 @@ export default function NuevaCotizacionPage() {
                               <button
                                 onClick={() => eliminarItem(item.id)}
                                 className="text-red-500 hover:text-red-700"
+                                type="button"
                               >
                                 <Trash2 size={18} />
                               </button>
@@ -652,36 +696,70 @@ export default function NuevaCotizacionPage() {
 
               <div>
                 <label
-                  htmlFor="observaciones"
+                  htmlFor="tipoPago"
                   className="mb-1 block text-sm font-medium text-gray-700"
                 >
-                  Observaciones
+                  Tipo de condición comercial
                 </label>
-                <textarea
-                  id="observaciones"
-                  rows={4}
-                  placeholder="• Se acepta pago con terminal bancaria..."
-                  value={observaciones}
-                  onChange={(e) => setObservaciones(e.target.value)}
-                  className="w-full rounded-xl border p-3"
-                ></textarea>
+
+                <div className="flex gap-2">
+                  <select
+                    id="tipoPago"
+                    value={tipoPago}
+                    onChange={(e) => setTipoPago(e.target.value as TipoPago)}
+                    className="w-full rounded-xl border bg-white p-3"
+                  >
+                    <option value="contado">Contado</option>
+                    <option value="credito">Crédito</option>
+                    <option value="anticipado">Pago anticipado</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => setObservaciones(generarCondiciones(tipoPago))}
+                    className="rounded-xl bg-blue-600 px-4 text-white transition-colors hover:bg-blue-700"
+                  >
+                    Aplicar
+                  </button>
+                </div>
               </div>
+            </div>
+
+            <div className="mt-4">
+              <label
+                htmlFor="observaciones"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
+                Observaciones
+              </label>
+              <textarea
+                id="observaciones"
+                rows={4}
+                placeholder="• Precio de contado
+• Crédito sujeto a autorización
+• Pago anticipado aplica condiciones preferenciales"
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+                className="w-full rounded-xl border p-3"
+              />
             </div>
           </div>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
             <button
               onClick={handleGenerarPDF}
-              disabled={items.length === 0 || !clienteSeleccionadoId}
+              disabled={items.length === 0 || !clienteSeleccionadoId || isGeneratingPdf}
+              type="button"
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-500 px-4 py-3 text-white transition-colors hover:bg-gray-600 disabled:bg-gray-400 sm:w-auto"
             >
               <FileDown size={18} />
-              Exportar a PDF
+              {isGeneratingPdf ? 'Generando PDF...' : 'Exportar a PDF'}
             </button>
 
             <button
               onClick={handleShareWhatsApp}
               disabled={items.length === 0 || !clienteSeleccionadoId || isSharing}
+              type="button"
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-white transition-colors hover:bg-green-700 disabled:bg-gray-400 sm:w-auto"
             >
               <MessageCircle size={18} />
@@ -691,6 +769,7 @@ export default function NuevaCotizacionPage() {
             <button
               onClick={handleGuardarCotizacion}
               disabled={items.length === 0 || !clienteSeleccionadoId}
+              type="button"
               className="w-full rounded-xl bg-blue-600 px-6 py-3 text-white transition-colors hover:bg-blue-700 disabled:bg-gray-400 sm:w-auto"
             >
               Guardar Cotización
