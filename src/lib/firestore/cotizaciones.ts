@@ -12,22 +12,26 @@ import {
   doc,
   getDoc,
 } from 'firebase/firestore';
-import type { Cotizacion as CotizacionBase, CotizacionItem } from '@/lib/firebase-types';
+import type { Cotizacion as CotizacionBase, CotizacionItem as CotizacionItemBase } from '@/lib/firebase-types';
+
+export interface CotizacionItem extends CotizacionItemBase {
+  descuentos?: number[];
+}
 
 // Extend the base type to ensure 'fecha' is a Timestamp, as it will be after fetching
-export interface Cotizacion extends Omit<CotizacionBase, 'fecha'> {
+export interface Cotizacion extends Omit<CotizacionBase, 'fecha' | 'items'> {
   id: string; // Asegurarse de que el id siempre esté presente
   fecha: Timestamp;
   fecha_creacion?: {
     seconds: number;
     nanoseconds: number;
   };
+  items: CotizacionItem[];
   totalDescuentos: number;
   clienteDireccion?: string;
   clienteTelefono?: string;
   observaciones?: string;
   vigenciaDias?: number;
-
 }
 
 type CrearCotizacionInput = {
@@ -39,9 +43,9 @@ type CrearCotizacionInput = {
     codigo: string;
     cantidad: number;
     precio: number;
+    descuentos: number[];
   }[];
   subtotal: number;
-  descuentos: (number | undefined)[];
   total: number;
   totalDescuentos: number;
   observaciones: string;
