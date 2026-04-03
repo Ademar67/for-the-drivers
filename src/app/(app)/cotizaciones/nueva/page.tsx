@@ -28,12 +28,24 @@ interface ItemCotizacion extends ProductoConId {
   ];
 }
 
+function normalizarDescuentos(
+  descuentos: ItemCotizacion['descuentos']
+): [number, number, number, number] {
+  return [
+    descuentos[0] ?? 0,
+    descuentos[1] ?? 0,
+    descuentos[2] ?? 0,
+    descuentos[3] ?? 0,
+  ];
+}
+
 function calcularTotalesLinea(item: ItemCotizacion) {
   const subtotalLinea = item.precio * item.cantidad;
+  const descuentosNormalizados = normalizarDescuentos(item.descuentos);
 
-  const totalLinea = item.descuentos.reduce<number>(
+  const totalLinea = descuentosNormalizados.reduce<number>(
     (acumulado, descuento) => {
-      if (descuento === undefined || descuento <= 0) return acumulado;
+      if (descuento <= 0) return acumulado;
       return acumulado * (1 - descuento / 100);
     },
     subtotalLinea
@@ -45,6 +57,7 @@ function calcularTotalesLinea(item: ItemCotizacion) {
     subtotalLinea,
     totalLinea,
     descuentoLinea,
+    descuentosNormalizados,
   };
 }
 
@@ -200,8 +213,12 @@ export default function NuevaCotizacionPage() {
         clienteId: cliente.id,
         clienteNombre: cliente.nombre,
         items: items.map((i) => {
-          const { subtotalLinea, descuentoLinea, totalLinea } =
-            calcularTotalesLinea(i);
+          const {
+            subtotalLinea,
+            descuentoLinea,
+            totalLinea,
+            descuentosNormalizados,
+          } = calcularTotalesLinea(i);
 
           return {
             productoId: i.id,
@@ -209,7 +226,7 @@ export default function NuevaCotizacionPage() {
             cantidad: i.cantidad,
             precio: i.precio,
             codigo: i.codigo || '',
-            descuentos: i.descuentos,
+            descuentos: descuentosNormalizados,
             subtotalLinea,
             descuentoLinea,
             totalLinea,
@@ -251,12 +268,17 @@ export default function NuevaCotizacionPage() {
       clienteNombre: cliente.nombre,
       clienteDireccion: cliente.domicilio,
       items: items.map((item) => {
-        const { subtotalLinea, descuentoLinea, totalLinea } =
-          calcularTotalesLinea(item);
+        const {
+          subtotalLinea,
+          descuentoLinea,
+          totalLinea,
+          descuentosNormalizados,
+        } = calcularTotalesLinea(item);
 
         return {
           ...item,
           codigo: item.codigo || '',
+          descuentos: descuentosNormalizados,
           subtotalLinea,
           descuentoLinea,
           totalLinea,
