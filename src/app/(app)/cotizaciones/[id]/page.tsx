@@ -9,34 +9,44 @@ import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
 import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';
 
+function formatearFecha(fecha: Cotizacion['fecha_creacion'] | Cotizacion['fecha']) {
+  try {
+    if (fecha && typeof fecha === 'object' && 'toDate' in fecha && typeof fecha.toDate === 'function') {
+      return fecha.toDate().toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      });
+    }
+  } catch {}
+
+  return new Date().toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 const formatCotizacionForPDF = (cot: Cotizacion): CotizacionPDFData => {
-  const pdfData: CotizacionPDFData = {
-    id: cot.id || '',
-    clienteNombre: cot.clienteNombre || '',
+  return {
+    cliente: cot.clienteNombre || 'Cliente',
+    fecha: formatearFecha(cot.fecha_creacion || cot.fecha),
+    asesor: 'Ademar',
+    subtotal: Number(cot.subtotal || 0),
+    descuentos: Number(cot.totalDescuentos || 0),
+    total: Number(cot.total || 0),
+    observaciones: cot.observaciones || '',
+    vigenciaDias: Number(cot.vigenciaDias || 7),
     items: (cot.items || []).map((item) => ({
       codigo: item.codigo || '',
       nombre: item.nombre || '',
-      cantidad: item.cantidad || 0,
-      precio: item.precio || 0,
+      cantidad: Number(item.cantidad || 0),
+      precio: Number(item.precio || 0),
+      subtotal: Number(item.subtotalLinea || (Number(item.precio || 0) * Number(item.cantidad || 0))),
+      total: Number(item.totalLinea || 0),
+      descuentos: Array.isArray(item.descuentos) ? item.descuentos : [],
     })),
-    subtotal: cot.subtotal || 0,
-    totalDescuentos: cot.totalDescuentos || 0,
-    total: cot.total || 0,
   };
-
-  if (cot.fecha_creacion) {
-    pdfData.fecha_creacion = {
-      seconds: cot.fecha_creacion.seconds,
-      nanoseconds: cot.fecha_creacion.nanoseconds,
-    };
-  }
-
-  if (cot.clienteDireccion) pdfData.clienteDireccion = cot.clienteDireccion;
-  if (cot.clienteTelefono) pdfData.clienteTelefono = cot.clienteTelefono;
-  if (cot.observaciones) pdfData.observaciones = cot.observaciones;
-  if (cot.vigenciaDias) pdfData.vigenciaDias = cot.vigenciaDias;
-
-  return pdfData;
 };
 
 export default function CotizacionDetallePage() {
@@ -44,6 +54,8 @@ export default function CotizacionDetallePage() {
   const router = useRouter();
   const [cotizacion, setCotizacion] = useState<Cotizacion | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     if (typeof params.id !== 'string') return;
@@ -57,6 +69,8 @@ export default function CotizacionDetallePage() {
         if (cot) {
           setCotizacion(cot);
         }
+      } catch (error) {
+        console.error('Error al cargar cotización:', error);
       } finally {
         setLoading(false);
       }
@@ -74,46 +88,59 @@ export default function CotizacionDetallePage() {
   }
 
   const handleExportPDF = async () => {
-    const cotizacionDataForPdf = formatCotizacionForPDF(cotizacion);
-    const blob = await generarCotizacionPDF(cotizacionDataForPdf);
-
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    try {
+      setIsExporting(true);
+      const cotizacionDataForPdf = formatCotizacionForPDF(cotizacion);
+      const doc = await generarCotizacionPDF(cotizacionDataForPdf);
+      window.open(doc.output('bloburl'), '_blank');
+    } catch (error) {
+      console.error('Error al exportar PDF:', error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleShareWhatsApp = async () => {
-    const cotizacionDataForPdf = formatCotizacionForPDF(cotizacion);
-    const pdfBlob = await generarCotizacionPDF(cotizacionDataForPdf);
+    try {
+      setIsSharing(true);
+      const cotizacionDataForPdf = formatCotizacionForPDF(cotizacion);
+      const doc = await generarCotizacionPDF(cotizacionDataForPdf);
+      const pdfBlob = doc.output('blob');
 
-    await sharePdfViaWhatsapp({
-      fileName: `Cotizacion-${cotizacion.id || 'sin-id'}.pdf`,
-      pdfBlob,
-      message: `Hola, te comparto la cotización No. ${cotizacion.id || 'sin-id'}.`,
-    });
+      await sharePdfViaWhatsapp({
+        fileName: `Cotizacion-${cotizacion.id || 'sin-id'}.pdf`,
+        pdfBlob,
+        message: `Hola, te comparto la cotización de ${cotizacion.clienteNombre || 'cliente'}.`,
+      });
+    } catch (error) {
+      console.error('Error al compartir por WhatsApp:', error);
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   return (
     <div className="p-6">
-      <div className="flex justify-between mb-4">
+      <div className="mb-4 flex justify-between">
         <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver
         </Button>
 
         <div className="flex gap-2">
-          <Button onClick={handleExportPDF}>
+          <Button onClick={handleExportPDF} disabled={isExporting}>
             <Printer className="mr-2 h-4 w-4" />
-            Exportar PDF
+            {isExporting ? 'Generando PDF...' : 'Exportar PDF'}
           </Button>
 
-          <Button onClick={handleShareWhatsApp} variant="outline">
+          <Button onClick={handleShareWhatsApp} variant="outline" disabled={isSharing}>
             <MessageCircle className="mr-2 h-4 w-4" />
-            Compartir por WhatsApp
+            {isSharing ? 'Compartiendo...' : 'Compartir por WhatsApp'}
           </Button>
         </div>
       </div>
 
-      <pre className="bg-white p-4 rounded border overflow-auto">
+      <pre className="overflow-auto rounded border bg-white p-4">
         {JSON.stringify(cotizacion, null, 2)}
       </pre>
     </div>
