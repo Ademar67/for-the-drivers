@@ -208,7 +208,7 @@ export default function NuevaCotizacionPage() {
             nombre: i.nombre,
             cantidad: i.cantidad,
             precio: i.precio,
-            codigo: i.codigo,
+            codigo: i.codigo || '',
             descuentos: i.descuentos,
             subtotalLinea,
             descuentoLinea,
@@ -256,6 +256,7 @@ export default function NuevaCotizacionPage() {
 
         return {
           ...item,
+          codigo: item.codigo || '',
           subtotalLinea,
           descuentoLinea,
           totalLinea,
@@ -515,7 +516,9 @@ export default function NuevaCotizacionPage() {
                           <tr key={item.id} className="border-t align-middle">
                             <td className="p-3">
                               <p className="break-words font-semibold">{item.nombre}</p>
-                              <p className="text-xs text-gray-500">{item.codigo}</p>
+                              <p className="text-xs text-gray-500">
+                                {item.codigo || 'Sin código'}
+                              </p>
                             </td>
 
                             <td className="p-3">
