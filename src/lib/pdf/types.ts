@@ -15,5 +15,7 @@ export interface CotizacionPDFData {
   subtotal: number;
   descuentos: number;
   total: number;
+  observaciones?: string;
+  vigenciaDias?: number;
   items: CotizacionPDFItem[];
 }
