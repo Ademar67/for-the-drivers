@@ -11,7 +11,12 @@ import { CotizacionPDFData } from '@/lib/pdf/types';
 
 function formatearFecha(fecha: Cotizacion['fecha_creacion'] | Cotizacion['fecha']) {
   try {
-    if (fecha && typeof fecha === 'object' && 'toDate' in fecha && typeof fecha.toDate === 'function') {
+    if (
+      fecha &&
+      typeof fecha === 'object' &&
+      'toDate' in fecha &&
+      typeof fecha.toDate === 'function'
+    ) {
       return fecha.toDate().toLocaleDateString('es-MX', {
         day: '2-digit',
         month: 'long',
@@ -42,7 +47,7 @@ const formatCotizacionForPDF = (cot: Cotizacion): CotizacionPDFData => {
       nombre: item.nombre || '',
       cantidad: Number(item.cantidad || 0),
       precio: Number(item.precio || 0),
-      subtotal: Number(item.subtotalLinea || (Number(item.precio || 0) * Number(item.cantidad || 0))),
+      subtotal: Number(item.precio || 0) * Number(item.cantidad || 0),
       total: Number(item.totalLinea || 0),
       descuentos: Array.isArray(item.descuentos) ? item.descuentos : [],
     })),
