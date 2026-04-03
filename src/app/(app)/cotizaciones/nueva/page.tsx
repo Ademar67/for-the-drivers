@@ -20,7 +20,29 @@ interface ProductoConId extends Omit<Producto, 'codigo'> {
 
 interface ItemCotizacion extends ProductoConId {
   cantidad: number;
-  descuentos: number[];
+  descuentos: [
+    number | undefined,
+    number | undefined,
+    number | undefined,
+    number | undefined
+  ];
+}
+
+function calcularTotalesLinea(item: ItemCotizacion) {
+  const subtotalLinea = item.precio * item.cantidad;
+
+  const totalLinea = item.descuentos.reduce((acumulado, descuento) => {
+    if (descuento === undefined || descuento <= 0) return acumulado;
+    return acumulado * (1 - descuento / 100);
+  }, subtotalLinea);
+
+  const descuentoLinea = subtotalLinea - totalLinea;
+
+  return {
+    subtotalLinea,
+    totalLinea,
+    descuentoLinea,
+  };
 }
 
 export default function NuevaCotizacionPage() {
@@ -77,7 +99,7 @@ export default function NuevaCotizacionPage() {
         {
           ...producto,
           cantidad: 1,
-          descuentos: [0, 0, 0, 0],
+          descuentos: [undefined, undefined, undefined, undefined],
         },
       ];
     });
@@ -95,17 +117,23 @@ export default function NuevaCotizacionPage() {
     );
   };
 
-  const handleItemDescuentoChange = (id: string, index: number, valor: string) => {
-    const val = parseFloat(valor);
-  
-    setItems(prev =>
-      prev.map(item => {
-        if (item.id !== id) return item;
-  
-        const nuevos = [...(item.descuentos || [0,0,0,0])];
-        nuevos[index] = isNaN(val) ? 0 : val;
-  
-        return { ...item, descuentos: nuevos };
+  const handleDescuentoItemChange = (
+    itemId: string,
+    index: number,
+    valor: string
+  ) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+
+        const nuevosDescuentos = [...item.descuentos] as ItemCotizacion['descuentos'];
+        const valNum = parseFloat(valor);
+        nuevosDescuentos[index] = Number.isNaN(valNum) ? undefined : valNum;
+
+        return {
+          ...item,
+          descuentos: nuevosDescuentos,
+        };
       })
     );
   };
@@ -121,14 +149,8 @@ export default function NuevaCotizacionPage() {
   const { subtotal, total, totalDescuentos } = useMemo(() => {
     return items.reduce(
       (acc, item) => {
-        const subtotalLinea = item.precio * item.cantidad;
-        
-        const totalLinea = item.descuentos.reduce((acumulado, descuento) => {
-            if (!descuento) return acumulado;
-            return acumulado * (1 - descuento / 100);
-        }, subtotalLinea);
-
-        const descuentoLinea = subtotalLinea - totalLinea;
+        const { subtotalLinea, totalLinea, descuentoLinea } =
+          calcularTotalesLinea(item);
 
         acc.subtotal += subtotalLinea;
         acc.total += totalLinea;
@@ -175,13 +197,19 @@ export default function NuevaCotizacionPage() {
         clienteId: cliente.id,
         clienteNombre: cliente.nombre,
         items: items.map((i) => {
+          const { subtotalLinea, descuentoLinea, totalLinea } =
+            calcularTotalesLinea(i);
+
           return {
             productoId: i.id,
             nombre: i.nombre,
             cantidad: i.cantidad,
             precio: i.precio,
-            codigo: i.codigo ?? '',
+            codigo: i.codigo,
             descuentos: i.descuentos,
+            subtotalLinea,
+            descuentoLinea,
+            totalLinea,
           };
         }),
         subtotal,
@@ -220,11 +248,14 @@ export default function NuevaCotizacionPage() {
       clienteNombre: cliente.nombre,
       clienteDireccion: cliente.domicilio,
       items: items.map((item) => {
+        const { subtotalLinea, descuentoLinea, totalLinea } =
+          calcularTotalesLinea(item);
+
         return {
-          codigo: item.codigo ?? '',
-          nombre: item.nombre,
-          cantidad: item.cantidad,
-          precio: item.precio,
+          ...item,
+          subtotalLinea,
+          descuentoLinea,
+          totalLinea,
         };
       }),
       subtotal,
@@ -354,164 +385,222 @@ export default function NuevaCotizacionPage() {
           <h2 className="mb-4 text-2xl font-bold">Resumen</h2>
 
           {items.length === 0 ? (
-  <p className="text-gray-500">Agrega productos para comenzar.</p>
-) : (
-  <div className="space-y-5">
+            <p className="text-gray-500">Agrega productos para comenzar.</p>
+          ) : (
+            <div className="space-y-5">
+              <div className="space-y-4 md:hidden">
+                {items.map((item) => {
+                  const { subtotalLinea, descuentoLinea, totalLinea } =
+                    calcularTotalesLinea(item);
 
-    {/* 📱 MOBILE CARDS */}
-    <div className="md:hidden space-y-4">
-      {items.map((item) => {
-        const itemSubtotal = item.precio * item.cantidad;
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border bg-gray-50 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold leading-tight">{item.nombre}</p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {item.codigo || 'Sin código'}
+                          </p>
+                        </div>
 
-        const itemTotal = item.descuentos.reduce((acc: number, d: number) => {
-          if (!d) return acc;
-          return acc * (1 - d / 100);
-        }, itemSubtotal);
+                        <button
+                          onClick={() => eliminarItem(item.id)}
+                          className="shrink-0 text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
 
-        return (
-          <div key={item.id} className="rounded-2xl border bg-gray-50 p-4 space-y-3">
-            
-            {/* Header */}
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="font-semibold">{item.nombre}</p>
-                <p className="text-xs text-gray-500">{item.codigo}</p>
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="mb-1 text-gray-500">Cantidad</p>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            value={item.cantidad}
+                            onChange={(e) =>
+                              handleCantidadChange(
+                                item.id,
+                                parseInt(e.target.value, 10)
+                              )
+                            }
+                            className="h-10 w-full rounded-xl border bg-white p-2 text-center"
+                          />
+                        </div>
+
+                        <div>
+                          <p className="mb-1 text-gray-500">Precio unitario</p>
+                          <div className="flex h-10 items-center rounded-xl border bg-white px-3">
+                            ${item.precio.toFixed(2)}
+                          </div>
+                        </div>
+
+                        {item.descuentos.map((descuento, index) => (
+                          <div key={index}>
+                            <p className="mb-1 text-gray-500">
+                              Desc. {index + 1} (%)
+                            </p>
+                            <input
+                              type="number"
+                              placeholder="0"
+                              value={descuento ?? ''}
+                              onChange={(e) =>
+                                handleDescuentoItemChange(
+                                  item.id,
+                                  index,
+                                  e.target.value
+                                )
+                              }
+                              className="h-10 w-full rounded-xl border bg-white p-2 text-right"
+                            />
+                          </div>
+                        ))}
+
+                        <div>
+                          <p className="mb-1 text-gray-500">Subtotal</p>
+                          <div className="flex h-10 items-center rounded-xl border bg-white px-3 font-semibold">
+                            ${subtotalLinea.toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="mb-1 text-gray-500">Descuento</p>
+                          <div className="flex h-10 items-center rounded-xl border bg-white px-3 font-semibold text-red-600">
+                            -${descuentoLinea.toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div className="col-span-2">
+                          <p className="mb-1 text-gray-500">Total línea</p>
+                          <div className="flex h-10 items-center rounded-xl border bg-white px-3 font-semibold">
+                            ${totalLinea.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              <button
-                onClick={() => eliminarItem(item.id)}
-                className="text-red-500"
-              >
-                <Trash2 size={18} />
-              </button>
+              <div className="hidden md:block">
+                <div className="overflow-x-auto rounded-xl border">
+                  <table className="w-full min-w-[1100px]">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="p-3 text-left">Producto</th>
+                        <th className="p-3 text-left">Cantidad</th>
+                        <th className="p-3 text-left">Precio Unit.</th>
+                        <th className="p-3 text-left">Desc. 1</th>
+                        <th className="p-3 text-left">Desc. 2</th>
+                        <th className="p-3 text-left">Desc. 3</th>
+                        <th className="p-3 text-left">Desc. 4</th>
+                        <th className="p-3 text-left">Descuento</th>
+                        <th className="p-3 text-left">Total</th>
+                        <th className="w-12 p-3"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item) => {
+                        const { descuentoLinea, totalLinea } =
+                          calcularTotalesLinea(item);
+
+                        return (
+                          <tr key={item.id} className="border-t align-middle">
+                            <td className="p-3">
+                              <p className="break-words font-semibold">{item.nombre}</p>
+                              <p className="text-xs text-gray-500">{item.codigo}</p>
+                            </td>
+
+                            <td className="p-3">
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                value={item.cantidad}
+                                onChange={(e) =>
+                                  handleCantidadChange(
+                                    item.id,
+                                    parseInt(e.target.value, 10)
+                                  )
+                                }
+                                className="h-10 w-24 rounded-lg border p-2 text-center"
+                              />
+                            </td>
+
+                            <td className="whitespace-nowrap p-3">
+                              ${item.precio.toFixed(2)}
+                            </td>
+
+                            {item.descuentos.map((descuento, index) => (
+                              <td key={index} className="p-3">
+                                <input
+                                  type="number"
+                                  placeholder="0"
+                                  value={descuento ?? ''}
+                                  onChange={(e) =>
+                                    handleDescuentoItemChange(
+                                      item.id,
+                                      index,
+                                      e.target.value
+                                    )
+                                  }
+                                  className="h-10 w-20 rounded-lg border p-2 text-right"
+                                />
+                              </td>
+                            ))}
+
+                            <td className="whitespace-nowrap p-3 font-medium text-red-600">
+                              -${descuentoLinea.toFixed(2)}
+                            </td>
+
+                            <td className="whitespace-nowrap p-3 font-medium">
+                              ${totalLinea.toFixed(2)}
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <button
+                                onClick={() => eliminarItem(item.id)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <div className="w-full max-w-md space-y-3 rounded-2xl border bg-gray-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">Subtotal</span>
+                    <span className="font-semibold">${subtotal.toFixed(2)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-red-600">
+                    <span className="font-semibold">Total Descuentos</span>
+                    <span className="font-semibold">
+                      -${totalDescuentos.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="border-t pt-3">
+                    <div className="flex items-center justify-between text-xl font-bold">
+                      <span>Total</span>
+                      <span>${total.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            {/* Cantidad */}
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Cantidad</p>
-              <input
-                type="number"
-                value={item.cantidad}
-                onChange={(e) =>
-                  handleCantidadChange(item.id, parseInt(e.target.value, 10))
-                }
-                className="w-full rounded-xl border p-2 text-center"
-              />
-            </div>
-
-            {/* Precio */}
-            <div className="text-sm">
-              <p className="text-gray-500">Precio Unitario</p>
-              <p className="font-semibold">${item.precio.toFixed(2)}</p>
-            </div>
-
-            {/* Descuentos */}
-            <div className="grid grid-cols-2 gap-2">
-              {[0, 1, 2, 3].map((i) => (
-                <input
-                  key={i}
-                  type="number"
-                  placeholder={`Desc ${i + 1}`}
-                  value={item.descuentos?.[i] === 0 ? '0' : item.descuentos?.[i] || ''}
-                  onChange={(e) =>
-                    handleItemDescuentoChange(item.id, i, e.target.value)
-                  }
-                  className="rounded-lg border p-2 text-center"
-                />
-              ))}
-            </div>
-
-            {/* Totales */}
-            <div className="flex justify-between text-sm">
-              <span>Subtotal</span>
-              <span>${itemSubtotal.toFixed(2)}</span>
-            </div>
-
-            <div className="flex justify-between font-bold">
-              <span>Total</span>
-              <span>${itemTotal.toFixed(2)}</span>
-            </div>
-
-          </div>
-        );
-      })}
-    </div>
-
-    {/* 💻 DESKTOP TABLE */}
-    <div className="hidden md:block overflow-x-auto">
-      <table className="w-full min-w-[900px]">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="p-3 text-left">Producto</th>
-            <th className="p-3 text-left">Cant.</th>
-            <th className="p-3 text-left">Precio</th>
-            <th className="p-3 text-left">D1</th>
-            <th className="p-3 text-left">D2</th>
-            <th className="p-3 text-left">D3</th>
-            <th className="p-3 text-left">D4</th>
-            <th className="p-3 text-left">Total</th>
-            <th></th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {items.map((item) => {
-            const itemSubtotal = item.precio * item.cantidad;
-
-            const itemTotal = item.descuentos.reduce((acc: number, d: number) => {
-              if (!d) return acc;
-              return acc * (1 - d / 100);
-            }, itemSubtotal);
-
-            return (
-              <tr key={item.id} className="border-t">
-                <td className="p-3">
-                  <p className="font-semibold">{item.nombre}</p>
-                  <p className="text-xs text-gray-500">{item.codigo}</p>
-                </td>
-
-                <td className="p-3">
-                  <input
-                    type="number"
-                    value={item.cantidad}
-                    onChange={(e) =>
-                      handleCantidadChange(item.id, parseInt(e.target.value, 10))
-                    }
-                    className="w-16 border rounded text-center"
-                  />
-                </td>
-
-                <td className="p-3">${item.precio.toFixed(2)}</td>
-
-                {[0, 1, 2, 3].map((i) => (
-                  <td key={i} className="p-3">
-                    <input
-                      type="number"
-                      value={item.descuentos?.[i] === 0 ? '0' : item.descuentos?.[i] || ''}
-                      onChange={(e) =>
-                        handleItemDescuentoChange(item.id, i, e.target.value)
-                      }
-                      className="w-16 border rounded text-center"
-                    />
-                  </td>
-                ))}
-
-                <td className="p-3 font-bold">${itemTotal.toFixed(2)}</td>
-
-                <td>
-                  <button onClick={() => eliminarItem(item.id)}>
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-
-  </div>
-)}
+          )}
 
           <div className="mt-6 border-t pt-6">
             <h3 className="mb-3 text-lg font-semibold">Configuración del PDF</h3>
