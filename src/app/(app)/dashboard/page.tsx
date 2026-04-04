@@ -28,7 +28,6 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 
 import { db } from "@/firebase/config";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/toast-provider";
 
 const dashboardCards = [
   {
@@ -184,7 +183,6 @@ function QuickActionCard({
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { toast } = useToast();
 
   const [stats, setStats] = useState<DashboardStats>({
     clientes: 0,
@@ -195,38 +193,49 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [quickPriceSearch, setQuickPriceSearch] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadStats = async () => {
+    let isMounted = true;
+
+    async function loadStats() {
+      setLoading(true);
+      setLoadError(null);
+
       try {
         const clientesRef = collection(db, "clientes");
         const visitasRef = collection(db, "visitas");
-
-        const clientesSnap = await getDocs(clientesRef);
 
         const prospectosQuery = query(
           clientesRef,
           where("tipo", "==", "prospecto")
         );
-        const prospectosSnap = await getDocs(prospectosQuery);
 
         const seguimientoQuery = query(
           clientesRef,
           where("estadoProspecto", "==", "seguimiento")
         );
-        const seguimientoSnap = await getDocs(seguimientoQuery);
 
-        const visitasSnap = await getDocs(visitasRef);
+        const [clientesSnap, prospectosSnap, seguimientoSnap, visitasSnap] =
+          await Promise.all([
+            getDocs(clientesRef),
+            getDocs(prospectosQuery),
+            getDocs(seguimientoQuery),
+            getDocs(visitasRef),
+          ]);
+
         const today = new Date().toISOString().split("T")[0];
 
         const visitasHoy = visitasSnap.docs.filter((doc) => {
           const data = doc.data();
-          const fecha = data.fecha;
+          const fecha = data?.fecha;
 
           if (!fecha) return false;
           if (typeof fecha === "string") return fecha.startsWith(today);
           return false;
         }).length;
+
+        if (!isMounted) return;
 
         setStats({
           clientes: clientesSnap.size,
@@ -236,18 +245,32 @@ export default function DashboardPage() {
         });
       } catch (error) {
         console.error("Error cargando métricas del dashboard:", error);
-        toast({
-          title: "No se pudieron cargar las métricas",
-          description: "Intenta recargar la página.",
-          type: "error",
+
+        if (!isMounted) return;
+
+        setLoadError(
+          "No se pudieron cargar las métricas del dashboard. Revisa Firestore, permisos o conexión."
+        );
+
+        setStats({
+          clientes: 0,
+          prospectos: 0,
+          seguimientos: 0,
+          visitasHoy: 0,
         });
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-    };
+    }
 
     loadStats();
-  }, [toast]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleQuickPriceSearch = () => {
     const term = quickPriceSearch.trim();
@@ -262,6 +285,7 @@ export default function DashboardPage() {
 
   const resumenEjecutivo = useMemo(() => {
     if (loading) return "Cargando información del día...";
+
     if (stats.visitasHoy > 0) {
       return `Hoy tienes ${stats.visitasHoy} actividad${
         stats.visitasHoy === 1 ? "" : "es"
@@ -277,6 +301,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {loadError}
+        </div>
+      )}
+
       <div className="rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-sm sm:p-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
