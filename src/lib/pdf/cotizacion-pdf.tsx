@@ -10,12 +10,11 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingLeft: 40,
     paddingRight: 40,
-    paddingBottom: 100, // Increased bottom padding for fixed footer
+    paddingBottom: 100,
     backgroundColor: '#ffffff',
     color: '#1f2937',
   },
 
-  // Header
   header: {
     marginBottom: 15,
   },
@@ -50,7 +49,6 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  // Client Info
   clientSection: {
     marginBottom: 20,
     padding: 10,
@@ -70,13 +68,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     fontWeight: 'bold',
   },
-  clientSubValue: {
-    fontSize: 9,
-    color: '#4b5563',
-    marginTop: 2,
-  },
 
-  // Table
   table: {
     marginTop: 8,
     borderStyle: 'solid',
@@ -117,8 +109,7 @@ const styles = StyleSheet.create({
   colCantidad: { width: '15%', textAlign: 'center' },
   colPrecio: { width: '20%', textAlign: 'right' },
   colTotal: { width: '20%', textAlign: 'right' },
-  
-  // Totals
+
   totalsContainer: {
     marginTop: 20,
     flexDirection: 'row',
@@ -149,7 +140,7 @@ const styles = StyleSheet.create({
   finalTotalContainer: {
     marginTop: 8,
     padding: 12,
-    backgroundColor: '#eef2ff', // Light blue background
+    backgroundColor: '#eef2ff',
     borderRadius: 5,
   },
   finalTotalRow: {
@@ -168,7 +159,6 @@ const styles = StyleSheet.create({
     color: CORPORATE_BLUE,
   },
 
-  // Footer
   footer: {
     position: 'absolute',
     bottom: 30,
@@ -186,70 +176,59 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   footerContactInfo: {
-     marginTop: 2,
+    marginTop: 2,
   },
   footerObservations: {
-      borderLeftStyle: 'solid',
-      borderLeftWidth: 2,
-      borderLeftColor: '#d1d5db',
-      paddingLeft: 10,
+    borderLeftStyle: 'solid',
+    borderLeftWidth: 2,
+    borderLeftColor: '#d1d5db',
+    paddingLeft: 10,
+    maxWidth: 230,
   },
   footerObservationsTitle: {
-      fontWeight: 'bold',
-      marginBottom: 3,
-  }
+    fontWeight: 'bold',
+    marginBottom: 3,
+  },
 });
 
-
 function formatMoney(n: number) {
-  return `$${n.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
+  return `$${Number(n || 0)
+    .toFixed(2)
+    .replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
 }
 
 export function CotizacionPDF({ data }: { data: CotizacionPDFData }) {
-  const fecha = data.fecha_creacion
-    ? new Date(data.fecha_creacion.seconds * 1000).toLocaleDateString('es-MX')
-    : 'N/A';
-  
+  const fecha = data.fecha || 'N/A';
   const vigenciaDias = data.vigenciaDias ?? 7;
-  const fechaVigencia = new Date();
-  fechaVigencia.setDate(fechaVigencia.getDate() + vigenciaDias);
-  const vigencia = `Válido hasta ${fechaVigencia.toLocaleDateString('es-MX')}`;
+  const vigencia = `${vigenciaDias} días`;
 
   const items = Array.isArray(data.items) ? data.items : [];
 
-  const year = new Date().getFullYear();
-  const folio = 
-    data.id === "NUEVA"
-    ? `COT-${year}-PEND`
-    : `COT-${year}-${data.id.substring(0,4).toUpperCase()}`;
+  const observacionesTexto = data.observaciones?.trim()
+    ? data.observaciones
+    : '• Precios sujetos a disponibilidad.';
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        
-        {/* Header */}
         <View style={styles.header}>
-            <View style={styles.headerTop}>
-                <Image style={styles.logo} src="/liquimoly-logo-v4.png" />
-                <View style={styles.metaInfo}>
-                    <Text style={styles.title}>Cotización</Text>
-                    <Text style={styles.metaText}>Folio: {folio}</Text>
-                    <Text style={styles.metaText}>Fecha de emisión: {fecha}</Text>
-                    <Text style={styles.metaText}>Vigencia: {vigencia}</Text>
-                </View>
+          <View style={styles.headerTop}>
+            <Image style={styles.logo} src="/liquimoly-logo-v4.png" />
+            <View style={styles.metaInfo}>
+              <Text style={styles.title}>Cotización</Text>
+              <Text style={styles.metaText}>Fecha de emisión: {fecha}</Text>
+              <Text style={styles.metaText}>Vigencia: {vigencia}</Text>
+              <Text style={styles.metaText}>Asesor: {data.asesor || 'Ademar'}</Text>
             </View>
-            <View style={styles.headerLine} />
+          </View>
+          <View style={styles.headerLine} />
         </View>
 
-        {/* Cliente */}
         <View style={styles.clientSection}>
           <Text style={styles.clientLabel}>Cliente</Text>
-          <Text style={styles.clientValue}>{data.clienteNombre}</Text>
-          {data.clienteDireccion && <Text style={styles.clientSubValue}>{data.clienteDireccion}</Text>}
-          {data.clienteTelefono && <Text style={styles.clientSubValue}>Tel: {data.clienteTelefono}</Text>}
+          <Text style={styles.clientValue}>{data.cliente}</Text>
         </View>
-        
-        {/* Tabla */}
+
         <View style={styles.table}>
           <View style={styles.tableHeader}>
             <Text style={[styles.tableHeaderCell, styles.colProducto]}>Producto</Text>
@@ -257,61 +236,70 @@ export function CotizacionPDF({ data }: { data: CotizacionPDFData }) {
             <Text style={[styles.tableHeaderCell, styles.colPrecio]}>Precio Unitario</Text>
             <Text style={[styles.tableHeaderCell, styles.colTotal]}>Total</Text>
           </View>
-          
+
           {items.map((item, index) => (
             <View key={index} style={styles.tableRow} wrap={false}>
               <View style={[styles.tableCell, styles.colProducto]}>
                 <Text>{item.nombre}</Text>
-                {item.codigo && <Text style={styles.colCodigo}>Código: {item.codigo}</Text>}
+                {item.codigo ? <Text style={styles.colCodigo}>Código: {item.codigo}</Text> : null}
               </View>
-              <Text style={[styles.tableCell, styles.colCantidad]}>{item.cantidad}</Text>
-              <Text style={[styles.tableCell, styles.colPrecio]}>{formatMoney(item.precio)}</Text>
-              <Text style={[styles.tableCell, styles.colTotal]}>{formatMoney(item.cantidad * item.precio)}</Text>
+              <Text style={[styles.tableCell, styles.colCantidad]}>
+                {Number(item.cantidad || 0)}
+              </Text>
+              <Text style={[styles.tableCell, styles.colPrecio]}>
+                {formatMoney(Number(item.precio || 0))}
+              </Text>
+              <Text style={[styles.tableCell, styles.colTotal]}>
+                {formatMoney(Number(item.total || 0))}
+              </Text>
             </View>
           ))}
         </View>
 
-        {/* Totales */}
         <View style={styles.totalsContainer}>
-            <View style={styles.totalsBox}>
-                <View style={styles.totalsRow}>
-                    <Text style={styles.totalsLabel}>Subtotal</Text>
-                    <Text style={styles.totalsValue}>{formatMoney(data.subtotal)}</Text>
-                </View>
-
-                {data.totalDescuentos > 0 && (
-                <View style={styles.totalsRow}>
-                    <Text style={styles.totalsLabel}>Total Descuentos</Text>
-                    <Text style={styles.totalsValue}>- {formatMoney(data.totalDescuentos)}</Text>
-                </View>
-                )}
-
-                <View style={styles.totalsDivider} />
-
-                <View style={styles.finalTotalContainer}>
-                    <View style={styles.finalTotalRow}>
-                        <Text style={styles.finalTotalLabel}>TOTAL</Text>
-                        <Text style={styles.finalTotalValue}>{formatMoney(data.total)}</Text>
-                    </View>
-                </View>
+          <View style={styles.totalsBox}>
+            <View style={styles.totalsRow}>
+              <Text style={styles.totalsLabel}>Subtotal</Text>
+              <Text style={styles.totalsValue}>{formatMoney(data.subtotal)}</Text>
             </View>
+
+            {Number(data.descuentos || 0) > 0 && (
+              <View style={styles.totalsRow}>
+                <Text style={styles.totalsLabel}>Total Descuentos</Text>
+                <Text style={styles.totalsValue}>- {formatMoney(data.descuentos)}</Text>
+              </View>
+            )}
+
+            <View style={styles.totalsRow}>
+              <Text style={styles.totalsLabel}>Vigencia</Text>
+              <Text style={styles.totalsValue}>{vigencia}</Text>
+            </View>
+
+            <View style={styles.totalsDivider} />
+
+            <View style={styles.finalTotalContainer}>
+              <View style={styles.finalTotalRow}>
+                <Text style={styles.finalTotalLabel}>TOTAL</Text>
+                <Text style={styles.finalTotalValue}>{formatMoney(data.total)}</Text>
+              </View>
+            </View>
+          </View>
         </View>
 
-        {/* Footer */}
         <View style={styles.footer} fixed>
-            <View style={styles.footerContent}>
-                 <View>
-                    <Text style={styles.footerContact}>José Ademar Vázquez</Text>
-                    <Text style={styles.footerContactInfo}>Asesor de Ventas</Text>
-                    <Text style={styles.footerContactInfo}>Cel: 44 3618 8484</Text>
-                    <Text style={styles.footerContactInfo}>Email: ademar.vazquez@liqui-moly.mx</Text>
-                </View>
-                <View style={styles.footerObservations}>
-                    <Text style={styles.footerObservationsTitle}>Observaciones:</Text>
-                    <Text>• Se acepta pago con terminal bancaria.</Text>
-                    <Text>• Precios sujetos a disponibilidad.</Text>
-                </View>
+          <View style={styles.footerContent}>
+            <View>
+              <Text style={styles.footerContact}>José Ademar Vázquez</Text>
+              <Text style={styles.footerContactInfo}>Asesor de Ventas</Text>
+              <Text style={styles.footerContactInfo}>Cel: 44 3618 8484</Text>
+              <Text style={styles.footerContactInfo}>Email: ademar.vazquez@liqui-moly.mx</Text>
             </View>
+
+            <View style={styles.footerObservations}>
+              <Text style={styles.footerObservationsTitle}>Observaciones:</Text>
+              <Text>{observacionesTexto}</Text>
+            </View>
+          </View>
         </View>
       </Page>
     </Document>
