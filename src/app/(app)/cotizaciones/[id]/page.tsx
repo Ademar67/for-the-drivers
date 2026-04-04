@@ -9,6 +9,16 @@ import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
 import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';
 
+type CotizacionItemExtendido = {
+  codigo?: string;
+  nombre?: string;
+  cantidad?: number;
+  precio?: number;
+  descuentos?: Array<number | undefined>;
+  subtotalLinea?: number;
+  totalLinea?: number;
+};
+
 function formatearFecha(fecha: Cotizacion['fecha_creacion'] | Cotizacion['fecha']) {
   try {
     if (
@@ -42,15 +52,23 @@ const formatCotizacionForPDF = (cot: Cotizacion): CotizacionPDFData => {
     total: Number(cot.total || 0),
     observaciones: cot.observaciones || '',
     vigenciaDias: Number(cot.vigenciaDias || 7),
-    items: (cot.items || []).map((item) => ({
-      codigo: item.codigo || '',
-      nombre: item.nombre || '',
-      cantidad: Number(item.cantidad || 0),
-      precio: Number(item.precio || 0),
-      subtotal: Number(item.precio || 0) * Number(item.cantidad || 0),
-      total: Number(item.totalLinea || 0),
-      descuentos: Array.isArray(item.descuentos) ? item.descuentos : [],
-    })),
+    items: (cot.items || []).map((item) => {
+      const itemPdf = item as CotizacionItemExtendido;
+      const cantidad = Number(itemPdf.cantidad || 0);
+      const precio = Number(itemPdf.precio || 0);
+      const subtotal = Number(itemPdf.subtotalLinea ?? precio * cantidad);
+      const total = Number(itemPdf.totalLinea ?? subtotal);
+
+      return {
+        codigo: itemPdf.codigo || '',
+        nombre: itemPdf.nombre || '',
+        cantidad,
+        precio,
+        subtotal,
+        total,
+        descuentos: Array.isArray(itemPdf.descuentos) ? itemPdf.descuentos : [],
+      };
+    }),
   };
 };
 
