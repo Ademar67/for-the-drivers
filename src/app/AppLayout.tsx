@@ -11,7 +11,7 @@ import ConnectionStatus from "@/components/ConnectionStatus";
 import FirestoreSyncStatus from "@/components/FirestoreSyncStatus";
 import LogoutButton from "@/components/auth/LogoutButton";
 import { FirebaseClientProvider } from "@/firebase/client-provider";
-import { ToastProvider } from "../hooks/use-toast";
+import { ToastProvider } from "@/components/ui/toast-provider";
 
 import {
   Home,
