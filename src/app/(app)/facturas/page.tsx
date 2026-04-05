@@ -1,20 +1,34 @@
-
 'use client';
 
-import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, Timestamp, addDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Factura } from '@/lib/firebase-types';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  doc,
+  updateDoc,
+  Timestamp,
+  addDoc,
+  deleteDoc,
+} from 'firebase/firestore';
+import { db } from '@/firebase/config';
+import type { Factura } from '@/lib/firebase-types';
+import type { ClienteFS } from '@/lib/firestore/clientes';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable } from '@/components/ui/data-table';
-import { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpDown, CircleDollarSign, Clock, CheckCircle, Trash2 } from 'lucide-react';
+import {
+  ArrowUpDown,
+  CircleDollarSign,
+  Clock,
+  CheckCircle,
+  Trash2,
+} from 'lucide-react';
 import CrearFacturaModal from '@/components/facturas/crear-factura-modal';
-import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,23 +39,69 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from '@/components/ui/alert-dialog';
 
-// Función para actualizar el estado de las facturas vencidas
+function toDateSafe(value: unknown): Date | null {
+  if (!value) return null;
+
+  if (value instanceof Timestamp) {
+    return value.toDate();
+  }
+
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toDate' in value &&
+    typeof (value as { toDate?: unknown }).toDate === 'function'
+  ) {
+    try {
+      return (value as { toDate: () => Date }).toDate();
+    } catch {
+      return null;
+    }
+  }
+
+  if (value instanceof Date) return value;
+
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateSafe(value: unknown) {
+  const date = toDateSafe(value);
+  if (!date) return '—';
+  return format(date, 'dd/MM/yyyy');
+}
+
+function montoSeguro(value: unknown) {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 async function actualizarFacturasVencidas(facturas: Factura[]) {
   const hoy = new Date();
-  const batch: Promise<void>[] = [];
 
-  facturas.forEach(factura => {
-    if (factura.estado === 'pendiente' && factura.fechaVencimiento.toDate() < hoy) {
-      const facturaRef = doc(db, 'facturas', factura.id);
-      batch.push(updateDoc(facturaRef, { estado: 'vencida' }));
+  const updates = facturas
+    .filter((factura) => {
+      const fechaVencimiento = toDateSafe(factura.fechaVencimiento);
+      return (
+        factura.estado === 'pendiente' &&
+        fechaVencimiento !== null &&
+        fechaVencimiento < hoy &&
+        Boolean(factura.id)
+      );
+    })
+    .map((factura) =>
+      updateDoc(doc(db, 'facturas', factura.id), { estado: 'vencida' })
+    );
+
+  if (updates.length > 0) {
+    try {
+      await Promise.all(updates);
+      console.log(`${updates.length} facturas actualizadas a vencida.`);
+    } catch (error) {
+      console.error('Error actualizando facturas vencidas:', error);
     }
-  });
-
-  if (batch.length > 0) {
-    await Promise.all(batch);
-    console.log(`${batch.length} facturas actualizadas a 'vencida'.`);
   }
 }
 
@@ -52,112 +112,193 @@ export default function FacturasPage() {
   const [openModal, setOpenModal] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, 'facturas'), orderBy('fechaVencimiento', 'asc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const facturasData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Factura));
-      
-      actualizarFacturasVencidas(facturasData).then(() => {
-        // El listener ya se encarga de recibir los datos actualizados,
-        // pero podemos forzar la re-evaluación si es necesario.
-        // Aquí simplemente seteamos los datos que ya recibimos.
-         setFacturas(facturasData);
-         setLoading(false);
-      });
-    });
+    let isMounted = true;
 
-    const unsubClientes = listenClientes(setClientes);
+    const facturasRef = collection(db, 'facturas');
+    const clientesRef = collection(db, 'clientes');
+
+    const facturasQuery = query(facturasRef, orderBy('fechaVencimiento', 'asc'));
+    const clientesQuery = query(clientesRef, orderBy('nombre', 'asc'));
+
+    const unsubscribeFacturas = onSnapshot(
+      facturasQuery,
+      async (snapshot) => {
+        const facturasData = snapshot.docs.map(
+          (documento) =>
+            ({
+              id: documento.id,
+              ...documento.data(),
+            }) as Factura
+        );
+
+        if (!isMounted) return;
+
+        setFacturas(facturasData);
+        setLoading(false);
+
+        await actualizarFacturasVencidas(facturasData);
+      },
+      (error) => {
+        console.error('Error cargando facturas:', error);
+
+        if (!isMounted) return;
+
+        setFacturas([]);
+        setLoading(false);
+      }
+    );
+
+    const unsubscribeClientes = onSnapshot(
+      clientesQuery,
+      (snapshot) => {
+        const clientesData = snapshot.docs.map(
+          (documento) =>
+            ({
+              id: documento.id,
+              ...documento.data(),
+            }) as ClienteFS
+        );
+
+        if (!isMounted) return;
+        setClientes(clientesData);
+      },
+      (error) => {
+        console.error('Error cargando clientes para cobranza:', error);
+        if (!isMounted) return;
+        setClientes([]);
+      }
+    );
 
     return () => {
-        unsubscribe();
-        unsubClientes();
+      isMounted = false;
+      unsubscribeFacturas();
+      unsubscribeClientes();
     };
   }, []);
-  
-  const handleGuardarFactura = async (data: any) => {
-     try {
-        await addDoc(collection(db, 'facturas'), {
-            ...data,
-            estado: 'pendiente',
-            fecha: Timestamp.fromDate(new Date(data.fecha)),
-            fechaVencimiento: Timestamp.fromDate(new Date(data.fechaVencimiento)),
-        });
-        setOpenModal(false);
+
+  const handleGuardarFactura = async (data: {
+    folio: string;
+    clienteId: string;
+    clienteNombre?: string;
+    monto: number | string;
+    fecha: string;
+    fechaVencimiento: string;
+    pedidoId?: string;
+  }) => {
+    try {
+      await addDoc(collection(db, 'facturas'), {
+        ...data,
+        monto: montoSeguro(data.monto),
+        estado: 'pendiente',
+        fecha: Timestamp.fromDate(new Date(data.fecha)),
+        fechaVencimiento: Timestamp.fromDate(new Date(data.fechaVencimiento)),
+        createdAt: Timestamp.now(),
+      });
+
+      setOpenModal(false);
     } catch (error) {
-        console.error("Error al crear la factura:", error);
+      console.error('Error al crear la factura:', error);
+      alert('No se pudo crear la factura.');
     }
-  }
+  };
 
   const marcarComoPagada = async (id: string) => {
-    const facturaRef = doc(db, 'facturas', id);
-    await updateDoc(facturaRef, { estado: 'pagada' });
+    try {
+      const facturaRef = doc(db, 'facturas', id);
+      await updateDoc(facturaRef, { estado: 'pagada' });
+    } catch (error) {
+      console.error('Error al marcar como pagada:', error);
+      alert('No se pudo actualizar la factura.');
+    }
   };
-  
+
   const handleDelete = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'facturas', id));
-      // La tabla se actualizará automáticamente gracias al listener onSnapshot
     } catch (error) {
-      console.error("Error al eliminar la factura:", error);
-      alert("No se pudo eliminar la factura.");
+      console.error('Error al eliminar la factura:', error);
+      alert('No se pudo eliminar la factura.');
     }
   };
 
-  const { totalPorCobrar, totalVencido } = facturas.reduce(
-    (acc, f) => {
-      if (f.estado === 'pendiente' || f.estado === 'vencida') {
-        acc.totalPorCobrar += f.monto;
-      }
-      if (f.estado === 'vencida') {
-        acc.totalVencido += f.monto;
-      }
-      return acc;
-    },
-    { totalPorCobrar: 0, totalVencido: 0 }
-  );
+  const { totalPorCobrar, totalVencido, totalPagadas } = useMemo(() => {
+    return facturas.reduce(
+      (acc, f) => {
+        const monto = montoSeguro(f.monto);
+
+        if (f.estado === 'pendiente' || f.estado === 'vencida') {
+          acc.totalPorCobrar += monto;
+        }
+
+        if (f.estado === 'vencida') {
+          acc.totalVencido += monto;
+        }
+
+        if (f.estado === 'pagada') {
+          acc.totalPagadas += 1;
+        }
+
+        return acc;
+      },
+      { totalPorCobrar: 0, totalVencido: 0, totalPagadas: 0 }
+    );
+  }, [facturas]);
 
   const columns: ColumnDef<Factura>[] = [
     {
       accessorKey: 'folio',
       header: 'Folio',
-      cell: ({ row }) => <span className="font-mono text-xs">{row.original.folio}</span>,
+      cell: ({ row }) => (
+        <span className="font-mono text-xs">{row.original.folio ?? '—'}</span>
+      ),
     },
     {
       accessorKey: 'clienteNombre',
       header: 'Cliente',
+      cell: ({ row }) => row.original.clienteNombre ?? '—',
     },
     {
       accessorKey: 'fecha',
       header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
           Fecha Emisión
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => format(row.original.fecha.toDate(), 'dd/MM/yyyy'),
+      cell: ({ row }) => formatDateSafe(row.original.fecha),
     },
     {
       accessorKey: 'fechaVencimiento',
       header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
           Fecha Vencimiento
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => format(row.original.fechaVencimiento.toDate(), 'dd/MM/yyyy'),
+      cell: ({ row }) => formatDateSafe(row.original.fechaVencimiento),
     },
     {
       accessorKey: 'monto',
       header: ({ column }) => (
         <div className="text-right">
-            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
             Monto
             <ArrowUpDown className="ml-2 h-4 w-4" />
-            </Button>
+          </Button>
         </div>
       ),
       cell: ({ row }) => (
         <div className="text-right font-medium">
-          ${row.original.monto.toLocaleString('es-MX')}
+          ${montoSeguro(row.original.monto).toLocaleString('es-MX')}
         </div>
       ),
     },
@@ -165,16 +306,23 @@ export default function FacturasPage() {
       accessorKey: 'estado',
       header: 'Estado',
       cell: ({ row }) => {
-        const estado = row.original.estado;
+        const estado = String(row.original.estado ?? 'pendiente').toLowerCase();
+
         return (
           <Badge
             variant={
-              estado === 'pagada' ? 'default' : estado === 'vencida' ? 'destructive' : 'secondary'
+              estado === 'pagada'
+                ? 'default'
+                : estado === 'vencida'
+                ? 'destructive'
+                : 'secondary'
             }
             className={
-                estado === 'pagada' ? 'bg-green-100 text-green-800' :
-                estado === 'vencida' ? 'bg-red-100 text-red-800' :
-                'bg-yellow-100 text-yellow-800'
+              estado === 'pagada'
+                ? 'bg-green-100 text-green-800'
+                : estado === 'vencida'
+                ? 'bg-red-100 text-red-800'
+                : 'bg-yellow-100 text-yellow-800'
             }
           >
             {estado}
@@ -182,38 +330,56 @@ export default function FacturasPage() {
         );
       },
     },
-     {
+    {
       id: 'actions',
       cell: ({ row }) => {
         const factura = row.original;
+
         return (
-            <div className="flex items-center justify-end gap-2">
-            {factura.estado !== 'pagada' && (
-              <Button variant="outline" size="sm" onClick={() => marcarComoPagada(factura.id)}>
+          <div className="flex items-center justify-end gap-2">
+            {factura.estado !== 'pagada' && factura.id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => marcarComoPagada(factura.id)}
+              >
                 Marcar Pagada
               </Button>
             )}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                 <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta acción no se puede deshacer. Se eliminará permanentemente la factura con folio {factura.folio}.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => handleDelete(factura.id)} className="bg-red-600 hover:bg-red-700">
-                    Eliminar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+
+            {factura.id && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción no se puede deshacer. Se eliminará permanentemente
+                      la factura con folio {factura.folio}.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDelete(factura.id)}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Eliminar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         );
       },
@@ -222,7 +388,7 @@ export default function FacturasPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Panel de Cobranza</h1>
         <Button onClick={() => setOpenModal(true)}>+ Nueva Factura</Button>
       </div>
@@ -234,30 +400,40 @@ export default function FacturasPage() {
             <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalPorCobrar.toLocaleString('es-MX')}</div>
-            <p className="text-xs text-muted-foreground">Suma de facturas pendientes y vencidas.</p>
+            <div className="text-2xl font-bold">
+              ${totalPorCobrar.toLocaleString('es-MX')}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Suma de facturas pendientes y vencidas.
+            </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Vencido</CardTitle>
             <Clock className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">${totalVencido.toLocaleString('es-MX')}</div>
-             <p className="text-xs text-muted-foreground">Suma de facturas con pago retrasado.</p>
+            <div className="text-2xl font-bold text-red-600">
+              ${totalVencido.toLocaleString('es-MX')}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Suma de facturas con pago retrasado.
+            </p>
           </CardContent>
         </Card>
-         <Card>
+
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Facturas Pagadas</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {facturas.filter(f => f.estado === 'pagada').length}
-            </div>
-             <p className="text-xs text-muted-foreground">Total de facturas liquidadas.</p>
+            <div className="text-2xl font-bold">{totalPagadas}</div>
+            <p className="text-xs text-muted-foreground">
+              Total de facturas liquidadas.
+            </p>
           </CardContent>
         </Card>
       </div>

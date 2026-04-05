@@ -5,19 +5,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 import * as XLSX from 'xlsx';
 import {
-  listenClientes,
-  ClienteFS,
-  eliminarCliente,
-} from '@/lib/firestore/clientes';
-import {
   collection,
   addDoc,
   getDocs,
+  onSnapshot,
   query,
   where,
   Timestamp,
+  orderBy,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '@/firebase/config';
+import type { ClienteFS } from '@/lib/firestore/clientes';
+import { eliminarCliente } from '@/lib/firestore/clientes';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import {
   Calendar,
@@ -98,10 +97,30 @@ export default function ClientesPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const unsub = listenClientes((clientes) => {
-      setClientes(clientes);
-      setLoading(false);
-    });
+    const clientesRef = collection(db, 'clientes');
+    const q = query(clientesRef, orderBy('createdAt', 'desc'));
+
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => {
+          const d = doc.data() as Omit<ClienteFS, 'id'>;
+          return {
+            id: doc.id,
+            ...d,
+          } as ClienteFS;
+        });
+
+        setClientes(data);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error cargando clientes:', error);
+        setClientes([]);
+        setLoading(false);
+      }
+    );
+
     return () => unsub();
   }, []);
 
@@ -112,10 +131,10 @@ export default function ClientesPage() {
 
     return clientes.filter((c) => {
       return (
-        (c.nombre ?? '').toLowerCase().includes(term) ||
-        (c.ciudad ?? '').toLowerCase().includes(term) ||
-        (c.tipo ?? '').toLowerCase().includes(term) ||
-        (c.tipoZona ?? '').toLowerCase().includes(term)
+        String(c.nombre ?? '').toLowerCase().includes(term) ||
+        String(c.ciudad ?? '').toLowerCase().includes(term) ||
+        String(c.tipo ?? '').toLowerCase().includes(term) ||
+        String(c.tipoZona ?? '').toLowerCase().includes(term)
       );
     });
   }, [clientes, busqueda]);
@@ -320,7 +339,7 @@ export default function ClientesPage() {
 
         const yaExiste = clienteExistenteSnap.docs.some((doc) => {
           const data = doc.data() as ClienteFS;
-          return (data.ciudad ?? '').trim().toLowerCase() === ciudad.toLowerCase();
+          return String(data.ciudad ?? '').trim().toLowerCase() === ciudad.toLowerCase();
         });
 
         if (yaExiste) {
@@ -455,7 +474,7 @@ export default function ClientesPage() {
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Ej. Refaccionaria, Monterrey, foraneo..."
+              placeholder="Ej. Refaccionaria, Morelia, foraneo..."
               className="w-full rounded-xl border bg-white px-3 py-3 outline-none"
             />
           </div>

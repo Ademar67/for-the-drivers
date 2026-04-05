@@ -133,6 +133,16 @@ function QuickAction({
   );
 }
 
+async function safeGetDocsCount(path: string) {
+  try {
+    const snap = await getDocs(collection(db, path));
+    return snap.size;
+  } catch (error) {
+    console.error(`Error leyendo colección "${path}":`, error);
+    return 0;
+  }
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -151,7 +161,7 @@ export default function DashboardPage() {
   useEffect(() => {
     let mounted = true;
 
-    async function load() {
+    async function loadDashboard() {
       try {
         const clientesRef = collection(db, "clientes");
         const visitasRef = collection(db, "visitas");
@@ -163,62 +173,112 @@ export default function DashboardPage() {
           where("tipo", "==", "prospecto")
         );
 
-        const seguimientoQuery = query(
+        const seguimientosQuery = query(
           clientesRef,
           where("estadoProspecto", "==", "seguimiento")
         );
 
-        const [clientesSnap, prospectosSnap, seguimientoSnap, visitasSnap] =
-          await Promise.all([
-            getDocs(clientesRef),
-            getDocs(prospectosQuery),
-            getDocs(seguimientoQuery),
-            getDocs(visitasRef),
-          ]);
+        const clientesPromise = getDocs(clientesRef).catch((error) => {
+          console.error('Error leyendo "clientes":', error);
+          return null;
+        });
 
-        let cotizacionesSnap;
-        let facturasSnap;
+        const prospectosPromise = getDocs(prospectosQuery).catch((error) => {
+          console.error('Error leyendo prospectos:', error);
+          return null;
+        });
 
-        try {
-          [cotizacionesSnap, facturasSnap] = await Promise.all([
-            getDocs(cotizacionesRef),
-            getDocs(facturasRef),
-          ]);
-        } catch {
-          cotizacionesSnap = { size: 0 };
-          facturasSnap = { docs: [] as any[] };
-        }
+        const seguimientosPromise = getDocs(seguimientosQuery).catch((error) => {
+          console.error('Error leyendo seguimientos:', error);
+          return null;
+        });
+
+        const visitasPromise = getDocs(visitasRef).catch((error) => {
+          console.error('Error leyendo "visitas":', error);
+          return null;
+        });
+
+        const cotizacionesPromise = getDocs(cotizacionesRef).catch((error) => {
+          console.error('Error leyendo "cotizaciones":', error);
+          return null;
+        });
+
+        const facturasPromise = getDocs(facturasRef).catch((error) => {
+          console.error('Error leyendo "facturas":', error);
+          return null;
+        });
+
+        const [
+          clientesSnap,
+          prospectosSnap,
+          seguimientosSnap,
+          visitasSnap,
+          cotizacionesSnap,
+          facturasSnap,
+        ] = await Promise.all([
+          clientesPromise,
+          prospectosPromise,
+          seguimientosPromise,
+          visitasPromise,
+          cotizacionesPromise,
+          facturasPromise,
+        ]);
 
         const today = new Date().toISOString().split("T")[0];
 
-        const visitasHoy = visitasSnap.docs.filter((d) => {
-          const fecha = d.data()?.fecha;
-          return typeof fecha === "string" && fecha.startsWith(today);
-        }).length;
+        const visitasHoy =
+          visitasSnap?.docs.filter((d) => {
+            const data = d.data();
+            const fecha = data?.fecha;
 
-        const cobranzaPendiente = facturasSnap.docs.filter((d) => {
-          const estado = String(d.data()?.estado ?? "").toLowerCase();
-          return estado !== "pagada" && estado !== "pagado";
-        }).length;
+            if (typeof fecha === "string") {
+              return fecha.startsWith(today);
+            }
+
+            return false;
+          }).length ?? 0;
+
+        const cobranzaPendiente =
+          facturasSnap?.docs.filter((d) => {
+            const estado = String(d.data()?.estado ?? "").toLowerCase().trim();
+            return estado !== "pagada" && estado !== "pagado";
+          }).length ?? 0;
+
+        const totalProspectos = prospectosSnap?.size ?? 0;
+        const totalClientesRaw = clientesSnap?.size ?? 0;
+        const totalClientes = Math.max(totalClientesRaw - totalProspectos, 0);
 
         if (!mounted) return;
 
         setStats({
-          clientes: clientesSnap.size,
-          prospectos: prospectosSnap.size,
-          seguimientos: seguimientoSnap.size,
+          clientes: totalClientes,
+          prospectos: totalProspectos,
+          seguimientos: seguimientosSnap?.size ?? 0,
           visitasHoy,
-          cotizaciones: cotizacionesSnap.size ?? 0,
+          cotizaciones: cotizacionesSnap?.size ?? 0,
           cobranzaPendiente,
         });
       } catch (error) {
-        console.error("Error cargando dashboard:", error);
+        console.error("Error general cargando dashboard:", error);
+
+        if (!mounted) return;
+
+        setStats({
+          clientes: 0,
+          prospectos: 0,
+          seguimientos: 0,
+          visitasHoy: 0,
+          cotizaciones: 0,
+          cobranzaPendiente: 0,
+        });
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
 
-    load();
+    loadDashboard();
 
     return () => {
       mounted = false;

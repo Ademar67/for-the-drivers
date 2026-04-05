@@ -27,6 +27,9 @@ import {
   Filter,
   Calculator,
   Package2,
+  X,
+  ShoppingCart,
+  Layers3,
 } from "lucide-react";
 
 import { db } from "@/firebase/config";
@@ -73,6 +76,11 @@ type PaqueteSimulador = {
   precioConsumidor: number;
 };
 
+type ItemCotizador = {
+  nombre: string;
+  cantidad: number;
+};
+
 const COMISION_ASESOR_POR_PAQUETE = 50;
 
 const initialForm: FormData = {
@@ -89,49 +97,100 @@ const initialForm: FormData = {
 
 const paquetesBase: PaqueteSimulador[] = [
   {
-    nombre: "Complemento de Mantenimiento",
-    costoAgencia: 448.16,
-    precioConsumidor: 900.3,
+    nombre: "Complemento de mantenimiento",
+    costoAgencia: 547.7,
+    precioConsumidor: 1045.4,
   },
   {
-    nombre: "Paquete Limpieza del Sistema del Aire Acondicionado",
-    costoAgencia: 369.2,
-    precioConsumidor: 698.0,
+    nombre: "Paquete premium",
+    costoAgencia: 761.9,
+    precioConsumidor: 1473.8,
   },
   {
-    nombre: "Restauración de Plásticos y Gomas",
-    costoAgencia: 292.76,
-    precioConsumidor: 707.0,
+    nombre: "Limpieza correctiva de inyectores",
+    costoAgencia: 2162.6,
+    precioConsumidor: 4275.2,
   },
   {
-    nombre: "Paquete Limpieza Catalizador",
-    costoAgencia: 428.0,
-    precioConsumidor: 926.55,
+    nombre: "Protección para motor",
+    costoAgencia: 1150.4,
+    precioConsumidor: 2250.8,
   },
   {
-    nombre: "Paquete Frenos",
-    costoAgencia: 265.88,
-    precioConsumidor: 776.1,
+    nombre: "Limpieza del sistema del aire acondicionado",
+    costoAgencia: 657.95,
+    precioConsumidor: 1265.9,
   },
   {
-    nombre: "Limpieza Extrema Sistema de Combustión",
-    costoAgencia: 396.92,
-    precioConsumidor: 980.95,
+    nombre: "Paquete servicio sistema de refrigeración",
+    costoAgencia: 364.4,
+    precioConsumidor: 678.81,
   },
   {
-    nombre: "Mantenimiento Diesel",
-    costoAgencia: 462.44,
-    precioConsumidor: 923.4,
+    nombre: "Limpieza preventiva de inyectores a diesel",
+    costoAgencia: 642.2,
+    precioConsumidor: 1234.4,
   },
   {
-    nombre: "Paquete Protección Extrema Ceratec",
-    costoAgencia: 930.32,
-    precioConsumidor: 1678.45,
+    nombre: "Restauración de plásticos y gomas",
+    costoAgencia: 353.45,
+    precioConsumidor: 619.1,
   },
   {
-    nombre: "Limpieza de Cuerpo de Aceleración",
-    costoAgencia: 281.0,
-    precioConsumidor: 629.4,
+    nombre: "Potencia motor",
+    costoAgencia: 563.45,
+    precioConsumidor: 1076.9,
+  },
+  {
+    nombre: "Paquete frenos",
+    costoAgencia: 319.85,
+    precioConsumidor: 589.7,
+  },
+  {
+    nombre: "Limpieza cuerpo de aceleración",
+    costoAgencia: 374.45,
+    precioConsumidor: 698.9,
+  },
+];
+
+const combosSugeridos: { nombre: string; paquetes: string[] }[] = [
+  {
+    nombre: "Combo básico",
+    paquetes: [
+      "Complemento de mantenimiento",
+      "Limpieza cuerpo de aceleración",
+    ],
+  },
+  {
+    nombre: "Combo preventivo",
+    paquetes: [
+      "Complemento de mantenimiento",
+      "Limpieza del sistema del aire acondicionado",
+      "Paquete servicio sistema de refrigeración",
+    ],
+  },
+  {
+    nombre: "Combo potencia",
+    paquetes: [
+      "Potencia motor",
+      "Protección para motor",
+      "Paquete premium",
+    ],
+  },
+  {
+    nombre: "Combo diesel",
+    paquetes: [
+      "Limpieza preventiva de inyectores a diesel",
+      "Protección para motor",
+    ],
+  },
+  {
+    nombre: "Combo taller",
+    paquetes: [
+      "Paquete frenos",
+      "Limpieza cuerpo de aceleración",
+      "Restauración de plásticos y gomas",
+    ],
   },
 ];
 
@@ -184,10 +243,13 @@ export default function AgenciasPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingForm, setEditingForm] = useState<FormData>(initialForm);
 
-  const [paqueteSeleccionado, setPaqueteSeleccionado] = useState<string>(
+  const [paqueteParaAgregar, setPaqueteParaAgregar] = useState<string>(
     paquetesBase[0].nombre
   );
-  const [ventasSemana, setVentasSemana] = useState<number>(4);
+  const [itemsCotizador, setItemsCotizador] = useState<ItemCotizador[]>([
+    { nombre: "Paquete premium", cantidad: 1 },
+  ]);
+  const [ventasMes, setVentasMes] = useState<number>(8);
 
   useEffect(() => {
     const q = query(collection(db, "agencias"), orderBy("createdAt", "desc"));
@@ -227,11 +289,13 @@ export default function AgenciasPage() {
 
   const agenciasFiltradas = useMemo(() => {
     return agencias.filter((a) => {
+      const term = search.toLowerCase();
+
       const matchesSearch =
-        a.nombre.toLowerCase().includes(search.toLowerCase()) ||
-        a.marca.toLowerCase().includes(search.toLowerCase()) ||
-        a.contacto.toLowerCase().includes(search.toLowerCase()) ||
-        a.ciudad.toLowerCase().includes(search.toLowerCase());
+        a.nombre.toLowerCase().includes(term) ||
+        a.marca.toLowerCase().includes(term) ||
+        a.contacto.toLowerCase().includes(term) ||
+        a.ciudad.toLowerCase().includes(term);
 
       const matchesStatus =
         filterEstatus === "todos" ? true : a.estatus === filterEstatus;
@@ -253,36 +317,121 @@ export default function AgenciasPage() {
     };
   }, [agencias]);
 
-  const paqueteActual = useMemo(() => {
-    return (
-      paquetesBase.find((p) => p.nombre === paqueteSeleccionado) ?? paquetesBase[0]
-    );
-  }, [paqueteSeleccionado]);
+  const paquetesMap = useMemo(() => {
+    return new Map(paquetesBase.map((p) => [p.nombre, p]));
+  }, []);
+
+  const detalleCombo = useMemo(() => {
+    return itemsCotizador
+      .map((item) => {
+        const paquete = paquetesMap.get(item.nombre);
+        if (!paquete) return null;
+
+        const subtotalCosto = paquete.costoAgencia * item.cantidad;
+        const subtotalPrecio = paquete.precioConsumidor * item.cantidad;
+        const subtotalUtilidad = subtotalPrecio - subtotalCosto;
+        const subtotalComision = COMISION_ASESOR_POR_PAQUETE * item.cantidad;
+        const subtotalUtilidadNeta = subtotalUtilidad - subtotalComision;
+
+        return {
+          ...item,
+          paquete,
+          subtotalCosto,
+          subtotalPrecio,
+          subtotalUtilidad,
+          subtotalComision,
+          subtotalUtilidadNeta,
+        };
+      })
+      .filter(Boolean) as Array<{
+      nombre: string;
+      cantidad: number;
+      paquete: PaqueteSimulador;
+      subtotalCosto: number;
+      subtotalPrecio: number;
+      subtotalUtilidad: number;
+      subtotalComision: number;
+      subtotalUtilidadNeta: number;
+    }>;
+  }, [itemsCotizador, paquetesMap]);
 
   const simulacion = useMemo(() => {
-    const costoAgencia = paqueteActual.costoAgencia;
-    const precioConsumidor = paqueteActual.precioConsumidor;
-    const utilidadPorPaquete = precioConsumidor - costoAgencia;
-    const ventasMes = Math.round(ventasSemana * 4);
-    const comisionPorPaquete = COMISION_ASESOR_POR_PAQUETE;
-    const utilidadNetaAgencia = utilidadPorPaquete - comisionPorPaquete;
-    const utilidadMensualAgencia = utilidadNetaAgencia * ventasMes;
-    const comisionMensualAsesor = comisionPorPaquete * ventasMes;
-    const margenBrutoPct =
-      precioConsumidor > 0 ? (utilidadPorPaquete / precioConsumidor) * 100 : 0;
+    const costoTotal = detalleCombo.reduce((acc, item) => acc + item.subtotalCosto, 0);
+    const precioTotal = detalleCombo.reduce((acc, item) => acc + item.subtotalPrecio, 0);
+    const utilidadTotal = detalleCombo.reduce(
+      (acc, item) => acc + item.subtotalUtilidad,
+      0
+    );
+    const comisionTotalCombo = detalleCombo.reduce(
+      (acc, item) => acc + item.subtotalComision,
+      0
+    );
+    const utilidadNetaCombo = detalleCombo.reduce(
+      (acc, item) => acc + item.subtotalUtilidadNeta,
+      0
+    );
+    const piezasTotalesCombo = detalleCombo.reduce(
+      (acc, item) => acc + item.cantidad,
+      0
+    );
+
+    const utilidadMensualAgencia = utilidadNetaCombo * ventasMes;
+    const comisionMensualAsesor = comisionTotalCombo * ventasMes;
+    const ticketPromedio = precioTotal;
+    const margenBrutoPct = precioTotal > 0 ? (utilidadTotal / precioTotal) * 100 : 0;
 
     return {
-      costoAgencia,
-      precioConsumidor,
-      utilidadPorPaquete,
+      costoTotal,
+      precioTotal,
+      utilidadTotal,
+      comisionTotalCombo,
+      utilidadNetaCombo,
+      piezasTotalesCombo,
       ventasMes,
-      comisionPorPaquete,
-      utilidadNetaAgencia,
       utilidadMensualAgencia,
       comisionMensualAsesor,
+      ticketPromedio,
       margenBrutoPct,
     };
-  }, [paqueteActual, ventasSemana]);
+  }, [detalleCombo, ventasMes]);
+
+  const agregarPaquete = () => {
+    setItemsCotizador((prev) => {
+      const existente = prev.find((item) => item.nombre === paqueteParaAgregar);
+
+      if (existente) {
+        return prev.map((item) =>
+          item.nombre === paqueteParaAgregar
+            ? { ...item, cantidad: item.cantidad + 1 }
+            : item
+        );
+      }
+
+      return [...prev, { nombre: paqueteParaAgregar, cantidad: 1 }];
+    });
+  };
+
+  const quitarPaquete = (nombre: string) => {
+    setItemsCotizador((prev) => prev.filter((item) => item.nombre !== nombre));
+  };
+
+  const cambiarCantidad = (nombre: string, cantidad: number) => {
+    setItemsCotizador((prev) =>
+      prev.map((item) =>
+        item.nombre === nombre
+          ? { ...item, cantidad: Math.max(1, Number(cantidad) || 1) }
+          : item
+      )
+    );
+  };
+
+  const limpiarCombo = () => {
+    setItemsCotizador([]);
+  };
+
+  const aplicarComboSugerido = (paquetes: string[]) => {
+    setItemsCotizador(paquetes.map((nombre) => ({ nombre, cantidad: 1 })));
+  };
 
   const handleCreate = async () => {
     if (!form.nombre.trim()) {
@@ -324,6 +473,11 @@ export default function AgenciasPage() {
   };
 
   const saveEdit = async (id: string) => {
+    if (!editingForm.nombre.trim()) {
+      alert("El nombre de la agencia es obligatorio.");
+      return;
+    }
+
     try {
       await updateDoc(doc(db, "agencias", id), {
         ...editingForm,
@@ -364,8 +518,8 @@ export default function AgenciasPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/80 sm:text-base">
-              Gestiona agencias, detecta potencial comercial y simula cuánto gana
-              la agencia y cuánto gana el asesor con cada paquete.
+              Gestiona agencias, detecta potencial comercial y cotiza combos de paquetes
+              para demostrar utilidad real a la agencia y comisión fija al asesor.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -385,8 +539,8 @@ export default function AgenciasPage() {
             </p>
             <h2 className="mt-2 text-xl font-bold">Negocio completo</h2>
             <p className="mt-2 text-sm leading-relaxed text-white/80">
-              No solo se trata de vender producto: aquí puedes demostrar utilidad
-              para la agencia y comisión fija para su asesor.
+              Aquí ya no cotizas un solo paquete: armas combos completos para subir
+              ticket promedio y cerrar mejor.
             </p>
           </div>
         </div>
@@ -422,25 +576,38 @@ export default function AgenciasPage() {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex items-center gap-2">
-          <Calculator className="h-5 w-5 text-slate-400" />
+          <ShoppingCart className="h-5 w-5 text-slate-400" />
           <h2 className="text-lg font-semibold text-slate-900">
-            Simulador comercial para agencias
+            Cotizador comercial para agencias
           </h2>
         </div>
 
         <p className="mb-4 text-sm text-slate-500">
-          Simula utilidad de la agencia y comisión fija del asesor con base en ventas
-          estimadas por semana.
+          Arma combos de varios paquetes, ajusta cantidades y simula utilidad de la
+          agencia y comisión total del asesor.
         </p>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="mb-4 flex flex-wrap gap-2">
+          {combosSugeridos.map((combo) => (
+            <button
+              key={combo.nombre}
+              type="button"
+              onClick={() => aplicarComboSugerido(combo.paquetes)}
+              className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+            >
+              {combo.nombre}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[1fr_220px_auto]">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Paquete
+              Agregar paquete al combo
             </label>
             <select
-              value={paqueteSeleccionado}
-              onChange={(e) => setPaqueteSeleccionado(e.target.value)}
+              value={paqueteParaAgregar}
+              onChange={(e) => setPaqueteParaAgregar(e.target.value)}
               className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
             >
               {paquetesBase.map((p) => (
@@ -453,15 +620,141 @@ export default function AgenciasPage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Ventas por semana
+              Ventas estimadas al mes
             </label>
             <input
               type="number"
               min={0}
-              value={ventasSemana}
-              onChange={(e) => setVentasSemana(Number(e.target.value) || 0)}
+              value={ventasMes}
+              onChange={(e) => setVentasMes(Math.max(0, Number(e.target.value) || 0))}
               className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
             />
+          </div>
+
+          <div className="flex items-end gap-2">
+            <Button onClick={agregarPaquete} className="rounded-xl">
+              <Plus className="mr-2 h-4 w-4" />
+              Agregar
+            </Button>
+
+            <Button variant="outline" onClick={limpiarCombo} className="rounded-xl">
+              Limpiar
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Layers3 className="h-4 w-4 text-slate-500" />
+            <p className="text-sm font-medium text-slate-700">Combo actual</p>
+          </div>
+
+          {detalleCombo.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+              No hay paquetes agregados. Selecciona uno y agrégalo al combo.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {detalleCombo.map((item) => (
+                <div
+                  key={item.nombre}
+                  className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:grid-cols-[1.3fr_110px_130px_130px_auto]"
+                >
+                  <div>
+                    <p className="font-semibold text-slate-900">{item.nombre}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Costo: {money(item.paquete.costoAgencia)} · Precio:{" "}
+                      {money(item.paquete.precioConsumidor)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">
+                      Cantidad
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={item.cantidad}
+                      onChange={(e) => cambiarCantidad(item.nombre, Number(e.target.value))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">Subtotal</p>
+                    <p className="mt-1 font-semibold text-slate-900">
+                      {money(item.subtotalPrecio)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">
+                      Utilidad neta
+                    </p>
+                    <p className="mt-1 font-semibold text-emerald-700">
+                      {money(item.subtotalUtilidadNeta)}
+                    </p>
+                  </div>
+
+                  <div className="flex items-start justify-end">
+                    <button
+                      type="button"
+                      onClick={() => quitarPaquete(item.nombre)}
+                      className="inline-flex items-center gap-1 rounded-xl border border-red-200 px-3 py-2 text-sm text-red-600 transition hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4" />
+                      Quitar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white text-sm">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Paquete</th>
+                  <th className="px-4 py-3 text-right font-medium">Cant.</th>
+                  <th className="px-4 py-3 text-right font-medium">Costo</th>
+                  <th className="px-4 py-3 text-right font-medium">Precio</th>
+                  <th className="px-4 py-3 text-right font-medium">Comisión</th>
+                  <th className="px-4 py-3 text-right font-medium">Utilidad neta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detalleCombo.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                      Agrega paquetes para ver el resumen del combo.
+                    </td>
+                  </tr>
+                ) : (
+                  detalleCombo.map((item) => (
+                    <tr key={item.nombre} className="border-t border-slate-100">
+                      <td className="px-4 py-3">{item.nombre}</td>
+                      <td className="px-4 py-3 text-right">{item.cantidad}</td>
+                      <td className="px-4 py-3 text-right">
+                        {money(item.subtotalCosto)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {money(item.subtotalPrecio)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {money(item.subtotalComision)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-emerald-700">
+                        {money(item.subtotalUtilidadNeta)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -469,56 +762,56 @@ export default function AgenciasPage() {
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <Package2 className="h-4 w-4" />
-              Costo agencia
+              Costo total combo
             </div>
             <p className="mt-2 text-2xl font-bold text-slate-900">
-              {money(simulacion.costoAgencia)}
+              {money(simulacion.costoTotal)}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <HandCoins className="h-4 w-4" />
-              Precio consumidor
+              Precio total combo
             </div>
             <p className="mt-2 text-2xl font-bold text-slate-900">
-              {money(simulacion.precioConsumidor)}
+              {money(simulacion.precioTotal)}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <Calculator className="h-4 w-4" />
-              Utilidad por paquete
+              Utilidad bruta combo
             </div>
             <p className="mt-2 text-2xl font-bold text-slate-900">
-              {money(simulacion.utilidadPorPaquete)}
+              {money(simulacion.utilidadTotal)}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <HandCoins className="h-4 w-4" />
-              Comisión fija asesor
+              Comisión total asesor
             </div>
             <p className="mt-2 text-2xl font-bold text-slate-900">
-              {money(COMISION_ASESOR_POR_PAQUETE)}
+              {money(simulacion.comisionTotalCombo)}
             </p>
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-            <p className="text-sm text-blue-700">Comisión por paquete asesor</p>
-            <p className="mt-2 text-3xl font-bold text-blue-900">
-              {money(simulacion.comisionPorPaquete)}
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-sm text-emerald-700">Utilidad neta del combo</p>
+            <p className="mt-2 text-3xl font-bold text-emerald-900">
+              {money(simulacion.utilidadNetaCombo)}
             </p>
           </div>
 
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <p className="text-sm text-emerald-700">Utilidad neta agencia por paquete</p>
-            <p className="mt-2 text-3xl font-bold text-emerald-900">
-              {money(simulacion.utilidadNetaAgencia)}
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+            <p className="text-sm text-blue-700">Ticket promedio del combo</p>
+            <p className="mt-2 text-3xl font-bold text-blue-900">
+              {money(simulacion.ticketPromedio)}
             </p>
           </div>
 
@@ -528,16 +821,23 @@ export default function AgenciasPage() {
               {simulacion.ventasMes}
             </p>
           </div>
+
+          <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+            <p className="text-sm text-violet-700">Piezas por combo</p>
+            <p className="mt-2 text-3xl font-bold text-violet-900">
+              {simulacion.piezasTotalesCombo}
+            </p>
+          </div>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-2">
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-2xl border border-emerald-200 bg-white p-5">
             <p className="text-sm text-slate-500">Utilidad mensual agencia</p>
             <p className="mt-2 text-4xl font-bold text-emerald-700">
               {money(simulacion.utilidadMensualAgencia)}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Esto es lo que gana la agencia después de pagar $50 por paquete al asesor.
+              Ganancia mensual de la agencia considerando el combo y la comisión fija.
             </p>
           </div>
 
@@ -547,15 +847,25 @@ export default function AgenciasPage() {
               {money(simulacion.comisionMensualAsesor)}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Esto es lo que gana el asesor de la agencia con comisión fija por paquete.
+              Comisión mensual total del asesor con base en el combo vendido.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+            <p className="text-sm text-slate-500">Margen bruto del combo</p>
+            <p className="mt-2 text-4xl font-bold text-slate-900">
+              {simulacion.margenBrutoPct.toFixed(1)}%
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              Útil para defender el negocio frente a la agencia.
             </p>
           </div>
         </div>
 
         <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
           <strong>Lectura comercial:</strong> Si la agencia vende{" "}
-          <strong>{simulacion.ventasMes}</strong> paquetes al mes de{" "}
-          <strong>{paqueteActual.nombre}</strong>, la agencia gana{" "}
+          <strong>{simulacion.ventasMes}</strong> combos al mes, con un ticket promedio de{" "}
+          <strong>{money(simulacion.ticketPromedio)}</strong>, la agencia gana{" "}
           <strong>{money(simulacion.utilidadMensualAgencia)}</strong> y el asesor gana{" "}
           <strong>{money(simulacion.comisionMensualAsesor)}</strong>.
         </div>
@@ -817,7 +1127,7 @@ export default function AgenciasPage() {
 
                         <p className="mt-2 text-sm text-slate-600">
                           {agencia.potencial === "alto"
-                            ? "Agencia prioritaria para presentar paquetes, utilidad y esquema de comisión fija."
+                            ? "Agencia prioritaria para presentar combos, utilidad y esquema de comisión fija."
                             : agencia.potencial === "medio"
                             ? "Agencia con potencial para desarrollar con seguimiento y propuesta inicial."
                             : "Agencia para exploración o mantenimiento comercial."}

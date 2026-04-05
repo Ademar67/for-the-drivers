@@ -1,18 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { db } from '@/lib/firebase'; // ajusta si tu path es distinto
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { db } from '@/firebase/config';
 import {
   collection,
   limit,
   onSnapshot,
   query,
-  where,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { useAuth } from '@/lib/useAuth'; // ajusta a tu hook/context real (ej: FirebaseClientProvider)
+import { useAuth } from '@/lib/useAuth';
 
 type SyncState = 'OFFLINE' | 'PENDING' | 'SYNCING' | 'UP_TO_DATE';
+
+type TrackerMap = Record<string, { pending: boolean; cache: boolean }>;
 
 function Badge({ state, text }: { state: SyncState; text: string }) {
   const cls = useMemo(() => {
@@ -31,144 +32,163 @@ function Badge({ state, text }: { state: SyncState; text: string }) {
   }, [state]);
 
   return (
-    <div className="fixed top-2 right-2 z-[9999]">
-      <div className={`px-3 py-1 text-xs rounded-full border backdrop-blur ${cls}`}>
+    <div className="fixed right-2 top-2 z-[9999]">
+      <div
+        className={`rounded-full border px-3 py-1 text-xs backdrop-blur ${cls}`}
+      >
         {text}
       </div>
     </div>
   );
 }
 
-/**
- * Nivel 2:
- * - OFFLINE: sin internet
- * - PENDING: hay escrituras locales pendientes (hasPendingWrites)
- * - SYNCING: ya hay internet y se están subiendo
- * - UP_TO_DATE: todo confirmado (se muestra breve)
- */
 export default function FirestoreSyncStatus() {
-  const { user } = useAuth(); // debe tener user?.uid
+  const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
-
   const [anyPendingWrites, setAnyPendingWrites] = useState(false);
   const [anyFromCache, setAnyFromCache] = useState(false);
-
   const [state, setState] = useState<SyncState>('UP_TO_DATE');
   const [show, setShow] = useState(false);
 
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    if (typeof navigator !== 'undefined') setIsOnline(navigator.onLine);
+    if (typeof window === 'undefined') return;
 
-    const onOn = () => setIsOnline(true);
-    const onOff = () => setIsOnline(false);
+    setIsOnline(window.navigator.onLine);
 
-    window.addEventListener('online', onOn);
-    window.addEventListener('offline', onOff);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
     return () => {
-      window.removeEventListener('online', onOn);
-      window.removeEventListener('offline', onOff);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid) {
+      setAnyPendingWrites(false);
+      setAnyFromCache(false);
+      return;
+    }
 
-    // 👇 Ojo: ajusta nombres reales de tus colecciones si difieren
-    // Se escuchan poquitos docs (limit 1) solo para metadata global.
-    const unsubs: Unsubscribe[] = [];
-
-    const trackers: Record<string, { pending: boolean; cache: boolean }> = {
+    const trackers: TrackerMap = {
       clientes: { pending: false, cache: false },
       cotizaciones: { pending: false, cache: false },
       materiales: { pending: false, cache: false },
     };
 
-    function recompute() {
+    const unsubs: Unsubscribe[] = [];
+    let isDisposed = false;
+
+    const recompute = () => {
+      if (isDisposed) return;
+
       const pending = Object.values(trackers).some((t) => t.pending);
       const cache = Object.values(trackers).some((t) => t.cache);
+
       setAnyPendingWrites(pending);
       setAnyFromCache(cache);
-    }
+    };
 
-    const clientesQ = query(
-      collection(db, 'users', user.uid, 'customers'),
-      limit(1)
-    );
+    const attachListener = (
+      key: keyof typeof trackers,
+      collectionName: string
+    ) => {
+      try {
+        const q = query(collection(db, collectionName), limit(1));
 
-    const cotizacionesQ = query(
-      collection(db, 'users', user.uid, 'quotes'),
-      limit(1)
-    );
+        const unsub = onSnapshot(
+          q,
+          { includeMetadataChanges: true },
+          (snap) => {
+            if (isDisposed) return;
 
-    const materialesQ = query(
-      collection(db, 'users', user.uid, 'materiales'),
-      limit(1)
-    );
+            trackers[key].pending = snap.metadata.hasPendingWrites;
+            trackers[key].cache = snap.metadata.fromCache;
+            recompute();
+          },
+          (error) => {
+            console.error(
+              `Error en FirestoreSyncStatus escuchando "${collectionName}":`,
+              error
+            );
 
-    unsubs.push(
-      onSnapshot(
-        clientesQ,
-        { includeMetadataChanges: true },
-        (snap) => {
-          trackers.clientes.pending = snap.metadata.hasPendingWrites;
-          trackers.clientes.cache = snap.metadata.fromCache;
-          recompute();
-        }
-      )
-    );
+            if (isDisposed) return;
 
-    unsubs.push(
-      onSnapshot(
-        cotizacionesQ,
-        { includeMetadataChanges: true },
-        (snap) => {
-          trackers.cotizaciones.pending = snap.metadata.hasPendingWrites;
-          trackers.cotizaciones.cache = snap.metadata.fromCache;
-          recompute();
-        }
-      )
-    );
+            trackers[key].pending = false;
+            trackers[key].cache = false;
+            recompute();
+          }
+        );
 
-    unsubs.push(
-      onSnapshot(
-        materialesQ,
-        { includeMetadataChanges: true },
-        (snap) => {
-          trackers.materiales.pending = snap.metadata.hasPendingWrites;
-          trackers.materiales.cache = snap.metadata.fromCache;
-          recompute();
-        }
-      )
-    );
+        unsubs.push(unsub);
+      } catch (error) {
+        console.error(
+          `No se pudo crear listener para "${collectionName}":`,
+          error
+        );
+
+        trackers[key].pending = false;
+        trackers[key].cache = false;
+        recompute();
+      }
+    };
+
+    attachListener('clientes', 'clientes');
+    attachListener('cotizaciones', 'cotizaciones');
+    attachListener('materiales', 'materiales');
 
     return () => {
-      unsubs.forEach((u) => u());
+      isDisposed = true;
+
+      for (const unsub of unsubs) {
+        try {
+          if (typeof unsub === 'function') {
+            unsub();
+          }
+        } catch (error) {
+          console.error('Error liberando listener de Firestore:', error);
+        }
+      }
     };
   }, [user?.uid]);
 
   useEffect(() => {
-    // Máquina de estados
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+
     if (!isOnline) {
-      // Si estás offline y hay pendientes, lo más útil es decir “Pendiente de subir”
       setState(anyPendingWrites ? 'PENDING' : 'OFFLINE');
       setShow(true);
       return;
     }
 
-    // Online
     if (anyPendingWrites) {
       setState('SYNCING');
       setShow(true);
       return;
     }
 
-    // Online + sin pendientes
-    // Si venimos de cache o acabamos de sincronizar, mostramos “Todo al día” breve
     setState('UP_TO_DATE');
     setShow(true);
 
-    const t = setTimeout(() => setShow(false), 2500);
-    return () => clearTimeout(t);
+    hideTimerRef.current = setTimeout(() => {
+      setShow(false);
+    }, 2500);
+
+    return () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+    };
   }, [isOnline, anyPendingWrites, anyFromCache]);
 
   if (!show) return null;
