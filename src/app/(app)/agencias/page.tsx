@@ -7,8 +7,6 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-  orderBy,
-  query,
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
@@ -30,10 +28,18 @@ import {
   X,
   ShoppingCart,
   Layers3,
+  FileDown,
+  MessageCircle,
 } from "lucide-react";
 
 import { db } from "@/firebase/config";
 import { Button } from "@/components/ui/button";
+import {
+  compartirComboPdf,
+  descargarComboPDF,
+  type ComboPdfData,
+} from 
+"@/lib/pdf/generarComboPDF";
 
 type EstatusAgencia =
   | "prospecto"
@@ -156,10 +162,7 @@ const paquetesBase: PaqueteSimulador[] = [
 const combosSugeridos: { nombre: string; paquetes: string[] }[] = [
   {
     nombre: "Combo básico",
-    paquetes: [
-      "Complemento de mantenimiento",
-      "Limpieza cuerpo de aceleración",
-    ],
+    paquetes: ["Complemento de mantenimiento", "Limpieza cuerpo de aceleración"],
   },
   {
     nombre: "Combo preventivo",
@@ -171,18 +174,11 @@ const combosSugeridos: { nombre: string; paquetes: string[] }[] = [
   },
   {
     nombre: "Combo potencia",
-    paquetes: [
-      "Potencia motor",
-      "Protección para motor",
-      "Paquete premium",
-    ],
+    paquetes: ["Potencia motor", "Protección para motor", "Paquete premium"],
   },
   {
     nombre: "Combo diesel",
-    paquetes: [
-      "Limpieza preventiva de inyectores a diesel",
-      "Protección para motor",
-    ],
+    paquetes: ["Limpieza preventiva de inyectores a diesel", "Protección para motor"],
   },
   {
     nombre: "Combo taller",
@@ -231,15 +227,11 @@ function badgePotencial(potencial: PotencialAgencia) {
 export default function AgenciasPage() {
   const [agencias, setAgencias] = useState<Agencia[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [openModal, setOpenModal] = useState(false);
   const [saving, setSaving] = useState(false);
-
   const [form, setForm] = useState<FormData>(initialForm);
-
   const [search, setSearch] = useState("");
   const [filterEstatus, setFilterEstatus] = useState<"todos" | EstatusAgencia>("todos");
-
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingForm, setEditingForm] = useState<FormData>(initialForm);
 
@@ -250,12 +242,14 @@ export default function AgenciasPage() {
     { nombre: "Paquete premium", cantidad: 1 },
   ]);
   const [ventasMes, setVentasMes] = useState<number>(8);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [whatsLoading, setWhatsLoading] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, "agencias"), orderBy("createdAt", "desc"));
+    const agenciasRef = collection(db, "agencias");
 
     const unsub = onSnapshot(
-      q,
+      agenciasRef,
       (snapshot) => {
         const data: Agencia[] = snapshot.docs.map((ds) => {
           const d: any = ds.data();
@@ -273,6 +267,15 @@ export default function AgenciasPage() {
             notas: d.notas ?? "",
             createdAt: d.createdAt,
           };
+        });
+
+        data.sort((a, b) => {
+          const aTime =
+            typeof a.createdAt?.toMillis === "function" ? a.createdAt.toMillis() : 0;
+          const bTime =
+            typeof b.createdAt?.toMillis === "function" ? b.createdAt.toMillis() : 0;
+
+          return bTime - aTime;
         });
 
         setAgencias(data);
@@ -297,8 +300,7 @@ export default function AgenciasPage() {
         a.contacto.toLowerCase().includes(term) ||
         a.ciudad.toLowerCase().includes(term);
 
-      const matchesStatus =
-        filterEstatus === "todos" ? true : a.estatus === filterEstatus;
+      const matchesStatus = filterEstatus === "todos" ? true : a.estatus === filterEstatus;
 
       return matchesSearch && matchesStatus;
     });
@@ -358,10 +360,7 @@ export default function AgenciasPage() {
   const simulacion = useMemo(() => {
     const costoTotal = detalleCombo.reduce((acc, item) => acc + item.subtotalCosto, 0);
     const precioTotal = detalleCombo.reduce((acc, item) => acc + item.subtotalPrecio, 0);
-    const utilidadTotal = detalleCombo.reduce(
-      (acc, item) => acc + item.subtotalUtilidad,
-      0
-    );
+    const utilidadTotal = detalleCombo.reduce((acc, item) => acc + item.subtotalUtilidad, 0);
     const comisionTotalCombo = detalleCombo.reduce(
       (acc, item) => acc + item.subtotalComision,
       0
@@ -370,10 +369,7 @@ export default function AgenciasPage() {
       (acc, item) => acc + item.subtotalUtilidadNeta,
       0
     );
-    const piezasTotalesCombo = detalleCombo.reduce(
-      (acc, item) => acc + item.cantidad,
-      0
-    );
+    const piezasTotalesCombo = detalleCombo.reduce((acc, item) => acc + item.cantidad, 0);
 
     const utilidadMensualAgencia = utilidadNetaCombo * ventasMes;
     const comisionMensualAsesor = comisionTotalCombo * ventasMes;
@@ -394,6 +390,108 @@ export default function AgenciasPage() {
       margenBrutoPct,
     };
   }, [detalleCombo, ventasMes]);
+
+  const comboNombreActual = useMemo(() => {
+    if (detalleCombo.length === 0) return "Combo comercial";
+    if (detalleCombo.length === 1) return detalleCombo[0].nombre;
+    return `Combo de ${detalleCombo.length} paquetes`;
+  }, [detalleCombo]);
+
+  const buildComboPdfData = (): ComboPdfData => {
+    return {
+      agenciaNombre: "Agencia objetivo",
+      comboNombre: comboNombreActual,
+      ventasMes: simulacion.ventasMes,
+      piezasTotalesCombo: simulacion.piezasTotalesCombo,
+      costoTotal: simulacion.costoTotal,
+      precioTotal: simulacion.precioTotal,
+      utilidadTotal: simulacion.utilidadTotal,
+      utilidadNetaCombo: simulacion.utilidadNetaCombo,
+      comisionTotalCombo: simulacion.comisionTotalCombo,
+      utilidadMensualAgencia: simulacion.utilidadMensualAgencia,
+      comisionMensualAsesor: simulacion.comisionMensualAsesor,
+      ticketPromedio: simulacion.ticketPromedio,
+      margenBrutoPct: simulacion.margenBrutoPct,
+      observaciones:
+        "Propuesta comercial orientada a subir ticket promedio, defender utilidad y facilitar el cierre con una oferta más clara para la agencia.",
+      generatedAt: new Date(),
+      items: detalleCombo.map((item) => ({
+        nombre: item.nombre,
+        cantidad: item.cantidad,
+        costoUnitario: item.paquete.costoAgencia,
+        precioUnitario: item.paquete.precioConsumidor,
+        subtotalCosto: item.subtotalCosto,
+        subtotalPrecio: item.subtotalPrecio,
+        subtotalComision: item.subtotalComision,
+        subtotalUtilidadNeta: item.subtotalUtilidadNeta,
+      })),
+    };
+  };
+
+  const buildWhatsappMessage = () => {
+    const nombres = detalleCombo.map((item) => `• ${item.nombre} x${item.cantidad}`).join("\n");
+
+    return [
+      "Hola, te comparto una propuesta comercial de combo Liqui Moly.",
+      "",
+      `Combo: ${comboNombreActual}`,
+      "",
+      nombres,
+      "",
+      `Ticket promedio: ${money(simulacion.ticketPromedio)}`,
+      `Utilidad neta por combo: ${money(simulacion.utilidadNetaCombo)}`,
+      `Ventas estimadas al mes: ${simulacion.ventasMes}`,
+      `Utilidad mensual estimada para la agencia: ${money(simulacion.utilidadMensualAgencia)}`,
+      "",
+      "Es una propuesta pensada para subir ticket promedio, generar utilidad y vender con una estructura más clara.",
+      "Si gustas, te explico cómo implementarlo y qué paquetes conviene mover primero.",
+    ].join("\n");
+  };
+
+  const handleExportPdf = async () => {
+    if (detalleCombo.length === 0) {
+      alert("Primero agrega paquetes al combo.");
+      return;
+    }
+
+    try {
+      setPdfLoading(true);
+      await descargarComboPDF(buildComboPdfData(), "combo-agencia-liqui-moly.pdf");
+    } catch (error) {
+      console.error("Error generando PDF del combo:", error);
+      alert("No se pudo generar el PDF del combo.");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleShareWhatsapp = async () => {
+    if (detalleCombo.length === 0) {
+      alert("Primero agrega paquetes al combo.");
+      return;
+    }
+
+    try {
+      setWhatsLoading(true);
+
+      const result = await compartirComboPdf(
+        buildComboPdfData(),
+        buildWhatsappMessage(),
+        "combo-agencia-liqui-moly.pdf"
+      );
+
+      if (!result.sharedDirectly) {
+        alert(
+          "Se descargó el PDF y se abrió WhatsApp. Si estás en desktop, adjunta manualmente el archivo descargado."
+        );
+      }
+    } catch (error) {
+      console.error("Error compartiendo combo por WhatsApp:", error);
+      alert("No se pudo compartir el combo por WhatsApp.");
+    } finally {
+      setWhatsLoading(false);
+    }
+  };
 
   const agregarPaquete = () => {
     setItemsCotizador((prev) => {
@@ -539,8 +637,8 @@ export default function AgenciasPage() {
             </p>
             <h2 className="mt-2 text-xl font-bold">Negocio completo</h2>
             <p className="mt-2 text-sm leading-relaxed text-white/80">
-              Aquí ya no cotizas un solo paquete: armas combos completos para subir
-              ticket promedio y cerrar mejor.
+              Aquí ya no cotizas un solo paquete: armas combos completos para subir ticket
+              promedio y cerrar mejor.
             </p>
           </div>
         </div>
@@ -554,23 +652,17 @@ export default function AgenciasPage() {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">Activas</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-700">
-            {resumen.activas}
-          </p>
+          <p className="mt-2 text-3xl font-bold text-emerald-700">{resumen.activas}</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">En negociación</p>
-          <p className="mt-2 text-3xl font-bold text-amber-700">
-            {resumen.negociacion}
-          </p>
+          <p className="mt-2 text-3xl font-bold text-amber-700">{resumen.negociacion}</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">Alto potencial</p>
-          <p className="mt-2 text-3xl font-bold text-red-700">
-            {resumen.altoPotencial}
-          </p>
+          <p className="mt-2 text-3xl font-bold text-red-700">{resumen.altoPotencial}</p>
         </div>
       </section>
 
@@ -636,7 +728,6 @@ export default function AgenciasPage() {
               <Plus className="mr-2 h-4 w-4" />
               Agregar
             </Button>
-
             <Button variant="outline" onClick={limpiarCombo} className="rounded-xl">
               Limpiar
             </Button>
@@ -689,9 +780,7 @@ export default function AgenciasPage() {
                   </div>
 
                   <div>
-                    <p className="text-xs font-medium text-slate-500">
-                      Utilidad neta
-                    </p>
+                    <p className="text-xs font-medium text-slate-500">Utilidad neta</p>
                     <p className="mt-1 font-semibold text-emerald-700">
                       {money(item.subtotalUtilidadNeta)}
                     </p>
@@ -738,12 +827,8 @@ export default function AgenciasPage() {
                     <tr key={item.nombre} className="border-t border-slate-100">
                       <td className="px-4 py-3">{item.nombre}</td>
                       <td className="px-4 py-3 text-right">{item.cantidad}</td>
-                      <td className="px-4 py-3 text-right">
-                        {money(item.subtotalCosto)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {money(item.subtotalPrecio)}
-                      </td>
+                      <td className="px-4 py-3 text-right">{money(item.subtotalCosto)}</td>
+                      <td className="px-4 py-3 text-right">{money(item.subtotalPrecio)}</td>
                       <td className="px-4 py-3 text-right">
                         {money(item.subtotalComision)}
                       </td>
@@ -869,6 +954,27 @@ export default function AgenciasPage() {
           <strong>{money(simulacion.utilidadMensualAgencia)}</strong> y el asesor gana{" "}
           <strong>{money(simulacion.comisionMensualAsesor)}</strong>.
         </div>
+
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExportPdf}
+            disabled={pdfLoading || detalleCombo.length === 0}
+            className="rounded-xl"
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            {pdfLoading ? "Generando PDF..." : "Exportar PDF"}
+          </Button>
+
+          <Button
+            onClick={handleShareWhatsapp}
+            disabled={whatsLoading || detalleCombo.length === 0}
+            className="rounded-xl bg-green-600 text-white hover:bg-green-700"
+          >
+            <MessageCircle className="mr-2 h-4 w-4" />
+            {whatsLoading ? "Preparando WhatsApp..." : "Compartir WhatsApp"}
+          </Button>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -948,6 +1054,7 @@ export default function AgenciasPage() {
                         placeholder="Nombre de agencia"
                         className="rounded-xl border px-3 py-2"
                       />
+
                       <input
                         value={editingForm.marca}
                         onChange={(e) =>
@@ -959,6 +1066,7 @@ export default function AgenciasPage() {
                         placeholder="Marca"
                         className="rounded-xl border px-3 py-2"
                       />
+
                       <input
                         value={editingForm.contacto}
                         onChange={(e) =>
@@ -970,6 +1078,7 @@ export default function AgenciasPage() {
                         placeholder="Contacto"
                         className="rounded-xl border px-3 py-2"
                       />
+
                       <input
                         value={editingForm.telefono}
                         onChange={(e) =>
@@ -981,6 +1090,7 @@ export default function AgenciasPage() {
                         placeholder="Teléfono"
                         className="rounded-xl border px-3 py-2"
                       />
+
                       <input
                         value={editingForm.correo}
                         onChange={(e) =>
@@ -992,6 +1102,7 @@ export default function AgenciasPage() {
                         placeholder="Correo"
                         className="rounded-xl border px-3 py-2"
                       />
+
                       <input
                         value={editingForm.ciudad}
                         onChange={(e) =>
@@ -1003,6 +1114,7 @@ export default function AgenciasPage() {
                         placeholder="Ciudad"
                         className="rounded-xl border px-3 py-2"
                       />
+
                       <select
                         value={editingForm.estatus}
                         onChange={(e) =>
@@ -1171,9 +1283,7 @@ export default function AgenciasPage() {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Nueva agencia
-                </h3>
+                <h3 className="text-lg font-semibold text-slate-900">Nueva agencia</h3>
                 <p className="text-sm text-slate-500">
                   Crea una base comercial lista para crecer.
                 </p>
