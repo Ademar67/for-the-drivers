@@ -25,6 +25,8 @@ import {
   HandCoins,
   Briefcase,
   Filter,
+  Calculator,
+  Package2,
 } from "lucide-react";
 
 import { db } from "@/firebase/config";
@@ -65,6 +67,14 @@ type FormData = {
   notas: string;
 };
 
+type PaqueteSimulador = {
+  nombre: string;
+  costoAgencia: number;
+  precioConsumidor: number;
+};
+
+const COMISION_ASESOR_POR_PAQUETE = 50;
+
 const initialForm: FormData = {
   nombre: "",
   marca: "",
@@ -76,6 +86,62 @@ const initialForm: FormData = {
   potencial: "medio",
   notas: "",
 };
+
+const paquetesBase: PaqueteSimulador[] = [
+  {
+    nombre: "Complemento de Mantenimiento",
+    costoAgencia: 448.16,
+    precioConsumidor: 900.3,
+  },
+  {
+    nombre: "Paquete Limpieza del Sistema del Aire Acondicionado",
+    costoAgencia: 369.2,
+    precioConsumidor: 698.0,
+  },
+  {
+    nombre: "Restauración de Plásticos y Gomas",
+    costoAgencia: 292.76,
+    precioConsumidor: 707.0,
+  },
+  {
+    nombre: "Paquete Limpieza Catalizador",
+    costoAgencia: 428.0,
+    precioConsumidor: 926.55,
+  },
+  {
+    nombre: "Paquete Frenos",
+    costoAgencia: 265.88,
+    precioConsumidor: 776.1,
+  },
+  {
+    nombre: "Limpieza Extrema Sistema de Combustión",
+    costoAgencia: 396.92,
+    precioConsumidor: 980.95,
+  },
+  {
+    nombre: "Mantenimiento Diesel",
+    costoAgencia: 462.44,
+    precioConsumidor: 923.4,
+  },
+  {
+    nombre: "Paquete Protección Extrema Ceratec",
+    costoAgencia: 930.32,
+    precioConsumidor: 1678.45,
+  },
+  {
+    nombre: "Limpieza de Cuerpo de Aceleración",
+    costoAgencia: 281.0,
+    precioConsumidor: 629.4,
+  },
+];
+
+function money(value: number) {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 2,
+  }).format(value);
+}
 
 function badgeEstatus(estatus: EstatusAgencia) {
   switch (estatus) {
@@ -117,6 +183,11 @@ export default function AgenciasPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingForm, setEditingForm] = useState<FormData>(initialForm);
+
+  const [paqueteSeleccionado, setPaqueteSeleccionado] = useState<string>(
+    paquetesBase[0].nombre
+  );
+  const [ventasSemana, setVentasSemana] = useState<number>(4);
 
   useEffect(() => {
     const q = query(collection(db, "agencias"), orderBy("createdAt", "desc"));
@@ -171,18 +242,47 @@ export default function AgenciasPage() {
 
   const resumen = useMemo(() => {
     const activas = agencias.filter((a) => a.estatus === "activa").length;
-    const prospecto = agencias.filter((a) => a.estatus === "prospecto").length;
     const negociacion = agencias.filter((a) => a.estatus === "negociacion").length;
     const altoPotencial = agencias.filter((a) => a.potencial === "alto").length;
 
     return {
       total: agencias.length,
       activas,
-      prospecto,
       negociacion,
       altoPotencial,
     };
   }, [agencias]);
+
+  const paqueteActual = useMemo(() => {
+    return (
+      paquetesBase.find((p) => p.nombre === paqueteSeleccionado) ?? paquetesBase[0]
+    );
+  }, [paqueteSeleccionado]);
+
+  const simulacion = useMemo(() => {
+    const costoAgencia = paqueteActual.costoAgencia;
+    const precioConsumidor = paqueteActual.precioConsumidor;
+    const utilidadPorPaquete = precioConsumidor - costoAgencia;
+    const ventasMes = Math.round(ventasSemana * 4);
+    const comisionPorPaquete = COMISION_ASESOR_POR_PAQUETE;
+    const utilidadNetaAgencia = utilidadPorPaquete - comisionPorPaquete;
+    const utilidadMensualAgencia = utilidadNetaAgencia * ventasMes;
+    const comisionMensualAsesor = comisionPorPaquete * ventasMes;
+    const margenBrutoPct =
+      precioConsumidor > 0 ? (utilidadPorPaquete / precioConsumidor) * 100 : 0;
+
+    return {
+      costoAgencia,
+      precioConsumidor,
+      utilidadPorPaquete,
+      ventasMes,
+      comisionPorPaquete,
+      utilidadNetaAgencia,
+      utilidadMensualAgencia,
+      comisionMensualAsesor,
+      margenBrutoPct,
+    };
+  }, [paqueteActual, ventasSemana]);
 
   const handleCreate = async () => {
     if (!form.nombre.trim()) {
@@ -251,7 +351,6 @@ export default function AgenciasPage() {
 
   return (
     <div className="space-y-6">
-      {/* HERO */}
       <section className="overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 text-white shadow-sm">
         <div className="grid gap-6 p-6 lg:grid-cols-[1.3fr_0.7fr] lg:p-7">
           <div>
@@ -265,8 +364,8 @@ export default function AgenciasPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/80 sm:text-base">
-              Gestiona agencias, detecta potencial comercial y construye una base
-              sólida para propuestas, paquetes y simuladores de utilidad.
+              Gestiona agencias, detecta potencial comercial y simula cuánto gana
+              la agencia y cuánto gana el asesor con cada paquete.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -284,17 +383,15 @@ export default function AgenciasPage() {
             <p className="text-xs uppercase tracking-wide text-white/70">
               Enfoque del módulo
             </p>
-            <h2 className="mt-2 text-xl font-bold">Ventas por agencia</h2>
+            <h2 className="mt-2 text-xl font-bold">Negocio completo</h2>
             <p className="mt-2 text-sm leading-relaxed text-white/80">
-              Este módulo está pensado para ayudarte a detectar oportunidades,
-              seguir negociaciones y luego conectar agencias con paquetes,
-              márgenes y propuestas comerciales.
+              No solo se trata de vender producto: aquí puedes demostrar utilidad
+              para la agencia y comisión fija para su asesor.
             </p>
           </div>
         </div>
       </section>
 
-      {/* KPIS */}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">Total agencias</p>
@@ -323,7 +420,147 @@ export default function AgenciasPage() {
         </div>
       </section>
 
-      {/* FILTROS */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <Calculator className="h-5 w-5 text-slate-400" />
+          <h2 className="text-lg font-semibold text-slate-900">
+            Simulador comercial para agencias
+          </h2>
+        </div>
+
+        <p className="mb-4 text-sm text-slate-500">
+          Simula utilidad de la agencia y comisión fija del asesor con base en ventas
+          estimadas por semana.
+        </p>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Paquete
+            </label>
+            <select
+              value={paqueteSeleccionado}
+              onChange={(e) => setPaqueteSeleccionado(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
+            >
+              {paquetesBase.map((p) => (
+                <option key={p.nombre} value={p.nombre}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Ventas por semana
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={ventasSemana}
+              onChange={(e) => setVentasSemana(Number(e.target.value) || 0)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Package2 className="h-4 w-4" />
+              Costo agencia
+            </div>
+            <p className="mt-2 text-2xl font-bold text-slate-900">
+              {money(simulacion.costoAgencia)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <HandCoins className="h-4 w-4" />
+              Precio consumidor
+            </div>
+            <p className="mt-2 text-2xl font-bold text-slate-900">
+              {money(simulacion.precioConsumidor)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Calculator className="h-4 w-4" />
+              Utilidad por paquete
+            </div>
+            <p className="mt-2 text-2xl font-bold text-slate-900">
+              {money(simulacion.utilidadPorPaquete)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <HandCoins className="h-4 w-4" />
+              Comisión fija asesor
+            </div>
+            <p className="mt-2 text-2xl font-bold text-slate-900">
+              {money(COMISION_ASESOR_POR_PAQUETE)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+            <p className="text-sm text-blue-700">Comisión por paquete asesor</p>
+            <p className="mt-2 text-3xl font-bold text-blue-900">
+              {money(simulacion.comisionPorPaquete)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-sm text-emerald-700">Utilidad neta agencia por paquete</p>
+            <p className="mt-2 text-3xl font-bold text-emerald-900">
+              {money(simulacion.utilidadNetaAgencia)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-700">Ventas estimadas al mes</p>
+            <p className="mt-2 text-3xl font-bold text-amber-900">
+              {simulacion.ventasMes}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <div className="rounded-2xl border border-emerald-200 bg-white p-5">
+            <p className="text-sm text-slate-500">Utilidad mensual agencia</p>
+            <p className="mt-2 text-4xl font-bold text-emerald-700">
+              {money(simulacion.utilidadMensualAgencia)}
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              Esto es lo que gana la agencia después de pagar $50 por paquete al asesor.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-blue-200 bg-white p-5">
+            <p className="text-sm text-slate-500">Comisión mensual asesor</p>
+            <p className="mt-2 text-4xl font-bold text-blue-700">
+              {money(simulacion.comisionMensualAsesor)}
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              Esto es lo que gana el asesor de la agencia con comisión fija por paquete.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <strong>Lectura comercial:</strong> Si la agencia vende{" "}
+          <strong>{simulacion.ventasMes}</strong> paquetes al mes de{" "}
+          <strong>{paqueteActual.nombre}</strong>, la agencia gana{" "}
+          <strong>{money(simulacion.utilidadMensualAgencia)}</strong> y el asesor gana{" "}
+          <strong>{money(simulacion.comisionMensualAsesor)}</strong>.
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
           <div className="relative">
@@ -362,12 +599,11 @@ export default function AgenciasPage() {
         </div>
       </section>
 
-      {/* LISTADO */}
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-900">Agencias</h2>
           <p className="text-sm text-slate-500">
-            Base comercial lista para crecer a simulador y propuesta.
+            Base comercial lista para crecer a propuesta y detalle por agencia.
           </p>
         </div>
 
@@ -581,9 +817,9 @@ export default function AgenciasPage() {
 
                         <p className="mt-2 text-sm text-slate-600">
                           {agencia.potencial === "alto"
-                            ? "Agencia prioritaria para presentar paquetes, propuesta y simulación de utilidad."
+                            ? "Agencia prioritaria para presentar paquetes, utilidad y esquema de comisión fija."
                             : agencia.potencial === "medio"
-                            ? "Agencia con potencial para desarrollar con seguimiento y paquete inicial."
+                            ? "Agencia con potencial para desarrollar con seguimiento y propuesta inicial."
                             : "Agencia para exploración o mantenimiento comercial."}
                         </p>
                       </div>
@@ -616,7 +852,6 @@ export default function AgenciasPage() {
         )}
       </section>
 
-      {/* MODAL NUEVA AGENCIA */}
       {openModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-3xl rounded-3xl bg-white p-5 shadow-xl">
