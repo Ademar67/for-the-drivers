@@ -596,10 +596,11 @@ function ComboPDFDocument({ data }: { data: ComboPdfData }) {
             {data.items.map((item, index) => (
               <View
                 key={`${item.nombre}-${index}`}
-                style={[
-                  styles.packageCard,
-                  index === 0 ? styles.packageCardFirst : null,
-                ]}
+                style={
+                  index === 0
+                    ? [styles.packageCard, styles.packageCardFirst]
+                    : styles.packageCard
+                }
               >
                 <Text style={styles.packageTitle}>
                   {shortenName(item.nombre, 56)}
