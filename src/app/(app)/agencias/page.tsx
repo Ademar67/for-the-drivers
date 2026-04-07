@@ -6,7 +6,7 @@ import {
   collection,
   deleteDoc,
   doc,
-  onSnapshot,
+  getDocs,
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
@@ -30,6 +30,8 @@ import {
   Layers3,
   FileDown,
   MessageCircle,
+  TrendingUp,
+  Boxes,
 } from "lucide-react";
 
 import { db } from "@/firebase/config";
@@ -38,8 +40,7 @@ import {
   compartirComboPdf,
   descargarComboPDF,
   type ComboPdfData,
-} from 
-"@/lib/pdf/generarComboPDF";
+} from "@/lib/pdf/generarComboPDF";
 
 type EstatusAgencia =
   | "prospecto"
@@ -84,7 +85,7 @@ type PaqueteSimulador = {
 
 type ItemCotizador = {
   nombre: string;
-  cantidad: number;
+  cantidad: number; // paquetes por combo / por operación
 };
 
 const COMISION_ASESOR_POR_PAQUETE = 50;
@@ -161,11 +162,11 @@ const paquetesBase: PaqueteSimulador[] = [
 
 const combosSugeridos: { nombre: string; paquetes: string[] }[] = [
   {
-    nombre: "Combo básico",
+    nombre: "Mantenimiento básico",
     paquetes: ["Complemento de mantenimiento", "Limpieza cuerpo de aceleración"],
   },
   {
-    nombre: "Combo preventivo",
+    nombre: "Preventivo",
     paquetes: [
       "Complemento de mantenimiento",
       "Limpieza del sistema del aire acondicionado",
@@ -173,15 +174,15 @@ const combosSugeridos: { nombre: string; paquetes: string[] }[] = [
     ],
   },
   {
-    nombre: "Combo potencia",
+    nombre: "Potencia",
     paquetes: ["Potencia motor", "Protección para motor", "Paquete premium"],
   },
   {
-    nombre: "Combo diesel",
+    nombre: "Diesel",
     paquetes: ["Limpieza preventiva de inyectores a diesel", "Protección para motor"],
   },
   {
-    nombre: "Combo taller",
+    nombre: "Taller",
     paquetes: [
       "Paquete frenos",
       "Limpieza cuerpo de aceleración",
@@ -246,14 +247,20 @@ export default function AgenciasPage() {
   const [whatsLoading, setWhatsLoading] = useState(false);
 
   useEffect(() => {
-    const agenciasRef = collection(db, "agencias");
-
-    const unsub = onSnapshot(
-      agenciasRef,
-      (snapshot) => {
+    let mounted = true;
+  
+    const cargarAgencias = async () => {
+      setLoading(true);
+  
+      try {
+        const agenciasRef = collection(db, "agencias");
+        const snapshot = await getDocs(agenciasRef);
+  
+        if (!mounted) return;
+  
         const data: Agencia[] = snapshot.docs.map((ds) => {
           const d: any = ds.data();
-
+  
           return {
             id: ds.id,
             nombre: d.nombre ?? "",
@@ -268,28 +275,31 @@ export default function AgenciasPage() {
             createdAt: d.createdAt,
           };
         });
-
+  
         data.sort((a, b) => {
           const aTime =
             typeof a.createdAt?.toMillis === "function" ? a.createdAt.toMillis() : 0;
           const bTime =
             typeof b.createdAt?.toMillis === "function" ? b.createdAt.toMillis() : 0;
-
+  
           return bTime - aTime;
         });
-
+  
         setAgencias(data);
-        setLoading(false);
-      },
-      (error) => {
+      } catch (error) {
         console.error("Error cargando agencias:", error);
-        setLoading(false);
+        if (mounted) setAgencias([]);
+      } finally {
+        if (mounted) setLoading(false);
       }
-    );
-
-    return () => unsub();
+    };
+  
+    cargarAgencias();
+  
+    return () => {
+      mounted = false;
+    };
   }, []);
-
   const agenciasFiltradas = useMemo(() => {
     return agencias.filter((a) => {
       const term = search.toLowerCase();
@@ -323,151 +333,209 @@ export default function AgenciasPage() {
     return new Map(paquetesBase.map((p) => [p.nombre, p]));
   }, []);
 
-  const detalleCombo = useMemo(() => {
+  const detallePaquetes = useMemo(() => {
     return itemsCotizador
       .map((item) => {
         const paquete = paquetesMap.get(item.nombre);
         if (!paquete) return null;
 
-        const subtotalCosto = paquete.costoAgencia * item.cantidad;
-        const subtotalPrecio = paquete.precioConsumidor * item.cantidad;
-        const subtotalUtilidad = subtotalPrecio - subtotalCosto;
-        const subtotalComision = COMISION_ASESOR_POR_PAQUETE * item.cantidad;
-        const subtotalUtilidadNeta = subtotalUtilidad - subtotalComision;
+        const costoUnitario = paquete.costoAgencia;
+        const precioUnitario = paquete.precioConsumidor;
+        const utilidadPorPaquete = precioUnitario - costoUnitario;
+        const comisionPorLinea = COMISION_ASESOR_POR_PAQUETE * item.cantidad;
+        const utilidadNetaPorOperacion =
+          utilidadPorPaquete * item.cantidad - comisionPorLinea;
+
+        const paquetesVendidosMes = item.cantidad * ventasMes;
+        const costoMensual = costoUnitario * paquetesVendidosMes;
+        const ventaMensual = precioUnitario * paquetesVendidosMes;
+        const utilidadMensualBruta = utilidadPorPaquete * paquetesVendidosMes;
+        const comisionMensualLinea = COMISION_ASESOR_POR_PAQUETE * paquetesVendidosMes;
+        const utilidadMensualNeta = utilidadMensualBruta - comisionMensualLinea;
 
         return {
           ...item,
           paquete,
-          subtotalCosto,
-          subtotalPrecio,
-          subtotalUtilidad,
-          subtotalComision,
-          subtotalUtilidadNeta,
+          costoUnitario,
+          precioUnitario,
+          utilidadPorPaquete,
+          comisionPorLinea,
+          utilidadNetaPorOperacion,
+          paquetesVendidosMes,
+          costoMensual,
+          ventaMensual,
+          utilidadMensualBruta,
+          comisionMensualLinea,
+          utilidadMensualNeta,
         };
       })
       .filter(Boolean) as Array<{
       nombre: string;
       cantidad: number;
       paquete: PaqueteSimulador;
-      subtotalCosto: number;
-      subtotalPrecio: number;
-      subtotalUtilidad: number;
-      subtotalComision: number;
-      subtotalUtilidadNeta: number;
+      costoUnitario: number;
+      precioUnitario: number;
+      utilidadPorPaquete: number;
+      comisionPorLinea: number;
+      utilidadNetaPorOperacion: number;
+      paquetesVendidosMes: number;
+      costoMensual: number;
+      ventaMensual: number;
+      utilidadMensualBruta: number;
+      comisionMensualLinea: number;
+      utilidadMensualNeta: number;
     }>;
-  }, [itemsCotizador, paquetesMap]);
+  }, [itemsCotizador, paquetesMap, ventasMes]);
 
   const simulacion = useMemo(() => {
-    const costoTotal = detalleCombo.reduce((acc, item) => acc + item.subtotalCosto, 0);
-    const precioTotal = detalleCombo.reduce((acc, item) => acc + item.subtotalPrecio, 0);
-    const utilidadTotal = detalleCombo.reduce((acc, item) => acc + item.subtotalUtilidad, 0);
-    const comisionTotalCombo = detalleCombo.reduce(
-      (acc, item) => acc + item.subtotalComision,
+    const paquetesPorOperacion = detallePaquetes.reduce(
+      (acc, item) => acc + item.cantidad,
       0
     );
-    const utilidadNetaCombo = detalleCombo.reduce(
-      (acc, item) => acc + item.subtotalUtilidadNeta,
+    const paquetesVendidosMes = detallePaquetes.reduce(
+      (acc, item) => acc + item.paquetesVendidosMes,
       0
     );
-    const piezasTotalesCombo = detalleCombo.reduce((acc, item) => acc + item.cantidad, 0);
+    const costoPorOperacion = detallePaquetes.reduce(
+      (acc, item) => acc + item.costoUnitario * item.cantidad,
+      0
+    );
+    const ventaPorOperacion = detallePaquetes.reduce(
+      (acc, item) => acc + item.precioUnitario * item.cantidad,
+      0
+    );
+    const utilidadBrutaPorOperacion = detallePaquetes.reduce(
+      (acc, item) => acc + item.utilidadPorPaquete * item.cantidad,
+      0
+    );
+    const comisionPorOperacion = detallePaquetes.reduce(
+      (acc, item) => acc + item.comisionPorLinea,
+      0
+    );
+    const utilidadNetaPorOperacion = detallePaquetes.reduce(
+      (acc, item) => acc + item.utilidadNetaPorOperacion,
+      0
+    );
 
-    const utilidadMensualAgencia = utilidadNetaCombo * ventasMes;
-    const comisionMensualAsesor = comisionTotalCombo * ventasMes;
-    const ticketPromedio = precioTotal;
-    const margenBrutoPct = precioTotal > 0 ? (utilidadTotal / precioTotal) * 100 : 0;
+    const costoMensual = detallePaquetes.reduce((acc, item) => acc + item.costoMensual, 0);
+    const ventaMensual = detallePaquetes.reduce((acc, item) => acc + item.ventaMensual, 0);
+    const utilidadMensualBruta = detallePaquetes.reduce(
+      (acc, item) => acc + item.utilidadMensualBruta,
+      0
+    );
+    const comisionMensualAsesor = detallePaquetes.reduce(
+      (acc, item) => acc + item.comisionMensualLinea,
+      0
+    );
+    const utilidadMensualAgencia = detallePaquetes.reduce(
+      (acc, item) => acc + item.utilidadMensualNeta,
+      0
+    );
+
+    const margenBrutoPct =
+      ventaMensual > 0 ? (utilidadMensualBruta / ventaMensual) * 100 : 0;
 
     return {
-      costoTotal,
-      precioTotal,
-      utilidadTotal,
-      comisionTotalCombo,
-      utilidadNetaCombo,
-      piezasTotalesCombo,
       ventasMes,
+      paquetesPorOperacion,
+      paquetesVendidosMes,
+      costoPorOperacion,
+      ventaPorOperacion,
+      utilidadBrutaPorOperacion,
+      comisionPorOperacion,
+      utilidadNetaPorOperacion,
+      costoMensual,
+      ventaMensual,
+      utilidadMensualBruta,
       utilidadMensualAgencia,
       comisionMensualAsesor,
-      ticketPromedio,
       margenBrutoPct,
     };
-  }, [detalleCombo, ventasMes]);
+  }, [detallePaquetes, ventasMes]);
 
-  const comboNombreActual = useMemo(() => {
-    if (detalleCombo.length === 0) return "Combo comercial";
-    if (detalleCombo.length === 1) return detalleCombo[0].nombre;
-    return `Combo de ${detalleCombo.length} paquetes`;
-  }, [detalleCombo]);
+  const nombrePropuestaActual = useMemo(() => {
+    if (detallePaquetes.length === 0) return "Estimado comercial";
+    if (detallePaquetes.length === 1) return detallePaquetes[0].nombre;
+    return `Estimado de ${detallePaquetes.length} paquetes`;
+  }, [detallePaquetes]);
 
   const buildComboPdfData = (): ComboPdfData => {
     return {
       agenciaNombre: "Agencia objetivo",
-      comboNombre: comboNombreActual,
+      comboNombre: nombrePropuestaActual,
       ventasMes: simulacion.ventasMes,
-      piezasTotalesCombo: simulacion.piezasTotalesCombo,
-      costoTotal: simulacion.costoTotal,
-      precioTotal: simulacion.precioTotal,
-      utilidadTotal: simulacion.utilidadTotal,
-      utilidadNetaCombo: simulacion.utilidadNetaCombo,
-      comisionTotalCombo: simulacion.comisionTotalCombo,
+      piezasTotalesCombo: simulacion.paquetesPorOperacion,
+      costoTotal: simulacion.costoPorOperacion,
+      precioTotal: simulacion.ventaPorOperacion,
+      utilidadTotal: simulacion.utilidadBrutaPorOperacion,
+      utilidadNetaCombo: simulacion.utilidadNetaPorOperacion,
+      comisionTotalCombo: simulacion.comisionPorOperacion,
       utilidadMensualAgencia: simulacion.utilidadMensualAgencia,
       comisionMensualAsesor: simulacion.comisionMensualAsesor,
-      ticketPromedio: simulacion.ticketPromedio,
+      ticketPromedio: simulacion.ventaPorOperacion,
       margenBrutoPct: simulacion.margenBrutoPct,
       observaciones:
-        "Propuesta comercial orientada a subir ticket promedio, defender utilidad y facilitar el cierre con una oferta más clara para la agencia.",
+        "Propuesta comercial orientada a proyectar venta mensual por paquete, defender utilidad y facilitar el cierre con una oferta más clara para la agencia.",
       generatedAt: new Date(),
-      items: detalleCombo.map((item) => ({
+      items: detallePaquetes.map((item) => ({
         nombre: item.nombre,
         cantidad: item.cantidad,
-        costoUnitario: item.paquete.costoAgencia,
-        precioUnitario: item.paquete.precioConsumidor,
-        subtotalCosto: item.subtotalCosto,
-        subtotalPrecio: item.subtotalPrecio,
-        subtotalComision: item.subtotalComision,
-        subtotalUtilidadNeta: item.subtotalUtilidadNeta,
+        costoUnitario: item.costoUnitario,
+        precioUnitario: item.precioUnitario,
+        subtotalCosto: item.costoUnitario * item.cantidad,
+        subtotalPrecio: item.precioUnitario * item.cantidad,
+        subtotalComision: item.comisionPorLinea,
+        subtotalUtilidadNeta: item.utilidadNetaPorOperacion,
       })),
     };
   };
 
   const buildWhatsappMessage = () => {
-    const nombres = detalleCombo.map((item) => `• ${item.nombre} x${item.cantidad}`).join("\n");
+    const nombres = detallePaquetes
+      .map(
+        (item) =>
+          `• ${item.nombre} · ${item.cantidad} por operación · ${item.paquetesVendidosMes} al mes`
+      )
+      .join("\n");
 
     return [
-      "Hola, te comparto una propuesta comercial de combo Liqui Moly.",
+      "Hola, te comparto un estimado mensual de ventas de paquetes Liqui Moly.",
       "",
-      `Combo: ${comboNombreActual}`,
+      `Propuesta: ${nombrePropuestaActual}`,
       "",
       nombres,
       "",
-      `Ticket promedio: ${money(simulacion.ticketPromedio)}`,
-      `Utilidad neta por combo: ${money(simulacion.utilidadNetaCombo)}`,
-      `Ventas estimadas al mes: ${simulacion.ventasMes}`,
+      `Paquetes por operación: ${simulacion.paquetesPorOperacion}`,
+      `Operaciones estimadas al mes: ${simulacion.ventasMes}`,
+      `Paquetes vendidos al mes: ${simulacion.paquetesVendidosMes}`,
+      `Venta mensual estimada: ${money(simulacion.ventaMensual)}`,
       `Utilidad mensual estimada para la agencia: ${money(simulacion.utilidadMensualAgencia)}`,
+      `Comisión mensual estimada para el asesor: ${money(simulacion.comisionMensualAsesor)}`,
       "",
-      "Es una propuesta pensada para subir ticket promedio, generar utilidad y vender con una estructura más clara.",
-      "Si gustas, te explico cómo implementarlo y qué paquetes conviene mover primero.",
+      "Es una propuesta pensada para proyectar rotación, utilidad y una operación comercial más clara para la agencia.",
     ].join("\n");
   };
 
   const handleExportPdf = async () => {
-    if (detalleCombo.length === 0) {
-      alert("Primero agrega paquetes al combo.");
+    if (detallePaquetes.length === 0) {
+      alert("Primero agrega paquetes al estimado.");
       return;
     }
 
     try {
       setPdfLoading(true);
-      await descargarComboPDF(buildComboPdfData(), "combo-agencia-liqui-moly.pdf");
+      await descargarComboPDF(buildComboPdfData(), "estimado-mensual-agencia-liqui-moly.pdf");
     } catch (error) {
-      console.error("Error generando PDF del combo:", error);
-      alert("No se pudo generar el PDF del combo.");
+      console.error("Error generando PDF del estimado:", error);
+      alert("No se pudo generar el PDF.");
     } finally {
       setPdfLoading(false);
     }
   };
 
   const handleShareWhatsapp = async () => {
-    if (detalleCombo.length === 0) {
-      alert("Primero agrega paquetes al combo.");
+    if (detallePaquetes.length === 0) {
+      alert("Primero agrega paquetes al estimado.");
       return;
     }
 
@@ -477,7 +545,7 @@ export default function AgenciasPage() {
       const result = await compartirComboPdf(
         buildComboPdfData(),
         buildWhatsappMessage(),
-        "combo-agencia-liqui-moly.pdf"
+        "estimado-mensual-agencia-liqui-moly.pdf"
       );
 
       if (!result.sharedDirectly) {
@@ -486,8 +554,8 @@ export default function AgenciasPage() {
         );
       }
     } catch (error) {
-      console.error("Error compartiendo combo por WhatsApp:", error);
-      alert("No se pudo compartir el combo por WhatsApp.");
+      console.error("Error compartiendo por WhatsApp:", error);
+      alert("No se pudo compartir el estimado por WhatsApp.");
     } finally {
       setWhatsLoading(false);
     }
@@ -616,8 +684,8 @@ export default function AgenciasPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/80 sm:text-base">
-              Gestiona agencias, detecta potencial comercial y cotiza combos de paquetes
-              para demostrar utilidad real a la agencia y comisión fija al asesor.
+              Gestiona agencias y proyecta venta mensual por paquete para presentar una
+              propuesta más clara, rentable y fácil de defender frente a la agencia.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -635,10 +703,10 @@ export default function AgenciasPage() {
             <p className="text-xs uppercase tracking-wide text-white/70">
               Enfoque del módulo
             </p>
-            <h2 className="mt-2 text-xl font-bold">Negocio completo</h2>
+            <h2 className="mt-2 text-xl font-bold">Estimado mensual</h2>
             <p className="mt-2 text-sm leading-relaxed text-white/80">
-              Aquí ya no cotizas un solo paquete: armas combos completos para subir ticket
-              promedio y cerrar mejor.
+              Aquí no sólo armas una propuesta: proyectas cuántos paquetes puede mover la
+              agencia al mes, cuánto vendería y qué utilidad dejaría.
             </p>
           </div>
         </div>
@@ -670,13 +738,13 @@ export default function AgenciasPage() {
         <div className="mb-4 flex items-center gap-2">
           <ShoppingCart className="h-5 w-5 text-slate-400" />
           <h2 className="text-lg font-semibold text-slate-900">
-            Cotizador comercial para agencias
+            Estimado mensual de ventas por paquete
           </h2>
         </div>
 
         <p className="mb-4 text-sm text-slate-500">
-          Arma combos de varios paquetes, ajusta cantidades y simula utilidad de la
-          agencia y comisión total del asesor.
+          Selecciona los paquetes, define cuántos lleva cada operación y proyecta el
+          resultado mensual para la agencia y el asesor.
         </p>
 
         <div className="mb-4 flex flex-wrap gap-2">
@@ -695,7 +763,7 @@ export default function AgenciasPage() {
         <div className="grid gap-3 lg:grid-cols-[1fr_220px_auto]">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Agregar paquete al combo
+              Agregar paquete al estimado
             </label>
             <select
               value={paqueteParaAgregar}
@@ -712,7 +780,7 @@ export default function AgenciasPage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Ventas estimadas al mes
+              Operaciones al mes
             </label>
             <input
               type="number"
@@ -737,31 +805,31 @@ export default function AgenciasPage() {
         <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <div className="mb-3 flex items-center gap-2">
             <Layers3 className="h-4 w-4 text-slate-500" />
-            <p className="text-sm font-medium text-slate-700">Combo actual</p>
+            <p className="text-sm font-medium text-slate-700">Paquetes seleccionados</p>
           </div>
 
-          {detalleCombo.length === 0 ? (
+          {detallePaquetes.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
-              No hay paquetes agregados. Selecciona uno y agrégalo al combo.
+              No hay paquetes agregados. Selecciona uno y agrégalo al estimado.
             </div>
           ) : (
             <div className="space-y-3">
-              {detalleCombo.map((item) => (
+              {detallePaquetes.map((item) => (
                 <div
                   key={item.nombre}
-                  className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:grid-cols-[1.3fr_110px_130px_130px_auto]"
+                  className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:grid-cols-[1.4fr_110px_130px_130px_auto]"
                 >
                   <div>
                     <p className="font-semibold text-slate-900">{item.nombre}</p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Costo: {money(item.paquete.costoAgencia)} · Precio:{" "}
-                      {money(item.paquete.precioConsumidor)}
+                      Costo unitario: {money(item.costoUnitario)} · Precio unitario:{" "}
+                      {money(item.precioUnitario)}
                     </p>
                   </div>
 
                   <div>
                     <label className="mb-1 block text-xs font-medium text-slate-500">
-                      Cantidad
+                      Cant. por operación
                     </label>
                     <input
                       type="number"
@@ -773,16 +841,16 @@ export default function AgenciasPage() {
                   </div>
 
                   <div>
-                    <p className="text-xs font-medium text-slate-500">Subtotal</p>
+                    <p className="text-xs font-medium text-slate-500">Venta por operación</p>
                     <p className="mt-1 font-semibold text-slate-900">
-                      {money(item.subtotalPrecio)}
+                      {money(item.precioUnitario * item.cantidad)}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-xs font-medium text-slate-500">Utilidad neta</p>
+                    <p className="text-xs font-medium text-slate-500">Venta mensual</p>
                     <p className="mt-1 font-semibold text-emerald-700">
-                      {money(item.subtotalUtilidadNeta)}
+                      {money(item.ventaMensual)}
                     </p>
                   </div>
 
@@ -804,41 +872,63 @@ export default function AgenciasPage() {
 
         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
           <div className="overflow-x-auto">
-            <table className="min-w-full bg-white text-sm">
+            <table className="min-w-[1150px] bg-white text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium">Paquete</th>
-                  <th className="px-4 py-3 text-right font-medium">Cant.</th>
-                  <th className="px-4 py-3 text-right font-medium">Costo</th>
-                  <th className="px-4 py-3 text-right font-medium">Precio</th>
-                  <th className="px-4 py-3 text-right font-medium">Comisión</th>
-                  <th className="px-4 py-3 text-right font-medium">Utilidad neta</th>
+                  <th className="px-4 py-3 text-right font-medium">Cant. por operación</th>
+                  <th className="px-4 py-3 text-right font-medium">Costo unitario</th>
+                  <th className="px-4 py-3 text-right font-medium">Precio unitario</th>
+                  <th className="px-4 py-3 text-right font-medium">Utilidad por paquete</th>
+                  <th className="px-4 py-3 text-right font-medium">Paquetes al mes</th>
+                  <th className="px-4 py-3 text-right font-medium">Costo mensual</th>
+                  <th className="px-4 py-3 text-right font-medium">Venta mensual</th>
+                  <th className="px-4 py-3 text-right font-medium">Utilidad mensual</th>
                 </tr>
               </thead>
               <tbody>
-                {detalleCombo.length === 0 ? (
+                {detallePaquetes.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-                      Agrega paquetes para ver el resumen del combo.
+                    <td colSpan={9} className="px-4 py-6 text-center text-slate-500">
+                      Agrega paquetes para ver el estimado mensual.
                     </td>
                   </tr>
                 ) : (
-                  detalleCombo.map((item) => (
+                  detallePaquetes.map((item) => (
                     <tr key={item.nombre} className="border-t border-slate-100">
                       <td className="px-4 py-3">{item.nombre}</td>
                       <td className="px-4 py-3 text-right">{item.cantidad}</td>
-                      <td className="px-4 py-3 text-right">{money(item.subtotalCosto)}</td>
-                      <td className="px-4 py-3 text-right">{money(item.subtotalPrecio)}</td>
-                      <td className="px-4 py-3 text-right">
-                        {money(item.subtotalComision)}
-                      </td>
+                      <td className="px-4 py-3 text-right">{money(item.costoUnitario)}</td>
+                      <td className="px-4 py-3 text-right">{money(item.precioUnitario)}</td>
+                      <td className="px-4 py-3 text-right">{money(item.utilidadPorPaquete)}</td>
+                      <td className="px-4 py-3 text-right">{item.paquetesVendidosMes}</td>
+                      <td className="px-4 py-3 text-right">{money(item.costoMensual)}</td>
+                      <td className="px-4 py-3 text-right">{money(item.ventaMensual)}</td>
                       <td className="px-4 py-3 text-right font-semibold text-emerald-700">
-                        {money(item.subtotalUtilidadNeta)}
+                        {money(item.utilidadMensualNeta)}
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
+
+              {detallePaquetes.length > 0 && (
+                <tfoot className="border-t-2 border-slate-200 bg-slate-50">
+                  <tr className="font-semibold text-slate-900">
+                    <td className="px-4 py-3">Totales</td>
+                    <td className="px-4 py-3 text-right">{simulacion.paquetesPorOperacion}</td>
+                    <td className="px-4 py-3 text-right">—</td>
+                    <td className="px-4 py-3 text-right">—</td>
+                    <td className="px-4 py-3 text-right">—</td>
+                    <td className="px-4 py-3 text-right">{simulacion.paquetesVendidosMes}</td>
+                    <td className="px-4 py-3 text-right">{money(simulacion.costoMensual)}</td>
+                    <td className="px-4 py-3 text-right">{money(simulacion.ventaMensual)}</td>
+                    <td className="px-4 py-3 text-right text-emerald-700">
+                      {money(simulacion.utilidadMensualAgencia)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>
@@ -847,70 +937,68 @@ export default function AgenciasPage() {
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <Package2 className="h-4 w-4" />
-              Costo total combo
+              Paquetes por operación
             </div>
             <p className="mt-2 text-2xl font-bold text-slate-900">
-              {money(simulacion.costoTotal)}
+              {simulacion.paquetesPorOperacion}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Boxes className="h-4 w-4" />
+              Paquetes vendidos al mes
+            </div>
+            <p className="mt-2 text-2xl font-bold text-slate-900">
+              {simulacion.paquetesVendidosMes}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <ShoppingCart className="h-4 w-4" />
+              Venta por operación
+            </div>
+            <p className="mt-2 text-2xl font-bold text-slate-900">
+              {money(simulacion.ventaPorOperacion)}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <HandCoins className="h-4 w-4" />
-              Precio total combo
+              Comisión por operación
             </div>
             <p className="mt-2 text-2xl font-bold text-slate-900">
-              {money(simulacion.precioTotal)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Calculator className="h-4 w-4" />
-              Utilidad bruta combo
-            </div>
-            <p className="mt-2 text-2xl font-bold text-slate-900">
-              {money(simulacion.utilidadTotal)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <HandCoins className="h-4 w-4" />
-              Comisión total asesor
-            </div>
-            <p className="mt-2 text-2xl font-bold text-slate-900">
-              {money(simulacion.comisionTotalCombo)}
+              {money(simulacion.comisionPorOperacion)}
             </p>
           </div>
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <p className="text-sm text-emerald-700">Utilidad neta del combo</p>
-            <p className="mt-2 text-3xl font-bold text-emerald-900">
-              {money(simulacion.utilidadNetaCombo)}
-            </p>
-          </div>
-
           <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-            <p className="text-sm text-blue-700">Ticket promedio del combo</p>
-            <p className="mt-2 text-3xl font-bold text-blue-900">
-              {money(simulacion.ticketPromedio)}
-            </p>
+            <p className="text-sm text-blue-700">Operaciones al mes</p>
+            <p className="mt-2 text-3xl font-bold text-blue-900">{simulacion.ventasMes}</p>
           </div>
 
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm text-amber-700">Ventas estimadas al mes</p>
+            <p className="text-sm text-amber-700">Costo mensual estimado</p>
             <p className="mt-2 text-3xl font-bold text-amber-900">
-              {simulacion.ventasMes}
+              {money(simulacion.costoMensual)}
             </p>
           </div>
 
-          <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
-            <p className="text-sm text-violet-700">Piezas por combo</p>
-            <p className="mt-2 text-3xl font-bold text-violet-900">
-              {simulacion.piezasTotalesCombo}
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+            <p className="text-sm text-indigo-700">Venta mensual estimada</p>
+            <p className="mt-2 text-3xl font-bold text-indigo-900">
+              {money(simulacion.ventaMensual)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm text-slate-700">Margen bruto estimado</p>
+            <p className="mt-2 text-3xl font-bold text-slate-900">
+              {simulacion.margenBrutoPct.toFixed(1)}%
             </p>
           </div>
         </div>
@@ -922,7 +1010,8 @@ export default function AgenciasPage() {
               {money(simulacion.utilidadMensualAgencia)}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Ganancia mensual de la agencia considerando el combo y la comisión fija.
+              Utilidad mensual estimada considerando la estructura de paquetes y la
+              comisión fija por paquete.
             </p>
           </div>
 
@@ -932,34 +1021,40 @@ export default function AgenciasPage() {
               {money(simulacion.comisionMensualAsesor)}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Comisión mensual total del asesor con base en el combo vendido.
+              Comisión mensual total estimada para el asesor con base en los paquetes
+              proyectados.
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <p className="text-sm text-slate-500">Margen bruto del combo</p>
+            <p className="text-sm text-slate-500">Utilidad bruta mensual</p>
             <p className="mt-2 text-4xl font-bold text-slate-900">
-              {simulacion.margenBrutoPct.toFixed(1)}%
+              {money(simulacion.utilidadMensualBruta)}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Útil para defender el negocio frente a la agencia.
+              Útil para defender el negocio y mostrar el potencial comercial mensual.
             </p>
           </div>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          <strong>Lectura comercial:</strong> Si la agencia vende{" "}
-          <strong>{simulacion.ventasMes}</strong> combos al mes, con un ticket promedio de{" "}
-          <strong>{money(simulacion.ticketPromedio)}</strong>, la agencia gana{" "}
-          <strong>{money(simulacion.utilidadMensualAgencia)}</strong> y el asesor gana{" "}
-          <strong>{money(simulacion.comisionMensualAsesor)}</strong>.
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+          <strong>Lectura comercial:</strong> Si la agencia realiza{" "}
+          <strong>{simulacion.ventasMes}</strong> operaciones al mes, con una venta promedio
+          por operación de <strong>{money(simulacion.ventaPorOperacion)}</strong>, puede
+          generar una venta mensual estimada de{" "}
+          <strong>{money(simulacion.ventaMensual)}</strong> y una utilidad aproximada de{" "}
+          <strong>{money(simulacion.utilidadMensualAgencia)}</strong> al mes. A la vez, el
+          esquema considera una comisión mensual estimada para el asesor de{" "}
+          <strong>{money(simulacion.comisionMensualAsesor)}</strong>. Esto convierte la
+          propuesta en una forma clara de subir ticket promedio, vender con más estructura y
+          defender la utilidad del negocio.
         </div>
 
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button
             variant="outline"
             onClick={handleExportPdf}
-            disabled={pdfLoading || detalleCombo.length === 0}
+            disabled={pdfLoading || detallePaquetes.length === 0}
             className="rounded-xl"
           >
             <FileDown className="mr-2 h-4 w-4" />
@@ -968,7 +1063,7 @@ export default function AgenciasPage() {
 
           <Button
             onClick={handleShareWhatsapp}
-            disabled={whatsLoading || detalleCombo.length === 0}
+            disabled={whatsLoading || detallePaquetes.length === 0}
             className="rounded-xl bg-green-600 text-white hover:bg-green-700"
           >
             <MessageCircle className="mr-2 h-4 w-4" />
@@ -1233,15 +1328,15 @@ export default function AgenciasPage() {
 
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                          <HandCoins className="h-4 w-4" />
+                          <TrendingUp className="h-4 w-4" />
                           Enfoque comercial
                         </div>
 
                         <p className="mt-2 text-sm text-slate-600">
                           {agencia.potencial === "alto"
-                            ? "Agencia prioritaria para presentar combos, utilidad y esquema de comisión fija."
+                            ? "Agencia prioritaria para presentar estimados mensuales, utilidad y esquema de comisión fija por paquete."
                             : agencia.potencial === "medio"
-                            ? "Agencia con potencial para desarrollar con seguimiento y propuesta inicial."
+                            ? "Agencia con potencial para desarrollar con seguimiento y propuesta mensual inicial."
                             : "Agencia para exploración o mantenimiento comercial."}
                         </p>
                       </div>
