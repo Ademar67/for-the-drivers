@@ -8,6 +8,9 @@ import {
   addDoc,
   getDocs,
   serverTimestamp,
+  query,
+  where,
+  updateDoc,
 } from "firebase/firestore";
 
 import { stores } from "@/lib/stores";
@@ -53,6 +56,23 @@ type InventarioConstruido = {
   }>;
 };
 
+type InventarioFirestore = {
+  id: string;
+  nombre: string;
+  fecha: string;
+  observacionesGenerales?: string;
+  visitas?: Array<{
+    id?: string;
+    cadena: ChainOption;
+    tiendaId: string;
+    tiendaNombre?: string;
+    ciudad?: string;
+    estado?: string;
+    observaciones?: string;
+    productos?: ProductRow[];
+  }>;
+};
+
 function formatToday() {
   const today = new Date();
   return today.toISOString().split("T")[0];
@@ -80,6 +100,8 @@ export default function InventarioPage() {
   const [observacionesGenerales, setObservacionesGenerales] = useState("");
   const [visitas, setVisitas] = useState<VisitRow[]>([createVisitRow()]);
   const [guardandoFirebase, setGuardandoFirebase] = useState(false);
+  const [cargandoInventarioDia, setCargandoInventarioDia] = useState(false);
+  const [inventarioExistenteId, setInventarioExistenteId] = useState<string | null>(null);
 
   const [productos, setProductos] = useState<ProductoCatalogo[]>([]);
   const [busquedas, setBusquedas] = useState<Record<string, string>>({});
@@ -122,6 +144,44 @@ export default function InventarioPage() {
     }
 
     fetchProductos();
+  }, []);
+
+  useEffect(() => {
+    const borrador = localStorage.getItem("inventario-diario-borrador");
+
+    if (!borrador) return;
+
+    try {
+      const parsed = JSON.parse(borrador) as InventarioConstruido;
+
+      if (parsed.nombre) setNombre(parsed.nombre);
+      if (parsed.fecha) setFecha(parsed.fecha);
+      if (parsed.observacionesGenerales) {
+        setObservacionesGenerales(parsed.observacionesGenerales);
+      }
+
+      if (parsed.visitas && parsed.visitas.length > 0) {
+        const visitasConvertidas: VisitRow[] = parsed.visitas.map((visita) => ({
+          id: visita.id || createId(),
+          cadena: visita.cadena || "",
+          tiendaId: visita.tiendaId || "",
+          observaciones: visita.observaciones || "",
+          productos: Array.isArray(visita.productos)
+            ? visita.productos.map((producto) => ({
+                id: producto.id || createId(),
+                product: producto.product || "",
+                quantity: Number(producto.quantity) || 0,
+                productId: producto.productId,
+                codigo: producto.codigo,
+              }))
+            : [],
+        }));
+
+        setVisitas(visitasConvertidas.length > 0 ? visitasConvertidas : [createVisitRow()]);
+      }
+    } catch (error) {
+      console.error("Error al cargar borrador local:", error);
+    }
   }, []);
 
   const totalProductosValidos = useMemo(() => {
@@ -202,7 +262,8 @@ export default function InventarioPage() {
         if (visita.id !== visitId) return visita;
 
         const existente = visita.productos.find(
-          (item) => item.productId === producto.id || item.product === producto.nombre
+          (item) =>
+            item.productId === producto.id || item.product === producto.nombre
         );
 
         if (existente) {
@@ -312,6 +373,79 @@ export default function InventarioPage() {
     alert("Inventario diario guardado temporalmente en este dispositivo.");
   }
 
+  async function handleCargarInventarioDelDia() {
+    if (!nombre.trim()) {
+      alert("Escribe tu nombre para buscar tu inventario del día.");
+      return;
+    }
+
+    if (!fecha) {
+      alert("Selecciona una fecha para buscar el inventario.");
+      return;
+    }
+
+    try {
+      setCargandoInventarioDia(true);
+
+      const q = query(
+        collection(db, "inventarios"),
+        where("nombre", "==", nombre.trim()),
+        where("fecha", "==", fecha)
+      );
+
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        setInventarioExistenteId(null);
+        alert("No encontré inventario guardado para ese nombre y fecha.");
+        return;
+      }
+
+      const docSnap = snap.docs[0];
+      const data = docSnap.data() as InventarioFirestore;
+
+      const visitasCargadas: VisitRow[] =
+        Array.isArray(data.visitas) && data.visitas.length > 0
+          ? data.visitas.map((visita) => ({
+              id: visita.id || createId(),
+              cadena: visita.cadena || "",
+              tiendaId: visita.tiendaId || "",
+              observaciones: visita.observaciones || "",
+              productos: Array.isArray(visita.productos)
+                ? visita.productos.map((producto) => ({
+                    id: producto.id || createId(),
+                    product: producto.product || "",
+                    quantity: Number(producto.quantity) || 0,
+                    productId: producto.productId,
+                    codigo: producto.codigo,
+                  }))
+                : [],
+            }))
+          : [createVisitRow()];
+
+      setInventarioExistenteId(docSnap.id);
+      setObservacionesGenerales(data.observacionesGenerales || "");
+      setVisitas(visitasCargadas);
+
+      localStorage.setItem(
+        "inventario-diario-borrador",
+        JSON.stringify({
+          nombre: data.nombre,
+          fecha: data.fecha,
+          observacionesGenerales: data.observacionesGenerales || "",
+          visitas: data.visitas || [],
+        })
+      );
+
+      alert("Inventario del día cargado correctamente. Ya puedes seguir capturando tiendas.");
+    } catch (error) {
+      console.error("Error al cargar inventario del día:", error);
+      alert("Ocurrió un error al buscar el inventario guardado.");
+    } finally {
+      setCargandoInventarioDia(false);
+    }
+  }
+
   async function handleGuardarFirebase() {
     const inventario = construirInventario();
 
@@ -333,7 +467,57 @@ export default function InventarioPage() {
     try {
       setGuardandoFirebase(true);
 
-      await addDoc(collection(db, "inventarios"), {
+      let registroId = inventarioExistenteId;
+
+      if (!registroId) {
+        const q = query(
+          collection(db, "inventarios"),
+          where("nombre", "==", inventario.nombre),
+          where("fecha", "==", inventario.fecha)
+        );
+
+        const snap = await getDocs(q);
+
+        if (!snap.empty) {
+          registroId = snap.docs[0].id;
+          setInventarioExistenteId(registroId);
+        }
+      }
+
+      if (registroId) {
+        const q = query(
+          collection(db, "inventarios"),
+          where("nombre", "==", inventario.nombre),
+          where("fecha", "==", inventario.fecha)
+        );
+
+        const snap = await getDocs(q);
+
+        if (!snap.empty) {
+          await updateDoc(snap.docs[0].ref, {
+            nombre: inventario.nombre,
+            fecha: inventario.fecha,
+            observacionesGenerales: inventario.observacionesGenerales,
+            visitas: inventario.visitas,
+            totalTiendas: inventario.visitas.length,
+            totalProductos: inventario.visitas.reduce(
+              (acc, visita) => acc + visita.productos.length,
+              0
+            ),
+            updatedAt: serverTimestamp(),
+          });
+
+          localStorage.setItem(
+            "inventario-diario-borrador",
+            JSON.stringify(inventario)
+          );
+
+          alert("Inventario actualizado correctamente en Firebase.");
+          return;
+        }
+      }
+
+      const nuevoDoc = await addDoc(collection(db, "inventarios"), {
         nombre: inventario.nombre,
         fecha: inventario.fecha,
         observacionesGenerales: inventario.observacionesGenerales,
@@ -344,7 +528,15 @@ export default function InventarioPage() {
           0
         ),
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
+
+      setInventarioExistenteId(nuevoDoc.id);
+
+      localStorage.setItem(
+        "inventario-diario-borrador",
+        JSON.stringify(inventario)
+      );
 
       alert("Inventario guardado correctamente en Firebase.");
     } catch (error) {
@@ -522,6 +714,29 @@ export default function InventarioPage() {
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
               </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleCargarInventarioDelDia}
+                disabled={cargandoInventarioDia}
+                className="rounded-xl border border-blue-300 bg-blue-50 px-5 py-3 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {cargandoInventarioDia
+                  ? "Buscando inventario..."
+                  : "Cargar inventario del día"}
+              </button>
+
+              {inventarioExistenteId ? (
+                <div className="rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+                  Inventario del día localizado. Lo que guardes se actualizará.
+                </div>
+              ) : (
+                <div className="rounded-xl bg-gray-100 px-4 py-3 text-sm text-gray-600">
+                  Aún no hay inventario cargado para este nombre y fecha.
+                </div>
+              )}
             </div>
           </section>
 
@@ -718,8 +933,8 @@ export default function InventarioPage() {
                             <thead className="bg-gray-100">
                               <tr>
                                 <th className="p-3 text-left">Producto</th>
-                                <th className="p-3 text-left w-28">Cantidad</th>
-                                <th className="p-3 w-24"></th>
+                                <th className="w-28 p-3 text-left">Cantidad</th>
+                                <th className="w-24 p-3"></th>
                               </tr>
                             </thead>
                             <tbody>
