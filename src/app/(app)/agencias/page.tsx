@@ -23,15 +23,17 @@ import {
   HandCoins,
   Briefcase,
   Filter,
-  Calculator,
   Package2,
   X,
   ShoppingCart,
-  Layers3,
   FileDown,
   MessageCircle,
   TrendingUp,
   Boxes,
+  Calculator,
+  Layers3,
+  Save,
+  CheckCircle2,
 } from "lucide-react";
 
 import { db } from "@/firebase/config";
@@ -41,6 +43,10 @@ import {
   descargarComboPDF,
   type ComboPdfData,
 } from "@/lib/pdf/generarComboPDF";
+import {
+  crearPropuestaAgencia,
+  type PropuestaAgenciaItem,
+} from "@/lib/firestore/propuestas-agencias";
 
 type EstatusAgencia =
   | "prospecto"
@@ -83,9 +89,9 @@ type PaqueteSimulador = {
   precioConsumidor: number;
 };
 
-type ItemCotizador = {
+type ItemPaqueteMensual = {
   nombre: string;
-  cantidad: number; // paquetes por combo / por operación
+  paquetesMes: number;
 };
 
 const COMISION_ASESOR_POR_PAQUETE = 50;
@@ -160,36 +166,71 @@ const paquetesBase: PaqueteSimulador[] = [
   },
 ];
 
-const combosSugeridos: { nombre: string; paquetes: string[] }[] = [
+const plantillasSugeridas: {
+  nombre: string;
+  paquetes: { nombre: string; paquetesMes: number }[];
+}[] = [
   {
-    nombre: "Mantenimiento básico",
-    paquetes: ["Complemento de mantenimiento", "Limpieza cuerpo de aceleración"],
+    nombre: "Arranque",
+    paquetes: [
+      { nombre: "Complemento de mantenimiento", paquetesMes: 8 },
+      { nombre: "Limpieza cuerpo de aceleración", paquetesMes: 6 },
+      { nombre: "Paquete frenos", paquetesMes: 5 },
+    ],
   },
   {
     nombre: "Preventivo",
     paquetes: [
-      "Complemento de mantenimiento",
-      "Limpieza del sistema del aire acondicionado",
-      "Paquete servicio sistema de refrigeración",
+      { nombre: "Complemento de mantenimiento", paquetesMes: 10 },
+      { nombre: "Limpieza del sistema del aire acondicionado", paquetesMes: 6 },
+      { nombre: "Paquete servicio sistema de refrigeración", paquetesMes: 6 },
     ],
   },
   {
     nombre: "Potencia",
-    paquetes: ["Potencia motor", "Protección para motor", "Paquete premium"],
+    paquetes: [
+      { nombre: "Potencia motor", paquetesMes: 6 },
+      { nombre: "Protección para motor", paquetesMes: 6 },
+      { nombre: "Paquete premium", paquetesMes: 4 },
+    ],
   },
   {
     nombre: "Diesel",
-    paquetes: ["Limpieza preventiva de inyectores a diesel", "Protección para motor"],
-  },
-  {
-    nombre: "Taller",
     paquetes: [
-      "Paquete frenos",
-      "Limpieza cuerpo de aceleración",
-      "Restauración de plásticos y gomas",
+      { nombre: "Limpieza preventiva de inyectores a diesel", paquetesMes: 8 },
+      { nombre: "Protección para motor", paquetesMes: 5 },
     ],
   },
 ];
+
+const escenarios = [
+  {
+    nombre: "Conservador",
+    paquetes: [
+      { nombre: "Complemento de mantenimiento", paquetesMes: 8 },
+      { nombre: "Limpieza cuerpo de aceleración", paquetesMes: 6 },
+      { nombre: "Paquete frenos", paquetesMes: 6 },
+    ],
+  },
+  {
+    nombre: "Medio",
+    paquetes: [
+      { nombre: "Complemento de mantenimiento", paquetesMes: 12 },
+      { nombre: "Limpieza del sistema del aire acondicionado", paquetesMes: 8 },
+      { nombre: "Paquete frenos", paquetesMes: 8 },
+      { nombre: "Paquete servicio sistema de refrigeración", paquetesMes: 6 },
+    ],
+  },
+  {
+    nombre: "Agresivo",
+    paquetes: [
+      { nombre: "Complemento de mantenimiento", paquetesMes: 20 },
+      { nombre: "Limpieza correctiva de inyectores", paquetesMes: 15 },
+      { nombre: "Paquete premium", paquetesMes: 10 },
+      { nombre: "Protección para motor", paquetesMes: 10 },
+    ],
+  },
+] as const;
 
 function money(value: number) {
   return new Intl.NumberFormat("es-MX", {
@@ -239,28 +280,30 @@ export default function AgenciasPage() {
   const [paqueteParaAgregar, setPaqueteParaAgregar] = useState<string>(
     paquetesBase[0].nombre
   );
-  const [itemsCotizador, setItemsCotizador] = useState<ItemCotizador[]>([
-    { nombre: "Paquete premium", cantidad: 1 },
+  const [itemsPaquetes, setItemsPaquetes] = useState<ItemPaqueteMensual[]>([
+    { nombre: "Paquete premium", paquetesMes: 8 },
   ]);
-  const [ventasMes, setVentasMes] = useState<number>(8);
+
   const [pdfLoading, setPdfLoading] = useState(false);
   const [whatsLoading, setWhatsLoading] = useState(false);
+  const [agenciaSeleccionadaId, setAgenciaSeleccionadaId] = useState<string>("");
+  const [saveProposalLoading, setSaveProposalLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-  
+
     const cargarAgencias = async () => {
       setLoading(true);
-  
+
       try {
         const agenciasRef = collection(db, "agencias");
         const snapshot = await getDocs(agenciasRef);
-  
+
         if (!mounted) return;
-  
+
         const data: Agencia[] = snapshot.docs.map((ds) => {
           const d: any = ds.data();
-  
+
           return {
             id: ds.id,
             nombre: d.nombre ?? "",
@@ -275,16 +318,16 @@ export default function AgenciasPage() {
             createdAt: d.createdAt,
           };
         });
-  
+
         data.sort((a, b) => {
           const aTime =
             typeof a.createdAt?.toMillis === "function" ? a.createdAt.toMillis() : 0;
           const bTime =
             typeof b.createdAt?.toMillis === "function" ? b.createdAt.toMillis() : 0;
-  
+
           return bTime - aTime;
         });
-  
+
         setAgencias(data);
       } catch (error) {
         console.error("Error cargando agencias:", error);
@@ -293,13 +336,14 @@ export default function AgenciasPage() {
         if (mounted) setLoading(false);
       }
     };
-  
+
     cargarAgencias();
-  
+
     return () => {
       mounted = false;
     };
   }, []);
+
   const agenciasFiltradas = useMemo(() => {
     return agencias.filter((a) => {
       const term = search.toLowerCase();
@@ -310,7 +354,8 @@ export default function AgenciasPage() {
         a.contacto.toLowerCase().includes(term) ||
         a.ciudad.toLowerCase().includes(term);
 
-      const matchesStatus = filterEstatus === "todos" ? true : a.estatus === filterEstatus;
+      const matchesStatus =
+        filterEstatus === "todos" ? true : a.estatus === filterEstatus;
 
       return matchesSearch && matchesStatus;
     });
@@ -329,102 +374,79 @@ export default function AgenciasPage() {
     };
   }, [agencias]);
 
+  const agenciaSeleccionada = useMemo(() => {
+    return agencias.find((a) => a.id === agenciaSeleccionadaId) ?? null;
+  }, [agencias, agenciaSeleccionadaId]);
+
   const paquetesMap = useMemo(() => {
     return new Map(paquetesBase.map((p) => [p.nombre, p]));
   }, []);
 
   const detallePaquetes = useMemo(() => {
-    return itemsCotizador
+    return itemsPaquetes
       .map((item) => {
         const paquete = paquetesMap.get(item.nombre);
         if (!paquete) return null;
 
+        const paquetesMes = Math.max(0, Number(item.paquetesMes) || 0);
         const costoUnitario = paquete.costoAgencia;
         const precioUnitario = paquete.precioConsumidor;
         const utilidadPorPaquete = precioUnitario - costoUnitario;
-        const comisionPorLinea = COMISION_ASESOR_POR_PAQUETE * item.cantidad;
-        const utilidadNetaPorOperacion =
-          utilidadPorPaquete * item.cantidad - comisionPorLinea;
-
-        const paquetesVendidosMes = item.cantidad * ventasMes;
-        const costoMensual = costoUnitario * paquetesVendidosMes;
-        const ventaMensual = precioUnitario * paquetesVendidosMes;
-        const utilidadMensualBruta = utilidadPorPaquete * paquetesVendidosMes;
-        const comisionMensualLinea = COMISION_ASESOR_POR_PAQUETE * paquetesVendidosMes;
-        const utilidadMensualNeta = utilidadMensualBruta - comisionMensualLinea;
+        const costoMensual = costoUnitario * paquetesMes;
+        const ventaMensual = precioUnitario * paquetesMes;
+        const utilidadMensualBruta = utilidadPorPaquete * paquetesMes;
+        const comisionMensual = COMISION_ASESOR_POR_PAQUETE * paquetesMes;
+        const utilidadMensualNeta = utilidadMensualBruta - comisionMensual;
 
         return {
-          ...item,
+          nombre: item.nombre,
+          paquetesMes,
           paquete,
           costoUnitario,
           precioUnitario,
           utilidadPorPaquete,
-          comisionPorLinea,
-          utilidadNetaPorOperacion,
-          paquetesVendidosMes,
           costoMensual,
           ventaMensual,
           utilidadMensualBruta,
-          comisionMensualLinea,
+          comisionMensual,
           utilidadMensualNeta,
         };
       })
       .filter(Boolean) as Array<{
       nombre: string;
-      cantidad: number;
+      paquetesMes: number;
       paquete: PaqueteSimulador;
       costoUnitario: number;
       precioUnitario: number;
       utilidadPorPaquete: number;
-      comisionPorLinea: number;
-      utilidadNetaPorOperacion: number;
-      paquetesVendidosMes: number;
       costoMensual: number;
       ventaMensual: number;
       utilidadMensualBruta: number;
-      comisionMensualLinea: number;
+      comisionMensual: number;
       utilidadMensualNeta: number;
     }>;
-  }, [itemsCotizador, paquetesMap, ventasMes]);
+  }, [itemsPaquetes, paquetesMap]);
 
   const simulacion = useMemo(() => {
-    const paquetesPorOperacion = detallePaquetes.reduce(
-      (acc, item) => acc + item.cantidad,
-      0
-    );
-    const paquetesVendidosMes = detallePaquetes.reduce(
-      (acc, item) => acc + item.paquetesVendidosMes,
-      0
-    );
-    const costoPorOperacion = detallePaquetes.reduce(
-      (acc, item) => acc + item.costoUnitario * item.cantidad,
-      0
-    );
-    const ventaPorOperacion = detallePaquetes.reduce(
-      (acc, item) => acc + item.precioUnitario * item.cantidad,
-      0
-    );
-    const utilidadBrutaPorOperacion = detallePaquetes.reduce(
-      (acc, item) => acc + item.utilidadPorPaquete * item.cantidad,
-      0
-    );
-    const comisionPorOperacion = detallePaquetes.reduce(
-      (acc, item) => acc + item.comisionPorLinea,
-      0
-    );
-    const utilidadNetaPorOperacion = detallePaquetes.reduce(
-      (acc, item) => acc + item.utilidadNetaPorOperacion,
+    const paquetesTotalesMes = detallePaquetes.reduce(
+      (acc, item) => acc + item.paquetesMes,
       0
     );
 
-    const costoMensual = detallePaquetes.reduce((acc, item) => acc + item.costoMensual, 0);
-    const ventaMensual = detallePaquetes.reduce((acc, item) => acc + item.ventaMensual, 0);
+    const costoMensual = detallePaquetes.reduce(
+      (acc, item) => acc + item.costoMensual,
+      0
+    );
+    const ventaMensual = detallePaquetes.reduce(
+      (acc, item) => acc + item.ventaMensual,
+      0
+    );
     const utilidadMensualBruta = detallePaquetes.reduce(
       (acc, item) => acc + item.utilidadMensualBruta,
       0
     );
     const comisionMensualAsesor = detallePaquetes.reduce(
-      (acc, item) => acc + item.comisionMensualLinea,
+      (acc, item) => acc + item.comisionMensual,
       0
     );
     const utilidadMensualAgencia = detallePaquetes.reduce(
@@ -435,85 +457,123 @@ export default function AgenciasPage() {
     const margenBrutoPct =
       ventaMensual > 0 ? (utilidadMensualBruta / ventaMensual) * 100 : 0;
 
+    const ticketPromedio =
+      paquetesTotalesMes > 0 ? ventaMensual / paquetesTotalesMes : 0;
+
     return {
-      ventasMes,
-      paquetesPorOperacion,
-      paquetesVendidosMes,
-      costoPorOperacion,
-      ventaPorOperacion,
-      utilidadBrutaPorOperacion,
-      comisionPorOperacion,
-      utilidadNetaPorOperacion,
+      paquetesTotalesMes,
       costoMensual,
       ventaMensual,
       utilidadMensualBruta,
       utilidadMensualAgencia,
       comisionMensualAsesor,
       margenBrutoPct,
+      ticketPromedio,
     };
-  }, [detallePaquetes, ventasMes]);
+  }, [detallePaquetes]);
 
   const nombrePropuestaActual = useMemo(() => {
-    if (detallePaquetes.length === 0) return "Estimado comercial";
-    if (detallePaquetes.length === 1) return detallePaquetes[0].nombre;
-    return `Estimado de ${detallePaquetes.length} paquetes`;
+    if (detallePaquetes.length === 0) return "Estimado comercial mensual";
+    if (detallePaquetes.length === 1) {
+      return `Proyección mensual · ${detallePaquetes[0].nombre}`;
+    }
+    return `Proyección mensual de ${detallePaquetes.length} paquetes`;
   }, [detallePaquetes]);
 
   const buildComboPdfData = (): ComboPdfData => {
     return {
-      agenciaNombre: "Agencia objetivo",
+      agenciaNombre: agenciaSeleccionada?.nombre?.trim() || "Agencia objetivo",
       comboNombre: nombrePropuestaActual,
-      ventasMes: simulacion.ventasMes,
-      piezasTotalesCombo: simulacion.paquetesPorOperacion,
-      costoTotal: simulacion.costoPorOperacion,
-      precioTotal: simulacion.ventaPorOperacion,
-      utilidadTotal: simulacion.utilidadBrutaPorOperacion,
-      utilidadNetaCombo: simulacion.utilidadNetaPorOperacion,
-      comisionTotalCombo: simulacion.comisionPorOperacion,
+      ventasMes: simulacion.paquetesTotalesMes,
+      piezasTotalesCombo: simulacion.paquetesTotalesMes,
+      costoTotal: simulacion.costoMensual,
+      precioTotal: simulacion.ventaMensual,
+      utilidadTotal: simulacion.utilidadMensualBruta,
+      utilidadNetaCombo: simulacion.utilidadMensualAgencia,
+      comisionTotalCombo: simulacion.comisionMensualAsesor,
       utilidadMensualAgencia: simulacion.utilidadMensualAgencia,
       comisionMensualAsesor: simulacion.comisionMensualAsesor,
-      ticketPromedio: simulacion.ventaPorOperacion,
+      ticketPromedio: simulacion.ticketPromedio,
       margenBrutoPct: simulacion.margenBrutoPct,
       observaciones:
-        "Propuesta comercial orientada a proyectar venta mensual por paquete, defender utilidad y facilitar el cierre con una oferta más clara para la agencia.",
+        "Propuesta basada en un modelo de negocio mensual por paquetes, enfocada en incrementar utilidad sin depender del volumen.",
       generatedAt: new Date(),
       items: detallePaquetes.map((item) => ({
-        nombre: item.nombre,
-        cantidad: item.cantidad,
+        nombre: `${item.nombre} · ${item.paquetesMes} paquetes/mes`,
+        cantidad: item.paquetesMes,
         costoUnitario: item.costoUnitario,
         precioUnitario: item.precioUnitario,
-        subtotalCosto: item.costoUnitario * item.cantidad,
-        subtotalPrecio: item.precioUnitario * item.cantidad,
-        subtotalComision: item.comisionPorLinea,
-        subtotalUtilidadNeta: item.utilidadNetaPorOperacion,
+        subtotalCosto: item.costoMensual,
+        subtotalPrecio: item.ventaMensual,
+        subtotalComision: item.comisionMensual,
+        subtotalUtilidadNeta: item.utilidadMensualNeta,
       })),
     };
   };
 
   const buildWhatsappMessage = () => {
-    const nombres = detallePaquetes
-      .map(
-        (item) =>
-          `• ${item.nombre} · ${item.cantidad} por operación · ${item.paquetesVendidosMes} al mes`
-      )
-      .join("\n");
-
     return [
-      "Hola, te comparto un estimado mensual de ventas de paquetes Liqui Moly.",
+      "Hola, te preparé una proyección real de negocio con Liqui Moly 👇",
       "",
-      `Propuesta: ${nombrePropuestaActual}`,
+      `🏢 Agencia: ${agenciaSeleccionada?.nombre || "Agencia objetivo"}`,
+      `📦 Paquetes al mes: ${simulacion.paquetesTotalesMes}`,
+      `💰 Venta mensual: ${money(simulacion.ventaMensual)}`,
+      `📈 Utilidad estimada: ${money(simulacion.utilidadMensualAgencia)}`,
       "",
-      nombres,
+      "Esto no es una compra… es una nueva línea de ingreso para tu negocio.",
       "",
-      `Paquetes por operación: ${simulacion.paquetesPorOperacion}`,
-      `Operaciones estimadas al mes: ${simulacion.ventasMes}`,
-      `Paquetes vendidos al mes: ${simulacion.paquetesVendidosMes}`,
-      `Venta mensual estimada: ${money(simulacion.ventaMensual)}`,
-      `Utilidad mensual estimada para la agencia: ${money(simulacion.utilidadMensualAgencia)}`,
-      `Comisión mensual estimada para el asesor: ${money(simulacion.comisionMensualAsesor)}`,
-      "",
-      "Es una propuesta pensada para proyectar rotación, utilidad y una operación comercial más clara para la agencia.",
+      "Si quieres lo vemos juntos y lo ajustamos a tu operación 👍",
     ].join("\n");
+  };
+
+  const handleGuardarPropuesta = async () => {
+    if (!agenciaSeleccionada) {
+      alert("Primero selecciona una agencia para guardar la propuesta.");
+      return;
+    }
+
+    if (detallePaquetes.length === 0) {
+      alert("Primero agrega paquetes al simulador.");
+      return;
+    }
+
+    try {
+      setSaveProposalLoading(true);
+
+      const items: PropuestaAgenciaItem[] = detallePaquetes.map((item) => ({
+        nombre: item.nombre,
+        paquetesMes: item.paquetesMes,
+        costoUnitario: item.costoUnitario,
+        precioUnitario: item.precioUnitario,
+        costoMensual: item.costoMensual,
+        ventaMensual: item.ventaMensual,
+        utilidadMensualBruta: item.utilidadMensualBruta,
+        comisionMensual: item.comisionMensual,
+        utilidadMensualNeta: item.utilidadMensualNeta,
+      }));
+
+      await crearPropuestaAgencia({
+        agenciaId: agenciaSeleccionada.id,
+        agenciaNombre: agenciaSeleccionada.nombre,
+        nombrePropuesta: nombrePropuestaActual,
+        items,
+        paquetesTotalesMes: simulacion.paquetesTotalesMes,
+        costoMensual: simulacion.costoMensual,
+        ventaMensual: simulacion.ventaMensual,
+        utilidadMensualBruta: simulacion.utilidadMensualBruta,
+        utilidadMensualAgencia: simulacion.utilidadMensualAgencia,
+        comisionMensualAsesor: simulacion.comisionMensualAsesor,
+        margenBrutoPct: simulacion.margenBrutoPct,
+        ticketPromedio: simulacion.ticketPromedio,
+      });
+
+      alert("Propuesta guardada correctamente.");
+    } catch (error) {
+      console.error("Error guardando propuesta:", error);
+      alert("No se pudo guardar la propuesta.");
+    } finally {
+      setSaveProposalLoading(false);
+    }
   };
 
   const handleExportPdf = async () => {
@@ -524,7 +584,10 @@ export default function AgenciasPage() {
 
     try {
       setPdfLoading(true);
-      await descargarComboPDF(buildComboPdfData(), "estimado-mensual-agencia-liqui-moly.pdf");
+      await descargarComboPDF(
+        buildComboPdfData(),
+        "propuesta-rentabilidad-liqui-moly.pdf"
+      );
     } catch (error) {
       console.error("Error generando PDF del estimado:", error);
       alert("No se pudo generar el PDF.");
@@ -545,7 +608,7 @@ export default function AgenciasPage() {
       const result = await compartirComboPdf(
         buildComboPdfData(),
         buildWhatsappMessage(),
-        "estimado-mensual-agencia-liqui-moly.pdf"
+        "propuesta-rentabilidad-liqui-moly.pdf"
       );
 
       if (!result.sharedDirectly) {
@@ -562,41 +625,47 @@ export default function AgenciasPage() {
   };
 
   const agregarPaquete = () => {
-    setItemsCotizador((prev) => {
+    setItemsPaquetes((prev) => {
       const existente = prev.find((item) => item.nombre === paqueteParaAgregar);
 
       if (existente) {
         return prev.map((item) =>
           item.nombre === paqueteParaAgregar
-            ? { ...item, cantidad: item.cantidad + 1 }
+            ? { ...item, paquetesMes: item.paquetesMes + 1 }
             : item
         );
       }
 
-      return [...prev, { nombre: paqueteParaAgregar, cantidad: 1 }];
+      return [...prev, { nombre: paqueteParaAgregar, paquetesMes: 1 }];
     });
   };
 
   const quitarPaquete = (nombre: string) => {
-    setItemsCotizador((prev) => prev.filter((item) => item.nombre !== nombre));
+    setItemsPaquetes((prev) => prev.filter((item) => item.nombre !== nombre));
   };
 
-  const cambiarCantidad = (nombre: string, cantidad: number) => {
-    setItemsCotizador((prev) =>
+  const cambiarPaquetesMes = (nombre: string, paquetesMes: number) => {
+    setItemsPaquetes((prev) =>
       prev.map((item) =>
         item.nombre === nombre
-          ? { ...item, cantidad: Math.max(1, Number(cantidad) || 1) }
+          ? { ...item, paquetesMes: Math.max(0, Number(paquetesMes) || 0) }
           : item
       )
     );
   };
 
-  const limpiarCombo = () => {
-    setItemsCotizador([]);
+  const limpiarPaquetes = () => {
+    setItemsPaquetes([]);
   };
 
-  const aplicarComboSugerido = (paquetes: string[]) => {
-    setItemsCotizador(paquetes.map((nombre) => ({ nombre, cantidad: 1 })));
+  const aplicarPlantilla = (
+    paquetes: { nombre: string; paquetesMes: number }[]
+  ) => {
+    setItemsPaquetes(paquetes);
+  };
+
+  const aplicarEscenario = (escenario: (typeof escenarios)[number]) => {
+    setItemsPaquetes([...escenario.paquetes]);
   };
 
   const handleCreate = async () => {
@@ -703,10 +772,10 @@ export default function AgenciasPage() {
             <p className="text-xs uppercase tracking-wide text-white/70">
               Enfoque del módulo
             </p>
-            <h2 className="mt-2 text-xl font-bold">Estimado mensual</h2>
+            <h2 className="mt-2 text-xl font-bold">Modo paquetes + escenarios</h2>
             <p className="mt-2 text-sm leading-relaxed text-white/80">
-              Aquí no sólo armas una propuesta: proyectas cuántos paquetes puede mover la
-              agencia al mes, cuánto vendería y qué utilidad dejaría.
+              Aquí proyectas directamente cuántos paquetes movería la agencia al mes,
+              cuánto vendería, cuánto ganaría y qué comisión generaría el esquema.
             </p>
           </div>
         </div>
@@ -725,45 +794,95 @@ export default function AgenciasPage() {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">En negociación</p>
-          <p className="mt-2 text-3xl font-bold text-amber-700">{resumen.negociacion}</p>
+          <p className="mt-2 text-3xl font-bold text-amber-700">
+            {resumen.negociacion}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">Alto potencial</p>
-          <p className="mt-2 text-3xl font-bold text-red-700">{resumen.altoPotencial}</p>
+          <p className="mt-2 text-3xl font-bold text-red-700">
+            {resumen.altoPotencial}
+          </p>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex items-center gap-2">
-          <ShoppingCart className="h-5 w-5 text-slate-400" />
+          <Calculator className="h-5 w-5 text-slate-400" />
           <h2 className="text-lg font-semibold text-slate-900">
-            Estimado mensual de ventas por paquete
+            Simulador mensual por paquete
           </h2>
         </div>
 
         <p className="mb-4 text-sm text-slate-500">
-          Selecciona los paquetes, define cuántos lleva cada operación y proyecta el
-          resultado mensual para la agencia y el asesor.
+          Captura cuántos paquetes se venderían al mes por tipo. El sistema calcula solo
+          costo, venta, utilidad, comisión y utilidad neta.
         </p>
 
-        <div className="mb-4 flex flex-wrap gap-2">
-          {combosSugeridos.map((combo) => (
-            <button
-              key={combo.nombre}
-              type="button"
-              onClick={() => aplicarComboSugerido(combo.paquetes)}
-              className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+        <div className="mb-4 grid gap-3 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Agencia seleccionada
+            </label>
+            <select
+              value={agenciaSeleccionadaId}
+              onChange={(e) => setAgenciaSeleccionadaId(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
             >
-              {combo.nombre}
+              <option value="">Selecciona una agencia</option>
+              {agencias.map((agencia) => (
+                <option key={agencia.id} value={agencia.id}>
+                  {agencia.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">
+              Propuesta vinculada
+            </p>
+            <p className="mt-1 text-base font-semibold text-slate-900">
+              {agenciaSeleccionada?.nombre || "Sin agencia seleccionada"}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              {agenciaSeleccionada?.ciudad ||
+                "Selecciona una agencia para guardar esta propuesta."}
+            </p>
+          </div>
+        </div>
+
+        <div className="mb-4 flex flex-wrap gap-2">
+          {escenarios.map((esc) => (
+            <button
+              key={esc.nombre}
+              type="button"
+              onClick={() => aplicarEscenario(esc)}
+              className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+            >
+              Escenario {esc.nombre}
             </button>
           ))}
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[1fr_220px_auto]">
+        <div className="mb-4 flex flex-wrap gap-2">
+          {plantillasSugeridas.map((plantilla) => (
+            <button
+              key={plantilla.nombre}
+              type="button"
+              onClick={() => aplicarPlantilla(plantilla.paquetes)}
+              className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+            >
+              {plantilla.nombre}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Agregar paquete al estimado
+              Agregar paquete al simulador
             </label>
             <select
               value={paqueteParaAgregar}
@@ -778,25 +897,12 @@ export default function AgenciasPage() {
             </select>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Operaciones al mes
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={ventasMes}
-              onChange={(e) => setVentasMes(Math.max(0, Number(e.target.value) || 0))}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
-            />
-          </div>
-
           <div className="flex items-end gap-2">
             <Button onClick={agregarPaquete} className="rounded-xl">
               <Plus className="mr-2 h-4 w-4" />
               Agregar
             </Button>
-            <Button variant="outline" onClick={limpiarCombo} className="rounded-xl">
+            <Button variant="outline" onClick={limpiarPaquetes} className="rounded-xl">
               Limpiar
             </Button>
           </div>
@@ -805,19 +911,19 @@ export default function AgenciasPage() {
         <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <div className="mb-3 flex items-center gap-2">
             <Layers3 className="h-4 w-4 text-slate-500" />
-            <p className="text-sm font-medium text-slate-700">Paquetes seleccionados</p>
+            <p className="text-sm font-medium text-slate-700">Paquetes cargados</p>
           </div>
 
           {detallePaquetes.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
-              No hay paquetes agregados. Selecciona uno y agrégalo al estimado.
+              No hay paquetes agregados. Selecciona uno y agrégalo al simulador.
             </div>
           ) : (
             <div className="space-y-3">
               {detallePaquetes.map((item) => (
                 <div
                   key={item.nombre}
-                  className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:grid-cols-[1.4fr_110px_130px_130px_auto]"
+                  className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:grid-cols-[1.5fr_120px_140px_140px_auto]"
                 >
                   <div>
                     <p className="font-semibold text-slate-900">{item.nombre}</p>
@@ -829,28 +935,30 @@ export default function AgenciasPage() {
 
                   <div>
                     <label className="mb-1 block text-xs font-medium text-slate-500">
-                      Cant. por operación
+                      Paquetes/mes
                     </label>
                     <input
                       type="number"
-                      min={1}
-                      value={item.cantidad}
-                      onChange={(e) => cambiarCantidad(item.nombre, Number(e.target.value))}
+                      min={0}
+                      value={item.paquetesMes}
+                      onChange={(e) =>
+                        cambiarPaquetesMes(item.nombre, Number(e.target.value))
+                      }
                       className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none"
                     />
                   </div>
 
                   <div>
-                    <p className="text-xs font-medium text-slate-500">Venta por operación</p>
+                    <p className="text-xs font-medium text-slate-500">Venta mensual</p>
                     <p className="mt-1 font-semibold text-slate-900">
-                      {money(item.precioUnitario * item.cantidad)}
+                      {money(item.ventaMensual)}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-xs font-medium text-slate-500">Venta mensual</p>
+                    <p className="text-xs font-medium text-slate-500">Utilidad neta</p>
                     <p className="mt-1 font-semibold text-emerald-700">
-                      {money(item.ventaMensual)}
+                      {money(item.utilidadMensualNeta)}
                     </p>
                   </div>
 
@@ -872,38 +980,54 @@ export default function AgenciasPage() {
 
         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
           <div className="overflow-x-auto">
-            <table className="min-w-[1150px] bg-white text-sm">
+            <table className="min-w-[1300px] bg-white text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium">Paquete</th>
-                  <th className="px-4 py-3 text-right font-medium">Cant. por operación</th>
                   <th className="px-4 py-3 text-right font-medium">Costo unitario</th>
                   <th className="px-4 py-3 text-right font-medium">Precio unitario</th>
-                  <th className="px-4 py-3 text-right font-medium">Utilidad por paquete</th>
-                  <th className="px-4 py-3 text-right font-medium">Paquetes al mes</th>
+                  <th className="px-4 py-3 text-right font-medium">
+                    Utilidad por paquete
+                  </th>
+                  <th className="px-4 py-3 text-right font-medium">Paquetes por mes</th>
                   <th className="px-4 py-3 text-right font-medium">Costo mensual</th>
                   <th className="px-4 py-3 text-right font-medium">Venta mensual</th>
                   <th className="px-4 py-3 text-right font-medium">Utilidad mensual</th>
+                  <th className="px-4 py-3 text-right font-medium">Comisión mensual</th>
+                  <th className="px-4 py-3 text-right font-medium">
+                    Utilidad neta mensual
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {detallePaquetes.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-6 text-center text-slate-500">
-                      Agrega paquetes para ver el estimado mensual.
+                    <td colSpan={10} className="px-4 py-6 text-center text-slate-500">
+                      Agrega paquetes para ver el simulador mensual.
                     </td>
                   </tr>
                 ) : (
                   detallePaquetes.map((item) => (
                     <tr key={item.nombre} className="border-t border-slate-100">
                       <td className="px-4 py-3">{item.nombre}</td>
-                      <td className="px-4 py-3 text-right">{item.cantidad}</td>
-                      <td className="px-4 py-3 text-right">{money(item.costoUnitario)}</td>
-                      <td className="px-4 py-3 text-right">{money(item.precioUnitario)}</td>
-                      <td className="px-4 py-3 text-right">{money(item.utilidadPorPaquete)}</td>
-                      <td className="px-4 py-3 text-right">{item.paquetesVendidosMes}</td>
+                      <td className="px-4 py-3 text-right">
+                        {money(item.costoUnitario)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {money(item.precioUnitario)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {money(item.utilidadPorPaquete)}
+                      </td>
+                      <td className="px-4 py-3 text-right">{item.paquetesMes}</td>
                       <td className="px-4 py-3 text-right">{money(item.costoMensual)}</td>
                       <td className="px-4 py-3 text-right">{money(item.ventaMensual)}</td>
+                      <td className="px-4 py-3 text-right">
+                        {money(item.utilidadMensualBruta)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {money(item.comisionMensual)}
+                      </td>
                       <td className="px-4 py-3 text-right font-semibold text-emerald-700">
                         {money(item.utilidadMensualNeta)}
                       </td>
@@ -916,13 +1040,24 @@ export default function AgenciasPage() {
                 <tfoot className="border-t-2 border-slate-200 bg-slate-50">
                   <tr className="font-semibold text-slate-900">
                     <td className="px-4 py-3">Totales</td>
-                    <td className="px-4 py-3 text-right">{simulacion.paquetesPorOperacion}</td>
                     <td className="px-4 py-3 text-right">—</td>
                     <td className="px-4 py-3 text-right">—</td>
                     <td className="px-4 py-3 text-right">—</td>
-                    <td className="px-4 py-3 text-right">{simulacion.paquetesVendidosMes}</td>
-                    <td className="px-4 py-3 text-right">{money(simulacion.costoMensual)}</td>
-                    <td className="px-4 py-3 text-right">{money(simulacion.ventaMensual)}</td>
+                    <td className="px-4 py-3 text-right">
+                      {simulacion.paquetesTotalesMes}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {money(simulacion.costoMensual)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {money(simulacion.ventaMensual)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {money(simulacion.utilidadMensualBruta)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {money(simulacion.comisionMensualAsesor)}
+                    </td>
                     <td className="px-4 py-3 text-right text-emerald-700">
                       {money(simulacion.utilidadMensualAgencia)}
                     </td>
@@ -936,51 +1071,46 @@ export default function AgenciasPage() {
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Package2 className="h-4 w-4" />
-              Paquetes por operación
-            </div>
-            <p className="mt-2 text-2xl font-bold text-slate-900">
-              {simulacion.paquetesPorOperacion}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-center gap-2 text-sm text-slate-500">
               <Boxes className="h-4 w-4" />
-              Paquetes vendidos al mes
+              Paquetes totales al mes
             </div>
             <p className="mt-2 text-2xl font-bold text-slate-900">
-              {simulacion.paquetesVendidosMes}
+              {simulacion.paquetesTotalesMes}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <ShoppingCart className="h-4 w-4" />
-              Venta por operación
+              Venta mensual
             </div>
             <p className="mt-2 text-2xl font-bold text-slate-900">
-              {money(simulacion.ventaPorOperacion)}
+              {money(simulacion.ventaMensual)}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <HandCoins className="h-4 w-4" />
-              Comisión por operación
+              Comisión mensual asesor
             </div>
             <p className="mt-2 text-2xl font-bold text-slate-900">
-              {money(simulacion.comisionPorOperacion)}
+              {money(simulacion.comisionMensualAsesor)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Package2 className="h-4 w-4" />
+              Ticket promedio por paquete
+            </div>
+            <p className="mt-2 text-2xl font-bold text-slate-900">
+              {money(simulacion.ticketPromedio)}
             </p>
           </div>
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-            <p className="text-sm text-blue-700">Operaciones al mes</p>
-            <p className="mt-2 text-3xl font-bold text-blue-900">{simulacion.ventasMes}</p>
-          </div>
-
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-700">Costo mensual estimado</p>
             <p className="mt-2 text-3xl font-bold text-amber-900">
@@ -996,6 +1126,13 @@ export default function AgenciasPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm text-slate-700">Utilidad bruta mensual</p>
+            <p className="mt-2 text-3xl font-bold text-slate-900">
+              {money(simulacion.utilidadMensualBruta)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm text-slate-700">Margen bruto estimado</p>
             <p className="mt-2 text-3xl font-bold text-slate-900">
               {simulacion.margenBrutoPct.toFixed(1)}%
@@ -1003,15 +1140,15 @@ export default function AgenciasPage() {
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-2">
           <div className="rounded-2xl border border-emerald-200 bg-white p-5">
             <p className="text-sm text-slate-500">Utilidad mensual agencia</p>
             <p className="mt-2 text-4xl font-bold text-emerald-700">
               {money(simulacion.utilidadMensualAgencia)}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Utilidad mensual estimada considerando la estructura de paquetes y la
-              comisión fija por paquete.
+              Utilidad mensual estimada después de considerar la comisión fija por
+              paquete.
             </p>
           </div>
 
@@ -1021,36 +1158,41 @@ export default function AgenciasPage() {
               {money(simulacion.comisionMensualAsesor)}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Comisión mensual total estimada para el asesor con base en los paquetes
-              proyectados.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <p className="text-sm text-slate-500">Utilidad bruta mensual</p>
-            <p className="mt-2 text-4xl font-bold text-slate-900">
-              {money(simulacion.utilidadMensualBruta)}
-            </p>
-            <p className="mt-2 text-sm text-slate-500">
-              Útil para defender el negocio y mostrar el potencial comercial mensual.
+              Comisión mensual total estimada con base en los paquetes proyectados.
             </p>
           </div>
         </div>
 
         <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-          <strong>Lectura comercial:</strong> Si la agencia realiza{" "}
-          <strong>{simulacion.ventasMes}</strong> operaciones al mes, con una venta promedio
-          por operación de <strong>{money(simulacion.ventaPorOperacion)}</strong>, puede
-          generar una venta mensual estimada de{" "}
-          <strong>{money(simulacion.ventaMensual)}</strong> y una utilidad aproximada de{" "}
-          <strong>{money(simulacion.utilidadMensualAgencia)}</strong> al mes. A la vez, el
-          esquema considera una comisión mensual estimada para el asesor de{" "}
-          <strong>{money(simulacion.comisionMensualAsesor)}</strong>. Esto convierte la
-          propuesta en una forma clara de subir ticket promedio, vender con más estructura y
-          defender la utilidad del negocio.
+          <strong>Lectura comercial:</strong> Si la agencia implementa este modelo con{" "}
+          <strong>{simulacion.paquetesTotalesMes} paquetes</strong> mensuales, puede
+          generar ingresos por <strong>{money(simulacion.ventaMensual)}</strong> y una
+          utilidad aproximada de{" "}
+          <strong>{money(simulacion.utilidadMensualAgencia)}</strong>. Esto permite
+          dejar de competir por precio y comenzar a operar con un modelo enfocado en
+          rentabilidad.
         </div>
 
         <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={handleGuardarPropuesta}
+            disabled={saveProposalLoading || detallePaquetes.length === 0}
+            className="rounded-xl"
+          >
+            {saveProposalLoading ? (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Guardar propuesta
+              </>
+            )}
+          </Button>
+
           <Button
             variant="outline"
             onClick={handleExportPdf}
@@ -1378,7 +1520,9 @@ export default function AgenciasPage() {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">Nueva agencia</h3>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Nueva agencia
+                </h3>
                 <p className="text-sm text-slate-500">
                   Crea una base comercial lista para crecer.
                 </p>

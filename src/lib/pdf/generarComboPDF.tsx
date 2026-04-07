@@ -1,5 +1,15 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer";
+import {
+  Document,
+  Page,
+  View,
+  Text,
+  StyleSheet,
+  pdf,
+  Image,
+} from "@react-pdf/renderer";
+
+/* ================= TYPES ================= */
 
 export type ComboPdfItem = {
   nombre: string;
@@ -13,7 +23,7 @@ export type ComboPdfItem = {
 };
 
 export type ComboPdfData = {
-  agenciaNombre?: string;
+  agenciaNombre: string;
   comboNombre: string;
   ventasMes: number;
   piezasTotalesCombo: number;
@@ -27,343 +37,736 @@ export type ComboPdfData = {
   ticketPromedio: number;
   margenBrutoPct: number;
   observaciones?: string;
-  generatedAt?: Date;
+  generatedAt: Date;
   items: ComboPdfItem[];
 };
 
-const CORPORATE_BLUE = "#0033A0";
+/* ================= CONFIG ================= */
+
+const LOGO_SRC = "/liquimoly-logo-v4.png";
+
+const COLORS = {
+  navy: "#0f172a",
+  blue: "#0033A0",
+  blueSoft: "#EAF1FF",
+  green: "#15803d",
+  greenSoft: "#ECFDF3",
+  amber: "#B45309",
+  amberSoft: "#FFF7ED",
+  slate: "#475569",
+  slateSoft: "#F8FAFC",
+  border: "#E2E8F0",
+  white: "#FFFFFF",
+  darkLine: "#CBD5E1",
+};
+
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   page: {
     fontFamily: "Helvetica",
     fontSize: 10,
-    paddingTop: 28,
-    paddingBottom: 34,
-    paddingHorizontal: 34,
-    backgroundColor: "#ffffff",
-    color: "#1f2937",
+    paddingTop: 24,
+    paddingBottom: 28,
+    paddingHorizontal: 26,
+    color: COLORS.navy,
+    backgroundColor: COLORS.white,
   },
+
   header: {
     marginBottom: 14,
+    borderBottomWidth: 2,
+    borderBottomColor: COLORS.blue,
     paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#dbe4ff",
   },
-  brand: {
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  logoWrap: {
+    width: 200,
+    minHeight: 64,
+    justifyContent: "center",
+  },
+  logo: {
+    width: 190,
+    height: 60,
+    objectFit: "contain",
+  },
+  headerRight: {
+    flexGrow: 1,
+    alignItems: "flex-end",
+  },
+  title: {
     fontSize: 18,
-    fontWeight: 700,
-    color: CORPORATE_BLUE,
+    fontWeight: "bold",
+    color: COLORS.blue,
+    textAlign: "right",
   },
   subtitle: {
-    marginTop: 4,
+    marginTop: 3,
     fontSize: 10,
-    color: "#475569",
+    color: COLORS.slate,
+    textAlign: "right",
   },
-  section: {
+  impactWrap: {
+    marginTop: 8,
+    backgroundColor: COLORS.blueSoft,
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  impactText: {
+    fontSize: 9,
+    color: COLORS.blue,
+    fontWeight: "bold",
+  },
+
+  heroBox: {
     marginTop: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    backgroundColor: COLORS.slateSoft,
+    padding: 12,
+  },
+  heroLine: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: COLORS.navy,
+    marginBottom: 4,
+  },
+  heroSubline: {
+    fontSize: 9.5,
+    color: COLORS.slate,
+    lineHeight: 1.4,
+  },
+
+  gainBox: {
+    marginTop: 12,
+    backgroundColor: COLORS.blueSoft,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 12,
+  },
+  gainText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: COLORS.blue,
+    textAlign: "center",
+  },
+
+  agencyCard: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    backgroundColor: COLORS.white,
+    padding: 12,
+  },
+  agencyGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: 8,
+  },
+  agencyField: {
+    width: "50%",
+    paddingRight: 8,
+    marginBottom: 6,
+  },
+  label: {
+    fontSize: 8.5,
+    color: COLORS.slate,
+    textTransform: "uppercase",
+    marginBottom: 2,
+  },
+  value: {
+    fontSize: 11,
+    color: COLORS.navy,
+    fontWeight: "bold",
+  },
+
+  section: {
+    marginTop: 14,
   },
   sectionTitle: {
     fontSize: 11,
-    fontWeight: 700,
-    color: CORPORATE_BLUE,
-    marginBottom: 6,
+    fontWeight: "bold",
+    color: COLORS.navy,
+    marginBottom: 8,
   },
-  cardGrid: {
+
+  kpiGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    marginHorizontal: -4,
   },
-  card: {
-    width: "31%",
+  kpiCard: {
+    width: "25%",
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  kpiInner: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 8,
-    padding: 8,
-    backgroundColor: "#f8fafc",
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    padding: 10,
+    minHeight: 66,
   },
-  cardLabel: {
-    fontSize: 8,
-    color: "#64748b",
+  kpiBlue: {
+    backgroundColor: COLORS.blueSoft,
   },
-  cardValue: {
-    marginTop: 3,
+  kpiGreen: {
+    backgroundColor: COLORS.greenSoft,
+  },
+  kpiAmber: {
+    backgroundColor: COLORS.amberSoft,
+  },
+  kpiDefault: {
+    backgroundColor: COLORS.white,
+  },
+  kpiLabel: {
+    fontSize: 8.5,
+    color: COLORS.slate,
+    marginBottom: 4,
+  },
+  kpiValue: {
     fontSize: 12,
-    fontWeight: 700,
-    color: "#0f172a",
+    fontWeight: "bold",
+    color: COLORS.navy,
   },
-  table: {
+  kpiValueBlue: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: COLORS.blue,
+  },
+  kpiValueGreen: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: COLORS.green,
+  },
+  kpiValueAmber: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: COLORS.amber,
+  },
+
+  impactBar: {
+    marginTop: 6,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 8,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    backgroundColor: COLORS.blueSoft,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  impactBarText: {
+    fontSize: 9.5,
+    color: COLORS.blue,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+
+  packageCardList: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
     overflow: "hidden",
   },
-  tableHeader: {
+  packageCard: {
+    padding: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
+  packageCardFirst: {
+    borderTopWidth: 0,
+  },
+  packageTitle: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: COLORS.navy,
+    marginBottom: 3,
+  },
+  packageRow: {
     flexDirection: "row",
-    backgroundColor: "#eff6ff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#dbeafe",
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    justifyContent: "space-between",
+    marginTop: 2,
   },
-  row: {
-    flexDirection: "row",
-    paddingVertical: 7,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
-  },
-  colNombre: {
-    width: "30%",
-    paddingRight: 6,
-  },
-  colCant: {
-    width: "8%",
-    textAlign: "right",
-  },
-  colNum: {
-    width: "15.5%",
-    textAlign: "right",
-  },
-  th: {
-    fontSize: 8,
-    fontWeight: 700,
-    color: "#1e3a8a",
-  },
-  td: {
+  packageLabel: {
     fontSize: 8.5,
-    color: "#0f172a",
+    color: COLORS.slate,
   },
+  packageValue: {
+    fontSize: 8.5,
+    color: COLORS.navy,
+    fontWeight: "bold",
+  },
+  packageProfit: {
+    fontSize: 9,
+    color: COLORS.green,
+    fontWeight: "bold",
+    marginTop: 4,
+  },
+
   readingBox: {
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "#dbeafe",
-    borderRadius: 8,
-    backgroundColor: "#f8fbff",
-    padding: 10,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    backgroundColor: COLORS.slateSoft,
+    padding: 12,
   },
-  readingTitle: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: "#1e3a8a",
-    marginBottom: 4,
-  },
-  readingText: {
-    fontSize: 9,
-    lineHeight: 1.45,
+  paragraph: {
+    fontSize: 9.8,
+    lineHeight: 1.5,
     color: "#334155",
   },
+  strong: {
+    fontWeight: "bold",
+    color: COLORS.navy,
+  },
+
+  observationsBox: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: COLORS.white,
+  },
+  observationsText: {
+    fontSize: 9.3,
+    lineHeight: 1.45,
+    color: COLORS.slate,
+  },
+
+  recommendationBox: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: COLORS.white,
+  },
+  recommendationTitle: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: COLORS.navy,
+    marginBottom: 4,
+  },
+  recommendationText: {
+    fontSize: 9.3,
+    lineHeight: 1.45,
+    color: COLORS.slate,
+  },
+
+  closeBar: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    backgroundColor: COLORS.blueSoft,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  closeBarText: {
+    textAlign: "center",
+    fontSize: 11,
+    color: COLORS.navy,
+    fontWeight: "bold",
+  },
+
   footer: {
     marginTop: 16,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: "#e2e8f0",
+    borderTopColor: COLORS.darkLine,
+  },
+  footerText: {
     fontSize: 8,
-    color: "#64748b",
+    color: COLORS.slate,
+    textAlign: "center",
+    lineHeight: 1.4,
   },
 });
+
+/* ================= HELPERS ================= */
 
 function money(value: number) {
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
     minimumFractionDigits: 2,
-  }).format(value);
+  }).format(value || 0);
 }
 
-function formatDate(date?: Date) {
-  const safeDate = date ?? new Date();
-  return new Intl.DateTimeFormat("es-MX", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(safeDate);
+function formatDate(date: Date) {
+  try {
+    return new Intl.DateTimeFormat("es-MX", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return "";
+  }
 }
 
-function ComboPdfDocument({ data }: { data: ComboPdfData }) {
+function safeDate(date: Date | string | undefined) {
+  if (!date) return new Date();
+  if (date instanceof Date) return date;
+  const parsed = new Date(date);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function sanitizeWhatsappText(text: string) {
+  return encodeURIComponent(text);
+}
+
+function buildPdfFileName(fileName?: string) {
+  return fileName?.trim() || "propuesta-rentabilidad-liqui-moly.pdf";
+}
+
+function pluralizePaquete(value: number) {
+  return `${value} paquete${value === 1 ? "" : "s"}`;
+}
+
+function shortenName(name: string, max = 50) {
+  if (!name) return "";
+  return name.length > max ? `${name.slice(0, max - 1)}…` : name;
+}
+
+/* ================= DOCUMENT ================= */
+
+function ComboPDFDocument({ data }: { data: ComboPdfData }) {
+  const generatedAt = safeDate(data.generatedAt);
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        {/* HEADER */}
         <View style={styles.header}>
-          <Text style={styles.brand}>Liqui Moly Sales Hub</Text>
-          <Text style={styles.subtitle}>Propuesta comercial de combo para agencia</Text>
-          <Text style={styles.subtitle}>
-            Agencia: {data.agenciaNombre || "General"} · Fecha: {formatDate(data.generatedAt)}
-          </Text>
-          <Text style={styles.subtitle}>Combo: {data.comboNombre}</Text>
-        </View>
+          <View style={styles.headerTop}>
+            <View style={styles.logoWrap}>
+              <Image src={LOGO_SRC} style={styles.logo} />
+            </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Resumen comercial</Text>
-          <View style={styles.cardGrid}>
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Precio total combo</Text>
-              <Text style={styles.cardValue}>{money(data.precioTotal)}</Text>
-            </View>
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Utilidad neta combo</Text>
-              <Text style={styles.cardValue}>{money(data.utilidadNetaCombo)}</Text>
-            </View>
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Comisión asesor</Text>
-              <Text style={styles.cardValue}>{money(data.comisionTotalCombo)}</Text>
-            </View>
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Ventas estimadas al mes</Text>
-              <Text style={styles.cardValue}>{String(data.ventasMes)}</Text>
-            </View>
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Utilidad mensual agencia</Text>
-              <Text style={styles.cardValue}>{money(data.utilidadMensualAgencia)}</Text>
-            </View>
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Comisión mensual asesor</Text>
-              <Text style={styles.cardValue}>{money(data.comisionMensualAsesor)}</Text>
+            <View style={styles.headerRight}>
+              <Text style={styles.title}>Propuesta de rentabilidad mensual</Text>
+              <Text style={styles.subtitle}>
+                Modelo comercial de alto margen por servicio
+              </Text>
+
+              <View style={styles.impactWrap}>
+                <Text style={styles.impactText}>
+                  Estrategia para incrementar ticket promedio y utilidad sin competir por precio
+                </Text>
+              </View>
             </View>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Detalle del combo</Text>
+        {/* HERO */}
+        <View style={styles.heroBox}>
+          <Text style={styles.heroLine}>
+            Modelo diseñado para aumentar ingresos sin sacrificar margen.
+          </Text>
+          <Text style={styles.heroSubline}>
+            Esta propuesta muestra el potencial real de ingresos, utilidad y comisiones
+            al estructurar la venta por paquetes, facilitando el cierre y aumentando la
+            rentabilidad de la operación.
+          </Text>
+        </View>
 
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.th, styles.colNombre]}>Paquete</Text>
-              <Text style={[styles.th, styles.colCant]}>Cant.</Text>
-              <Text style={[styles.th, styles.colNum]}>Costo</Text>
-              <Text style={[styles.th, styles.colNum]}>Precio</Text>
-              <Text style={[styles.th, styles.colNum]}>Comisión</Text>
-              <Text style={[styles.th, styles.colNum]}>Utilidad neta</Text>
+        {/* IMPACTO FUERTE */}
+        <View style={styles.gainBox}>
+          <Text style={styles.gainText}>
+            Este modelo puede generar {money(data.utilidadNetaCombo)} mensuales de utilidad.
+          </Text>
+        </View>
+
+        {/* DATOS */}
+        <View style={styles.agencyCard}>
+          <View style={styles.agencyGrid}>
+            <View style={styles.agencyField}>
+              <Text style={styles.label}>Agencia</Text>
+              <Text style={styles.value}>{data.agenciaNombre || "Agencia objetivo"}</Text>
             </View>
 
+            <View style={styles.agencyField}>
+              <Text style={styles.label}>Fecha</Text>
+              <Text style={styles.value}>{formatDate(generatedAt)}</Text>
+            </View>
+
+            <View style={styles.agencyField}>
+              <Text style={styles.label}>Propuesta</Text>
+              <Text style={styles.value}>
+                {data.comboNombre || "Escenario comercial mensual"}
+              </Text>
+            </View>
+
+            <View style={styles.agencyField}>
+              <Text style={styles.label}>Enfoque</Text>
+              <Text style={styles.value}>Rentabilidad por paquete</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* RESUMEN */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Resumen mensual estimado</Text>
+
+          <View style={styles.kpiGrid}>
+            <View style={styles.kpiCard}>
+              <View style={[styles.kpiInner, styles.kpiBlue]}>
+                <Text style={styles.kpiLabel}>Venta mensual</Text>
+                <Text style={styles.kpiValueBlue}>{money(data.precioTotal)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.kpiCard}>
+              <View style={[styles.kpiInner, styles.kpiAmber]}>
+                <Text style={styles.kpiLabel}>Costo mensual</Text>
+                <Text style={styles.kpiValueAmber}>{money(data.costoTotal)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.kpiCard}>
+              <View style={[styles.kpiInner, styles.kpiGreen]}>
+                <Text style={styles.kpiLabel}>Utilidad neta mensual</Text>
+                <Text style={styles.kpiValueGreen}>{money(data.utilidadNetaCombo)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.kpiCard}>
+              <View style={[styles.kpiInner, styles.kpiDefault]}>
+                <Text style={styles.kpiLabel}>Comisión mensual asesor</Text>
+                <Text style={styles.kpiValue}>{money(data.comisionMensualAsesor)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.kpiCard}>
+              <View style={[styles.kpiInner, styles.kpiDefault]}>
+                <Text style={styles.kpiLabel}>Utilidad bruta mensual</Text>
+                <Text style={styles.kpiValue}>{money(data.utilidadTotal)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.kpiCard}>
+              <View style={[styles.kpiInner, styles.kpiDefault]}>
+                <Text style={styles.kpiLabel}>Margen bruto</Text>
+                <Text style={styles.kpiValue}>
+                  {(data.margenBrutoPct || 0).toFixed(1)}%
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.kpiCard}>
+              <View style={[styles.kpiInner, styles.kpiDefault]}>
+                <Text style={styles.kpiLabel}>Paquetes al mes</Text>
+                <Text style={styles.kpiValue}>{data.ventasMes || 0}</Text>
+              </View>
+            </View>
+
+            <View style={styles.kpiCard}>
+              <View style={[styles.kpiInner, styles.kpiDefault]}>
+                <Text style={styles.kpiLabel}>Ticket promedio</Text>
+                <Text style={styles.kpiValue}>{money(data.ticketPromedio)}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.impactBar}>
+            <Text style={styles.impactBarText}>
+              Propuesta enfocada en utilidad, no en volumen.
+            </Text>
+          </View>
+        </View>
+
+        {/* DETALLE */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Detalle de paquetes</Text>
+
+          <View style={styles.packageCardList}>
             {data.items.map((item, index) => (
               <View
                 key={`${item.nombre}-${index}`}
                 style={[
-                  styles.row,
-                  index === data.items.length - 1 ? { borderBottomWidth: 0 } : {},
+                  styles.packageCard,
+                  index === 0 ? styles.packageCardFirst : null,
                 ]}
               >
-                <Text style={[styles.td, styles.colNombre]}>{item.nombre}</Text>
-                <Text style={[styles.td, styles.colCant]}>{item.cantidad}</Text>
-                <Text style={[styles.td, styles.colNum]}>{money(item.subtotalCosto)}</Text>
-                <Text style={[styles.td, styles.colNum]}>{money(item.subtotalPrecio)}</Text>
-                <Text style={[styles.td, styles.colNum]}>{money(item.subtotalComision)}</Text>
-                <Text style={[styles.td, styles.colNum]}>{money(item.subtotalUtilidadNeta)}</Text>
+                <Text style={styles.packageTitle}>
+                  {shortenName(item.nombre, 56)}
+                </Text>
+
+                <View style={styles.packageRow}>
+                  <Text style={styles.packageLabel}>Paquetes/mes</Text>
+                  <Text style={styles.packageValue}>{item.cantidad}</Text>
+                </View>
+
+                <View style={styles.packageRow}>
+                  <Text style={styles.packageLabel}>Costo unitario</Text>
+                  <Text style={styles.packageValue}>{money(item.costoUnitario)}</Text>
+                </View>
+
+                <View style={styles.packageRow}>
+                  <Text style={styles.packageLabel}>Precio unitario</Text>
+                  <Text style={styles.packageValue}>{money(item.precioUnitario)}</Text>
+                </View>
+
+                <View style={styles.packageRow}>
+                  <Text style={styles.packageLabel}>Venta mensual</Text>
+                  <Text style={styles.packageValue}>{money(item.subtotalPrecio)}</Text>
+                </View>
+
+                <View style={styles.packageRow}>
+                  <Text style={styles.packageLabel}>Comisión mensual</Text>
+                  <Text style={styles.packageValue}>{money(item.subtotalComision)}</Text>
+                </View>
+
+                <Text style={styles.packageProfit}>
+                  Utilidad neta: {money(item.subtotalUtilidadNeta)}
+                </Text>
               </View>
             ))}
           </View>
         </View>
 
+        {/* LECTURA */}
         <View style={styles.readingBox}>
-          <Text style={styles.readingTitle}>Lectura comercial</Text>
-          <Text style={styles.readingText}>
-            Si la agencia vende {data.ventasMes} combos al mes, con un ticket promedio de{" "}
-            {money(data.ticketPromedio)}, puede generar una utilidad aproximada de{" "}
-            {money(data.utilidadMensualAgencia)} al mes. A la vez, el esquema considera una
-            comisión mensual estimada para el asesor de {money(data.comisionMensualAsesor)}.
-            Esto convierte el combo en una propuesta clara para subir ticket promedio, vender
-            con más estructura y defender la utilidad del negocio.
+          <Text style={styles.sectionTitle}>Lectura comercial</Text>
+          <Text style={styles.paragraph}>
+            Si la agencia implementa este modelo con{" "}
+            <Text style={styles.strong}>
+              {pluralizePaquete(data.ventasMes || 0)}
+            </Text>{" "}
+            mensuales, puede generar ingresos por{" "}
+            <Text style={styles.strong}>{money(data.precioTotal)}</Text> y una
+            utilidad aproximada de{" "}
+            <Text style={styles.strong}>{money(data.utilidadNetaCombo)}</Text>.
+            {"\n\n"}
+            Esto permite dejar de competir por precio y comenzar a operar con un
+            modelo enfocado en rentabilidad.
           </Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Indicadores</Text>
-          <View style={styles.cardGrid}>
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Costo total</Text>
-              <Text style={styles.cardValue}>{money(data.costoTotal)}</Text>
-            </View>
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Utilidad bruta</Text>
-              <Text style={styles.cardValue}>{money(data.utilidadTotal)}</Text>
-            </View>
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Margen bruto</Text>
-              <Text style={styles.cardValue}>{data.margenBrutoPct.toFixed(1)}%</Text>
-            </View>
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Piezas por combo</Text>
-              <Text style={styles.cardValue}>{String(data.piezasTotalesCombo)}</Text>
-            </View>
-          </View>
+        {/* OBSERVACIONES */}
+        <View style={styles.observationsBox}>
+          <Text style={styles.sectionTitle}>Observaciones comerciales</Text>
+          <Text style={styles.observationsText}>
+            {data.observaciones?.trim() ||
+              "Modelo comercial diseñado para incrementar ingresos, mejorar margen y facilitar el cierre de servicios de mayor valor para el cliente final."}
+          </Text>
         </View>
 
-        {data.observaciones ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Observaciones</Text>
-            <Text style={styles.readingText}>{data.observaciones}</Text>
-          </View>
-        ) : null}
+        {/* RECOMENDACIÓN */}
+        <View style={styles.recommendationBox}>
+          <Text style={styles.recommendationTitle}>Recomendación</Text>
+          <Text style={styles.recommendationText}>
+            Se recomienda implementar este esquema durante 30 días para validar
+            rotación, incrementar ticket promedio y establecer una base sólida de
+            ingresos recurrentes.
+          </Text>
+        </View>
 
-        <Text style={styles.footer}>
-          Documento generado desde Liqui Moly Sales Hub. Esta propuesta puede ajustarse
-          según volumen, condiciones comerciales y estrategia de cierre.
-        </Text>
+        {/* CIERRE */}
+        <View style={styles.closeBar}>
+          <Text style={styles.closeBarText}>
+            Este modelo no busca vender más… busca ganar mejor.
+          </Text>
+        </View>
+
+        {/* FOOTER */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Documento generado desde Liqui Moly Sales Hub.
+          </Text>
+          <Text style={styles.footerText}>
+            Propuesta sujeta a ajustes según volumen, condiciones comerciales y estrategia de cierre.
+          </Text>
+        </View>
       </Page>
     </Document>
   );
 }
 
-export async function generarComboPdfBlob(data: ComboPdfData) {
-  return pdf(<ComboPdfDocument data={data} />).toBlob();
-}
+/* ================= EXPORTS ================= */
 
 export async function descargarComboPDF(data: ComboPdfData, fileName?: string) {
-  const blob = await generarComboPdfBlob(data);
-
-  const safeName =
-    fileName ||
-    `combo-${(data.agenciaNombre || "agencia")
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/gi, "")}.pdf`;
+  const blob = await pdf(<ComboPDFDocument data={data} />).toBlob();
+  const finalFileName = buildPdfFileName(fileName);
 
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = safeName;
-  document.body.appendChild(link);
+  link.download = finalFileName;
   link.click();
-  link.remove();
 
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1500);
 
   return blob;
 }
 
 export async function compartirComboPdf(
   data: ComboPdfData,
-  text: string,
+  whatsappMessage?: string,
   fileName?: string
-) {
-  const blob = await generarComboPdfBlob(data);
+): Promise<{ sharedDirectly: boolean }> {
+  const blob = await pdf(<ComboPDFDocument data={data} />).toBlob();
+  const finalFileName = buildPdfFileName(fileName);
+  const pdfFile = new File([blob], finalFileName, {
+    type: "application/pdf",
+  });
 
-  const safeName =
-    fileName ||
-    `combo-${(data.agenciaNombre || "agencia")
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/gi, "")}.pdf`;
-
-  const file = new File([blob], safeName, { type: "application/pdf" });
+  const message =
+    whatsappMessage?.trim() ||
+    `Hola, te comparto la propuesta mensual de paquetes para ${
+      data.agenciaNombre || "la agencia"
+    }.`;
 
   const nav = navigator as Navigator & {
-    canShare?: (data: ShareData) => boolean;
+    canShare?: (data: { files?: File[] }) => boolean;
+    share?: (data: {
+      files?: File[];
+      text?: string;
+      title?: string;
+    }) => Promise<void>;
   };
 
-  if (nav.share && nav.canShare?.({ files: [file] })) {
-    await nav.share({
-      title: "Combo comercial Liqui Moly",
-      text,
-      files: [file],
-    });
+  try {
+    if (nav.share && nav.canShare?.({ files: [pdfFile] })) {
+      await nav.share({
+        title: "Propuesta mensual Liqui Moly",
+        text: message,
+        files: [pdfFile],
+      });
 
-    return { sharedDirectly: true };
+      return { sharedDirectly: true };
+    }
+  } catch (error) {
+    console.error("No se pudo compartir directo con Web Share API:", error);
   }
 
-  await descargarComboPDF(data, safeName);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = finalFileName;
+  link.click();
 
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-  window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1500);
+
+  const waUrl = `https://wa.me/?text=${sanitizeWhatsappText(message)}`;
+  window.open(waUrl, "_blank");
 
   return { sharedDirectly: false };
 }
