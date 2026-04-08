@@ -9,7 +9,7 @@ import {
   query,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { useAuth } from '@/lib/useAuth';
+import { useAuth } from '@/context/AuthProvider';
 
 type SyncState = 'OFFLINE' | 'PENDING' | 'SYNCING' | 'UP_TO_DATE';
 

@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import SplashScreen from "@/components/SplashScreen";
 import "./globals.css";
 import ConnectionStatus from "@/components/ConnectionStatus";
@@ -12,6 +11,7 @@ import FirestoreSyncStatus from "@/components/FirestoreSyncStatus";
 import LogoutButton from "@/components/auth/LogoutButton";
 import { FirebaseClientProvider } from "@/firebase/client-provider";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { useAuth } from "@/context/AuthProvider";
 
 import {
   Home,
@@ -54,6 +54,8 @@ const menuItems = [
   { href: "/flotillas", label: "Flotillas", icon: Truck },
 ];
 
+const PUBLIC_ROUTES = ["/login", "/sign-up"];
+
 function getPageTitle(pathname: string) {
   const item = menuItems.find((item) => pathname.startsWith(item.href));
   return item?.label ?? "Liqui Moly Sales Hub";
@@ -65,8 +67,14 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
   const [showSplash, setShowSplash] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const isAuthPage = PUBLIC_ROUTES.includes(pathname);
+  const currentTitle = getPageTitle(pathname);
 
   useEffect(() => {
     const seen = localStorage.getItem("splashSeen");
@@ -80,8 +88,44 @@ export default function AppLayout({
     setSidebarOpen(false);
   }, [pathname]);
 
-  const isAuthPage = pathname === "/login" || pathname === "/sign-up";
-  const currentTitle = getPageTitle(pathname);
+  useEffect(() => {
+    if (loading) return;
+
+    if (!user && !isAuthPage) {
+      router.replace("/login");
+      return;
+    }
+
+    if (user && isAuthPage) {
+      router.replace("/dashboard");
+    }
+  }, [user, loading, isAuthPage, router]);
+
+  if (loading) {
+    return (
+      <FirebaseClientProvider>
+        <ToastProvider>
+          <ConnectionStatus />
+          <FirestoreSyncStatus />
+          <div className="flex min-h-screen items-center justify-center bg-background p-6">
+            <p className="text-sm text-muted-foreground">Cargando...</p>
+          </div>
+        </ToastProvider>
+      </FirebaseClientProvider>
+    );
+  }
+
+  if (!user && !isAuthPage) {
+    return (
+      <FirebaseClientProvider>
+        <ToastProvider>
+          <ConnectionStatus />
+          <FirestoreSyncStatus />
+          <div className="min-h-screen bg-background" />
+        </ToastProvider>
+      </FirebaseClientProvider>
+    );
+  }
 
   if (isAuthPage) {
     return (
@@ -151,7 +195,8 @@ export default function AppLayout({
             <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
               {menuItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive =
+                  pathname === item.href || pathname.startsWith(`${item.href}/`);
 
                 return (
                   <Link

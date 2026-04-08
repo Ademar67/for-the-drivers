@@ -7,7 +7,9 @@ type AppLayoutProps = {
 export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <AuthGate>
-      <div className="min-h-screen">{children}</div>
+      <div className="min-h-screen bg-background">
+        {children}
+      </div>
     </AuthGate>
   );
 }

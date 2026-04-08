@@ -1,8 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { crearCliente } from '@/lib/firestore/clientes';
+import { addDoc, collection, Timestamp } from 'firebase/firestore';
+import { db } from '@/firebase/config';
 import { geocodificarDireccion } from '@/lib/geocoding';
+import { useAuth } from '@/context/AuthProvider';
 
 export default function CrearClienteModal({
   open,
@@ -11,6 +13,7 @@ export default function CrearClienteModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
@@ -42,6 +45,11 @@ export default function CrearClienteModal({
 
   async function guardar() {
     try {
+      if (!user) {
+        alert('Debes iniciar sesión para guardar clientes.');
+        return;
+      }
+
       setLoading(true);
 
       let lat: number | null = null;
@@ -51,6 +59,16 @@ export default function CrearClienteModal({
       const domicilioLimpio = form.domicilio.trim();
       const ciudadLimpia = form.ciudad.trim();
       const notaLimpia = form.nota.trim();
+
+      if (!nombreLimpio) {
+        alert('Escribe el nombre del cliente.');
+        return;
+      }
+
+      if (!ciudadLimpia) {
+        alert('Escribe la ciudad del cliente.');
+        return;
+      }
 
       if (domicilioLimpio && ciudadLimpia) {
         try {
@@ -62,7 +80,10 @@ export default function CrearClienteModal({
 
           if (!coords) {
             const direccionFallback = `${ciudadLimpia}, Michoacán, México`;
-            console.warn('Falló dirección exacta. Intentando fallback con ciudad:', direccionFallback);
+            console.warn(
+              'Falló dirección exacta. Intentando fallback con ciudad:',
+              direccionFallback
+            );
 
             coords = await geocodificarDireccion(direccionFallback);
           }
@@ -78,22 +99,41 @@ export default function CrearClienteModal({
         console.warn('No se intentó geocodificar porque falta domicilio o ciudad.');
       }
 
+      console.log('USER UID:', user?.uid);
+      console.log('USER EMAIL:', user?.email);
       console.log('Lat final:', lat);
       console.log('Lng final:', lng);
+      console.log('DB LISTA PARA GUARDAR');
 
-      await crearCliente({
+      const docRef = await addDoc(collection(db, 'clientes'), {
+        ownerId: user.uid,
+        ownerEmail: user.email ?? '',
+
         nombre: nombreLimpio,
         tipo: form.tipo,
         tipoZona: form.tipoZona,
         ciudad: ciudadLimpia,
         domicilio: domicilioLimpio,
+
         diaVisita: form.diaVisita,
         frecuencia: form.frecuencia,
         semanaVisita: form.semanaVisita,
+
         nota: notaLimpia,
+        notaVisita: notaLimpia,
+        notas: '',
+
+        activo: form.tipo !== 'inactivo',
         lat,
         lng,
+
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
       });
+
+      console.log('CLIENTE GUARDADO OK');
+      console.log('DOC ID:', docRef.id);
+      alert('Cliente guardado correctamente');
 
       setForm({
         nombre: '',
@@ -108,55 +148,50 @@ export default function CrearClienteModal({
       });
 
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('ERROR AL GUARDAR CLIENTE:', error);
-
-      alert(
-        error instanceof Error
-          ? error.message
-          : 'Error desconocido al guardar cliente'
-      );
+      alert(error?.message ?? 'Error desconocido al guardar cliente');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg w-[420px] space-y-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-[420px] space-y-3 rounded-lg bg-white p-6">
         <h2 className="text-lg font-semibold">Agregar cliente</h2>
 
         <input
           placeholder="Nombre"
-          className="w-full border p-2 rounded"
+          className="w-full rounded border p-2"
           value={form.nombre}
           onChange={(e) => setForm({ ...form, nombre: e.target.value })}
         />
 
         <input
           placeholder="Ciudad"
-          className="w-full border p-2 rounded"
+          className="w-full rounded border p-2"
           value={form.ciudad}
           onChange={(e) => setForm({ ...form, ciudad: e.target.value })}
         />
 
         <input
           placeholder="Domicilio"
-          className="w-full border p-2 rounded"
+          className="w-full rounded border p-2"
           value={form.domicilio}
           onChange={(e) => setForm({ ...form, domicilio: e.target.value })}
         />
 
         <textarea
           placeholder="Nota de la visita"
-          className="w-full border p-2 rounded"
+          className="w-full rounded border p-2"
           rows={3}
           value={form.nota}
           onChange={(e) => setForm({ ...form, nota: e.target.value })}
         />
 
         <select
-          className="w-full border p-2 rounded"
+          className="w-full rounded border p-2"
           value={form.tipo}
           onChange={(e) =>
             setForm({ ...form, tipo: e.target.value as typeof form.tipo })
@@ -168,7 +203,7 @@ export default function CrearClienteModal({
         </select>
 
         <select
-          className="w-full border p-2 rounded"
+          className="w-full rounded border p-2"
           value={form.tipoZona}
           onChange={(e) =>
             handleTipoZonaChange(e.target.value as 'local' | 'foraneo')
@@ -179,7 +214,7 @@ export default function CrearClienteModal({
         </select>
 
         <select
-          className="w-full border p-2 rounded"
+          className="w-full rounded border p-2"
           value={form.diaVisita}
           onChange={(e) => setForm({ ...form, diaVisita: e.target.value })}
         >
@@ -192,7 +227,7 @@ export default function CrearClienteModal({
         </select>
 
         <select
-          className="w-full border p-2 rounded"
+          className="w-full rounded border p-2"
           value={form.frecuencia}
           onChange={(e) => setForm({ ...form, frecuencia: e.target.value })}
         >
@@ -200,7 +235,7 @@ export default function CrearClienteModal({
         </select>
 
         <select
-          className="w-full border p-2 rounded"
+          className="w-full rounded border p-2"
           value={form.semanaVisita}
           onChange={(e) =>
             setForm({ ...form, semanaVisita: Number(e.target.value) })
@@ -219,7 +254,7 @@ export default function CrearClienteModal({
           </button>
           <button
             onClick={guardar}
-            className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
+            className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-60"
             disabled={loading}
           >
             {loading ? 'Guardando...' : 'Guardar'}

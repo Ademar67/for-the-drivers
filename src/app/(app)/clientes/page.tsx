@@ -18,6 +18,7 @@ import { db } from '@/firebase/config';
 import type { ClienteFS } from '@/lib/firestore/clientes';
 import { eliminarCliente } from '@/lib/firestore/clientes';
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
+import { useAuth } from '@/context/AuthProvider';
 import {
   Calendar,
   Trash2,
@@ -89,6 +90,8 @@ function getZonaBadgeClasses(zona?: string) {
 }
 
 export default function ClientesPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -97,8 +100,20 @@ export default function ClientesPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      setClientes([]);
+      setLoading(false);
+      return;
+    }
+
     const clientesRef = collection(db, 'clientes');
-    const q = query(clientesRef, orderBy('createdAt', 'desc'));
+    const q = query(
+      clientesRef,
+      where('ownerId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
 
     const unsub = onSnapshot(
       q,
@@ -122,7 +137,7 @@ export default function ClientesPage() {
     );
 
     return () => unsub();
-  }, []);
+  }, [user, authLoading]);
 
   const clientesFiltrados = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
@@ -285,6 +300,14 @@ export default function ClientesPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!user) {
+      alert('Debes iniciar sesión para importar clientes.');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
     try {
       setImportando(true);
 
@@ -333,6 +356,7 @@ export default function ClientesPage() {
 
         const clienteExistenteQuery = query(
           collection(db, 'clientes'),
+          where('ownerId', '==', user.uid),
           where('nombre', '==', nombre)
         );
         const clienteExistenteSnap = await getDocs(clienteExistenteQuery);
@@ -348,6 +372,8 @@ export default function ClientesPage() {
         }
 
         await addDoc(collection(db, 'clientes'), {
+          ownerId: user.uid,
+          ownerEmail: user.email ?? '',
           nombre,
           ciudad,
           domicilio,
@@ -368,6 +394,7 @@ export default function ClientesPage() {
           lat,
           lng,
           createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
         });
 
         creados++;
@@ -384,6 +411,21 @@ export default function ClientesPage() {
       }
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Image
+          src="/liquimoly-logo-v4.png"
+          alt="Cargando..."
+          width={128}
+          height={128}
+          className="animate-pulse"
+          priority
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -407,7 +449,7 @@ export default function ClientesPage() {
           <Button
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
-            disabled={importando}
+            disabled={importando || !user}
             className="rounded-xl"
           >
             <Upload className="mr-2 h-4 w-4" />
@@ -419,7 +461,7 @@ export default function ClientesPage() {
             Exportar CSV
           </Button>
 
-          <Button onClick={() => setOpen(true)} className="rounded-xl">
+          <Button onClick={() => setOpen(true)} className="rounded-xl" disabled={!user}>
             + Agregar cliente
           </Button>
         </div>

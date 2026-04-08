@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import AppLayout from "./AppLayout";
+import { AuthProvider } from "@/context/AuthProvider";
 
 export const metadata: Metadata = {
   title: "Liqui Moly Sales Hub",
@@ -31,7 +32,9 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <AppLayout>{children}</AppLayout>
+        <AuthProvider>
+          <AppLayout>{children}</AppLayout>
+        </AuthProvider>
       </body>
     </html>
   );
