@@ -7,8 +7,10 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  query,
   serverTimestamp,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import {
   Building2,
@@ -37,6 +39,7 @@ import {
 } from "lucide-react";
 
 import { db } from "@/firebase/config";
+import { useAuth } from "@/context/AuthProvider";
 import { Button } from "@/components/ui/button";
 import {
   compartirComboPdf,
@@ -59,6 +62,8 @@ type PotencialAgencia = "bajo" | "medio" | "alto";
 
 type Agencia = {
   id: string;
+  ownerId?: string;
+  ownerEmail?: string;
   nombre: string;
   marca: string;
   contacto: string;
@@ -69,6 +74,7 @@ type Agencia = {
   potencial: PotencialAgencia;
   notas: string;
   createdAt?: any;
+  updatedAt?: any;
 };
 
 type FormData = {
@@ -267,6 +273,8 @@ function badgePotencial(potencial: PotencialAgencia) {
 }
 
 export default function AgenciasPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [agencias, setAgencias] = useState<Agencia[]>([]);
   const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
@@ -290,6 +298,14 @@ export default function AgenciasPage() {
   const [saveProposalLoading, setSaveProposalLoading] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      setAgencias([]);
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
 
     const cargarAgencias = async () => {
@@ -297,7 +313,8 @@ export default function AgenciasPage() {
 
       try {
         const agenciasRef = collection(db, "agencias");
-        const snapshot = await getDocs(agenciasRef);
+        const q = query(agenciasRef, where("ownerId", "==", user.uid));
+        const snapshot = await getDocs(q);
 
         if (!mounted) return;
 
@@ -306,6 +323,8 @@ export default function AgenciasPage() {
 
           return {
             id: ds.id,
+            ownerId: d.ownerId ?? "",
+            ownerEmail: d.ownerEmail ?? "",
             nombre: d.nombre ?? "",
             marca: d.marca ?? "",
             contacto: d.contacto ?? "",
@@ -316,6 +335,7 @@ export default function AgenciasPage() {
             potencial: (d.potencial ?? "medio") as PotencialAgencia,
             notas: d.notas ?? "",
             createdAt: d.createdAt,
+            updatedAt: d.updatedAt,
           };
         });
 
@@ -342,7 +362,7 @@ export default function AgenciasPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user, authLoading]);
 
   const agenciasFiltradas = useMemo(() => {
     return agencias.filter((a) => {
@@ -669,6 +689,11 @@ export default function AgenciasPage() {
   };
 
   const handleCreate = async () => {
+    if (!user) {
+      alert("Debes iniciar sesión para crear agencias.");
+      return;
+    }
+
     if (!form.nombre.trim()) {
       alert("El nombre de la agencia es obligatorio.");
       return;
@@ -678,12 +703,47 @@ export default function AgenciasPage() {
 
     try {
       await addDoc(collection(db, "agencias"), {
+        ownerId: user.uid,
+        ownerEmail: user.email ?? "",
         ...form,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       setForm(initialForm);
       setOpenModal(false);
+
+      const q = query(collection(db, "agencias"), where("ownerId", "==", user.uid));
+      const snapshot = await getDocs(q);
+      const data: Agencia[] = snapshot.docs.map((ds) => {
+        const d: any = ds.data();
+        return {
+          id: ds.id,
+          ownerId: d.ownerId ?? "",
+          ownerEmail: d.ownerEmail ?? "",
+          nombre: d.nombre ?? "",
+          marca: d.marca ?? "",
+          contacto: d.contacto ?? "",
+          telefono: d.telefono ?? "",
+          correo: d.correo ?? "",
+          ciudad: d.ciudad ?? "",
+          estatus: (d.estatus ?? "prospecto") as EstatusAgencia,
+          potencial: (d.potencial ?? "medio") as PotencialAgencia,
+          notas: d.notas ?? "",
+          createdAt: d.createdAt,
+          updatedAt: d.updatedAt,
+        };
+      });
+
+      data.sort((a, b) => {
+        const aTime =
+          typeof a.createdAt?.toMillis === "function" ? a.createdAt.toMillis() : 0;
+        const bTime =
+          typeof b.createdAt?.toMillis === "function" ? b.createdAt.toMillis() : 0;
+        return bTime - aTime;
+      });
+
+      setAgencias(data);
     } catch (error) {
       console.error("Error creando agencia:", error);
       alert("No se pudo crear la agencia.");
@@ -708,6 +768,11 @@ export default function AgenciasPage() {
   };
 
   const saveEdit = async (id: string) => {
+    if (!user) {
+      alert("Debes iniciar sesión para editar agencias.");
+      return;
+    }
+
     if (!editingForm.nombre.trim()) {
       alert("El nombre de la agencia es obligatorio.");
       return;
@@ -716,7 +781,23 @@ export default function AgenciasPage() {
     try {
       await updateDoc(doc(db, "agencias", id), {
         ...editingForm,
+        ownerId: user.uid,
+        ownerEmail: user.email ?? "",
+        updatedAt: serverTimestamp(),
       });
+
+      setAgencias((prev) =>
+        prev.map((agencia) =>
+          agencia.id === id
+            ? {
+                ...agencia,
+                ...editingForm,
+                ownerId: user.uid,
+                ownerEmail: user.email ?? "",
+              }
+            : agencia
+        )
+      );
 
       setEditingId(null);
       setEditingForm(initialForm);
@@ -727,16 +808,26 @@ export default function AgenciasPage() {
   };
 
   const removeAgencia = async (id: string, nombre: string) => {
+    if (!user) {
+      alert("Debes iniciar sesión para eliminar agencias.");
+      return;
+    }
+
     const ok = window.confirm(`¿Seguro que quieres eliminar la agencia "${nombre}"?`);
     if (!ok) return;
 
     try {
       await deleteDoc(doc(db, "agencias", id));
+      setAgencias((prev) => prev.filter((agencia) => agencia.id !== id));
     } catch (error) {
       console.error("Error eliminando agencia:", error);
       alert("No se pudo eliminar la agencia.");
     }
   };
+
+  if (authLoading) {
+    return <div className="space-y-6">Cargando agencias...</div>;
+  }
 
   return (
     <div className="space-y-6">

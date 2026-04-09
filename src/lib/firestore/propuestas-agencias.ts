@@ -2,12 +2,11 @@ import {
   addDoc,
   collection,
   getDocs,
-  orderBy,
   query,
   serverTimestamp,
   where,
 } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { db, auth } from "@/lib/firebase";
 
 export type PropuestaAgenciaItem = {
   nombre: string;
@@ -23,6 +22,8 @@ export type PropuestaAgenciaItem = {
 
 export type PropuestaAgencia = {
   id?: string;
+  ownerId?: string;
+  ownerEmail?: string;
   agenciaId: string;
   agenciaNombre: string;
   nombrePropuesta: string;
@@ -36,30 +37,62 @@ export type PropuestaAgencia = {
   margenBrutoPct: number;
   ticketPromedio: number;
   createdAt?: any;
+  updatedAt?: any;
 };
 
+function getCurrentUserOrThrow() {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("Debes iniciar sesión.");
+  }
+
+  return user;
+}
+
 export async function crearPropuestaAgencia(
-  payload: Omit<PropuestaAgencia, "id" | "createdAt">
+  payload: Omit<
+    PropuestaAgencia,
+    "id" | "ownerId" | "ownerEmail" | "createdAt" | "updatedAt"
+  >
 ) {
+  const user = getCurrentUserOrThrow();
+
   const ref = await addDoc(collection(db, "propuestas_agencias"), {
+    ownerId: user.uid,
+    ownerEmail: user.email ?? "",
     ...payload,
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
 
   return ref.id;
 }
 
 export async function obtenerPropuestasPorAgencia(agenciaId: string) {
+  const user = getCurrentUserOrThrow();
+
   const q = query(
     collection(db, "propuestas_agencias"),
-    where("agenciaId", "==", agenciaId),
-    orderBy("createdAt", "desc")
+    where("ownerId", "==", user.uid),
+    where("agenciaId", "==", agenciaId)
   );
 
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map((docSnap) => ({
+  const data = snapshot.docs.map((docSnap) => ({
     id: docSnap.id,
-    ...docSnap.data(),
+    ...(docSnap.data() as Omit<PropuestaAgencia, "id">),
   })) as PropuestaAgencia[];
+
+  data.sort((a, b) => {
+    const aTime =
+      typeof a.createdAt?.toMillis === "function" ? a.createdAt.toMillis() : 0;
+    const bTime =
+      typeof b.createdAt?.toMillis === "function" ? b.createdAt.toMillis() : 0;
+
+    return bTime - aTime;
+  });
+
+  return data;
 }

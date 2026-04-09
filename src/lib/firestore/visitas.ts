@@ -5,46 +5,63 @@ import {
   doc,
   getDocs,
   onSnapshot,
-  orderBy,
   query,
   serverTimestamp,
   updateDoc,
+  where,
+  orderBy,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 
 export type VisitaTipo = "visita" | "cotizacion" | "cobranza" | "seguimiento";
 export type VisitaEstado = "pendiente" | "realizada";
 
 export type Visita = {
   id?: string;
+  ownerId?: string;
+  ownerEmail?: string;
   clienteId: string;
   cliente: string;
-
-  // Nota: en tu UI "fecha" la tratas como string YYYY-MM-DD
   fecha: string;
   hora: string;
-
   tipo: VisitaTipo;
   notas?: string;
-
   estado: VisitaEstado;
-
   createdAt?: any;
   updatedAt?: any;
-
   fechaRealizada?: any;
 };
 
-export async function crearVisita(visita: Omit<Visita, "id">) {
+function getCurrentUserOrThrow() {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("Debes iniciar sesión.");
+  }
+
+  return user;
+}
+
+export async function crearVisita(visita: Omit<Visita, "id" | "ownerId" | "ownerEmail">) {
+  const user = getCurrentUserOrThrow();
+
   await addDoc(collection(db, "visitas"), {
     ...visita,
+    ownerId: user.uid,
+    ownerEmail: user.email ?? "",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 }
 
 export function listenVisitas(setVisitas: (visitas: Visita[]) => void) {
-  const q = query(collection(db, "visitas"), orderBy("fecha", "desc"));
+  const user = getCurrentUserOrThrow();
+
+  const q = query(
+    collection(db, "visitas"),
+    where("ownerId", "==", user.uid),
+    orderBy("fecha", "desc")
+  );
 
   return onSnapshot(q, (snap) => {
     const data: Visita[] = snap.docs.map((d) => ({
@@ -56,7 +73,14 @@ export function listenVisitas(setVisitas: (visitas: Visita[]) => void) {
 }
 
 export async function obtenerVisitas() {
-  const q = query(collection(db, "visitas"), orderBy("fecha", "desc"));
+  const user = getCurrentUserOrThrow();
+
+  const q = query(
+    collection(db, "visitas"),
+    where("ownerId", "==", user.uid),
+    orderBy("fecha", "desc")
+  );
+
   const snap = await getDocs(q);
 
   return snap.docs.map((d) => ({
@@ -66,11 +90,15 @@ export async function obtenerVisitas() {
 }
 
 export async function eliminarVisita(id?: string) {
+  getCurrentUserOrThrow();
+
   if (!id) throw new Error("Se requiere un ID de visita para eliminarla.");
   await deleteDoc(doc(db, "visitas", id));
 }
 
 export async function marcarVisitaRealizada(id: string, nota?: string) {
+  getCurrentUserOrThrow();
+
   if (!id) throw new Error("Se requiere un ID de visita para marcarla.");
   await updateDoc(doc(db, "visitas", id), {
     estado: "realizada",

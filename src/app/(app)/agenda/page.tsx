@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthProvider';
 import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
 import {
   crearVisita,
@@ -114,6 +115,7 @@ function getDiasAtraso(clienteId: string, ultimaVisitaMap: Map<string, Date>, ho
 }
 
 function AgendaView() {
+  const { user, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const clienteIdFromUrl = searchParams.get('clienteId');
 
@@ -132,6 +134,17 @@ function AgendaView() {
   const [denueSearchCoords, setDenueSearchCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      setClientes([]);
+      setVisitas([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
     const unsubClientes = listenClientes(setClientes);
     const unsubVisitas = listenVisitas((visitasFromDb) => {
       setVisitas(visitasFromDb);
@@ -142,7 +155,7 @@ function AgendaView() {
       unsubClientes();
       unsubVisitas();
     };
-  }, []);
+  }, [user, authLoading]);
 
   const handleSaveVisita = async (nuevaVisita: {
     clienteId: string;
@@ -161,7 +174,7 @@ function AgendaView() {
         estado: 'pendiente' as const,
       };
 
-      await crearVisita(visitaToSave as any);
+      await crearVisita(visitaToSave);
     } catch (error) {
       console.error('ERROR AL GUARDAR VISITA:', error);
       alert(error instanceof Error ? error.message : 'Error desconocido al guardar visita');
@@ -552,6 +565,10 @@ function AgendaView() {
       </div>
     </li>
   );
+
+  if (authLoading) {
+    return <div className="p-6">Cargando agenda...</div>;
+  }
 
   return (
     <div className="p-6 pb-24 md:pb-6">

@@ -1,8 +1,13 @@
-
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useMemo, useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,11 +16,24 @@ import type { ClienteFS } from '@/lib/firestore/clientes';
 interface CrearFacturaModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: any) => Promise<void>;
+  onSave: (data: {
+    folio: string;
+    clienteId: string;
+    clienteNombre?: string;
+    monto: number;
+    fecha: string;
+    fechaVencimiento: string;
+    pedidoId?: string;
+  }) => Promise<void>;
   clientes: ClienteFS[];
 }
 
-export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }: CrearFacturaModalProps) {
+export default function CrearFacturaModal({
+  isOpen,
+  onClose,
+  onSave,
+  clientes,
+}: CrearFacturaModalProps) {
   const [folio, setFolio] = useState('');
   const [clienteId, setClienteId] = useState('');
   const [monto, setMonto] = useState('');
@@ -37,29 +55,45 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!folio || !clienteId || !monto || !fecha || !fechaVencimiento) {
+
+    if (!folio.trim() || !clienteId || !monto || !fecha || !fechaVencimiento) {
       alert('Por favor completa todos los campos obligatorios.');
       return;
     }
+
+    const montoNumerico = Number(monto);
+
+    if (!Number.isFinite(montoNumerico) || montoNumerico <= 0) {
+      alert('Escribe un monto válido mayor a 0.');
+      return;
+    }
+
+    if (new Date(fechaVencimiento) < new Date(fecha)) {
+      alert('La fecha de vencimiento no puede ser menor que la fecha de emisión.');
+      return;
+    }
+
     setLoading(true);
-    const clienteSeleccionado = clientes.find(c => c.id === clienteId);
-    
+
+    const clienteSeleccionado = clientes.find((c) => c.id === clienteId);
+
     try {
-        await onSave({
-          folio,
-          clienteId,
-          clienteNombre: clienteSeleccionado?.nombre,
-          monto: parseFloat(monto),
-          fecha,
-          fechaVencimiento,
-          pedidoId: pedidoId || 'N/A',
-        });
-        resetForm();
+      await onSave({
+        folio: folio.trim(),
+        clienteId,
+        clienteNombre: clienteSeleccionado?.nombre,
+        monto: montoNumerico,
+        fecha,
+        fechaVencimiento,
+        pedidoId: pedidoId.trim() || 'N/A',
+      });
+
+      resetForm();
     } catch (error) {
-        console.error("Error al guardar la factura:", error);
-        // Opcional: mostrar un mensaje de error al usuario
+      console.error('Error al guardar la factura:', error);
+      alert('No se pudo guardar la factura.');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -67,24 +101,28 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
     if (loading) return;
     resetForm();
     onClose();
-  }
+  };
 
   const clientesFiltrados = useMemo(() => {
-    if (!filtroCliente) {
+    const termino = filtroCliente.trim().toLowerCase();
+
+    if (!termino) {
       return clientes;
     }
-    return clientes.filter(cliente =>
-      cliente.nombre.toLowerCase().includes(filtroCliente.toLowerCase())
+
+    return clientes.filter((cliente) =>
+      String(cliente.nombre ?? '').toLowerCase().includes(termino)
     );
   }, [clientes, filtroCliente]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Crear Nueva Factura</DialogTitle>
           </DialogHeader>
+
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="folio" className="text-right">
@@ -124,18 +162,20 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
                 name="cliente"
                 value={clienteId}
                 onChange={(e) => setClienteId(e.target.value)}
-                className="col-span-3 w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="col-span-3 h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 required
               >
-                <option value="" disabled>Selecciona un cliente</option>
-                {clientesFiltrados.map(cliente => (
+                <option value="" disabled>
+                  Selecciona un cliente
+                </option>
+                {clientesFiltrados.map((cliente) => (
                   <option key={cliente.id} value={cliente.id}>
                     {cliente.nombre}
                   </option>
                 ))}
               </select>
             </div>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="monto" className="text-right">
                 Monto
@@ -143,6 +183,8 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
               <Input
                 id="monto"
                 type="number"
+                min="0"
+                step="0.01"
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
                 className="col-span-3"
@@ -150,6 +192,7 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
                 required
               />
             </div>
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="fecha" className="text-right">
                 Fecha Emisión
@@ -163,6 +206,7 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
                 required
               />
             </div>
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="fechaVencimiento" className="text-right">
                 Vencimiento
@@ -176,7 +220,8 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
                 required
               />
             </div>
-             <div className="grid grid-cols-4 items-center gap-4">
+
+            <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="pedidoId" className="text-right">
                 Pedido (ID)
               </Label>
@@ -189,8 +234,14 @@ export default function CrearFacturaModal({ isOpen, onClose, onSave, clientes }:
               />
             </div>
           </div>
+
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={loading}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>

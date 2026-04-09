@@ -15,9 +15,16 @@ import {
   Sparkles,
   Filter,
 } from 'lucide-react';
+import {
+  collection,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
+import { db } from '@/firebase/config';
+import { useAuth } from '@/context/AuthProvider';
 
 import {
-  listenClientes,
   ClienteFS,
   cambiarTipoCliente,
   eliminarCliente,
@@ -25,7 +32,7 @@ import {
   programarSeguimientoProspecto,
 } from '@/lib/firestore/clientes';
 
-import { obtenerVisitas, Visita } from '@/lib/firestore/visitas';
+import type { Visita } from '@/lib/firestore/visitas';
 import { cn } from '@/lib/utils';
 
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
@@ -167,6 +174,8 @@ function inicioDelDia(fecha = new Date()) {
 /* ------------------ página ------------------ */
 
 export default function ProspectosPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [prospectos, setProspectos] = useState<ClienteFS[]>([]);
   const [visitas, setVisitas] = useState<Visita[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,21 +193,99 @@ export default function ProspectosPage() {
   );
 
   useEffect(() => {
-    const unsub = listenClientes((clientes) => {
-      setProspectos(clientes.filter((c) => c.tipo === 'prospecto'));
+    if (authLoading) return;
+
+    if (!user) {
+      setProspectos([]);
+      setVisitas([]);
       setLoading(false);
-    });
+      return;
+    }
 
-    obtenerVisitas().then(setVisitas);
+    setLoading(true);
 
-    return () => unsub();
-  }, []);
+    const prospectosRef = collection(db, 'clientes');
+    const prospectosQuery = query(
+      prospectosRef,
+      where('ownerId', '==', user.uid),
+      where('tipo', '==', 'prospecto')
+    );
+
+    const visitasRef = collection(db, 'visitas');
+    const visitasQuery = query(visitasRef, where('ownerId', '==', user.uid));
+
+    let prospectosReady = false;
+    let visitasReady = false;
+
+    const unsubProspectos = onSnapshot(
+      prospectosQuery,
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => {
+          const d = doc.data() as Omit<ClienteFS, 'id'>;
+          return {
+            id: doc.id,
+            ...d,
+          } as ClienteFS;
+        });
+
+        data.sort((a, b) => {
+          const aTime =
+            typeof (a as any).createdAt?.toMillis === 'function'
+              ? (a as any).createdAt.toMillis()
+              : 0;
+          const bTime =
+            typeof (b as any).createdAt?.toMillis === 'function'
+              ? (b as any).createdAt.toMillis()
+              : 0;
+
+          return bTime - aTime;
+        });
+
+        setProspectos(data);
+        prospectosReady = true;
+        if (visitasReady) setLoading(false);
+      },
+      (error) => {
+        console.error('Error cargando prospectos:', error);
+        setProspectos([]);
+        prospectosReady = true;
+        if (visitasReady) setLoading(false);
+      }
+    );
+
+    const unsubVisitas = onSnapshot(
+      visitasQuery,
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<Visita, 'id'>),
+        })) as Visita[];
+
+        setVisitas(data);
+        visitasReady = true;
+        if (prospectosReady) setLoading(false);
+      },
+      (error) => {
+        console.error('Error cargando visitas:', error);
+        setVisitas([]);
+        visitasReady = true;
+        if (prospectosReady) setLoading(false);
+      }
+    );
+
+    return () => {
+      unsubProspectos();
+      unsubVisitas();
+    };
+  }, [user, authLoading]);
 
   const ultimaVisitaMap = useMemo(() => {
     const map = new Map<string, Date>();
 
     visitas.forEach((v) => {
       const d = new Date(v.fecha);
+      if (Number.isNaN(d.getTime())) return;
+
       const actual = map.get(v.clienteId);
       if (!actual || d > actual) map.set(v.clienteId, d);
     });
@@ -333,6 +420,14 @@ export default function ProspectosPage() {
       setSeguimientoId(null);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
+        <p className="italic text-slate-500">Cargando prospectos...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

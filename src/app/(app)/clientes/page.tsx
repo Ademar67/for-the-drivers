@@ -12,7 +12,6 @@ import {
   query,
   where,
   Timestamp,
-  orderBy,
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import type { ClienteFS } from '@/lib/firestore/clientes';
@@ -109,11 +108,7 @@ export default function ClientesPage() {
     }
 
     const clientesRef = collection(db, 'clientes');
-    const q = query(
-      clientesRef,
-      where('ownerId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
+    const q = query(clientesRef, where('ownerId', '==', user.uid));
 
     const unsub = onSnapshot(
       q,
@@ -124,6 +119,19 @@ export default function ClientesPage() {
             id: doc.id,
             ...d,
           } as ClienteFS;
+        });
+
+        data.sort((a, b) => {
+          const aTime =
+            typeof (a as any).createdAt?.toMillis === 'function'
+              ? (a as any).createdAt.toMillis()
+              : 0;
+          const bTime =
+            typeof (b as any).createdAt?.toMillis === 'function'
+              ? (b as any).createdAt.toMillis()
+              : 0;
+
+          return bTime - aTime;
         });
 
         setClientes(data);

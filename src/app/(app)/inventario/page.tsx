@@ -15,6 +15,7 @@ import {
 
 import { stores } from "@/lib/stores";
 import { db } from "@/firebase/config";
+import { useAuth } from "@/context/AuthProvider";
 
 type ChainOption = "AutoZone" | "OReilly" | "Liverpool" | "";
 
@@ -58,6 +59,8 @@ type InventarioConstruido = {
 
 type InventarioFirestore = {
   id: string;
+  ownerId?: string;
+  ownerEmail?: string;
   nombre: string;
   fecha: string;
   observacionesGenerales?: string;
@@ -95,6 +98,8 @@ function createVisitRow(): VisitRow {
 }
 
 export default function InventarioPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [nombre, setNombre] = useState("");
   const [fecha, setFecha] = useState(formatToday());
   const [observacionesGenerales, setObservacionesGenerales] = useState("");
@@ -374,6 +379,11 @@ export default function InventarioPage() {
   }
 
   async function handleCargarInventarioDelDia() {
+    if (!user) {
+      alert("Debes iniciar sesión para cargar inventarios.");
+      return;
+    }
+
     if (!nombre.trim()) {
       alert("Escribe tu nombre para buscar tu inventario del día.");
       return;
@@ -389,6 +399,7 @@ export default function InventarioPage() {
 
       const q = query(
         collection(db, "inventarios"),
+        where("ownerId", "==", user.uid),
         where("nombre", "==", nombre.trim()),
         where("fecha", "==", fecha)
       );
@@ -447,6 +458,11 @@ export default function InventarioPage() {
   }
 
   async function handleGuardarFirebase() {
+    if (!user) {
+      alert("Debes iniciar sesión para guardar inventarios.");
+      return;
+    }
+
     const inventario = construirInventario();
 
     if (!inventario.nombre) {
@@ -472,6 +488,7 @@ export default function InventarioPage() {
       if (!registroId) {
         const q = query(
           collection(db, "inventarios"),
+          where("ownerId", "==", user.uid),
           where("nombre", "==", inventario.nombre),
           where("fecha", "==", inventario.fecha)
         );
@@ -487,6 +504,7 @@ export default function InventarioPage() {
       if (registroId) {
         const q = query(
           collection(db, "inventarios"),
+          where("ownerId", "==", user.uid),
           where("nombre", "==", inventario.nombre),
           where("fecha", "==", inventario.fecha)
         );
@@ -495,6 +513,8 @@ export default function InventarioPage() {
 
         if (!snap.empty) {
           await updateDoc(snap.docs[0].ref, {
+            ownerId: user.uid,
+            ownerEmail: user.email ?? "",
             nombre: inventario.nombre,
             fecha: inventario.fecha,
             observacionesGenerales: inventario.observacionesGenerales,
@@ -518,6 +538,8 @@ export default function InventarioPage() {
       }
 
       const nuevoDoc = await addDoc(collection(db, "inventarios"), {
+        ownerId: user.uid,
+        ownerEmail: user.email ?? "",
         nombre: inventario.nombre,
         fecha: inventario.fecha,
         observacionesGenerales: inventario.observacionesGenerales,
@@ -653,6 +675,16 @@ export default function InventarioPage() {
     doc.save(`reporte-inventario-diario-${fechaArchivo}.pdf`);
   }
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+        <div className="mx-auto max-w-7xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          Cargando inventario...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="mx-auto max-w-7xl">
@@ -720,7 +752,7 @@ export default function InventarioPage() {
               <button
                 type="button"
                 onClick={handleCargarInventarioDelDia}
-                disabled={cargandoInventarioDia}
+                disabled={cargandoInventarioDia || !user}
                 className="rounded-xl border border-blue-300 bg-blue-50 px-5 py-3 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {cargandoInventarioDia
@@ -1046,7 +1078,7 @@ export default function InventarioPage() {
               <button
                 type="button"
                 onClick={handleGuardarFirebase}
-                disabled={guardandoFirebase}
+                disabled={guardandoFirebase || !user}
                 className="rounded-xl bg-green-600 px-5 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {guardandoFirebase ? "Guardando..." : "Guardar en sistema"}

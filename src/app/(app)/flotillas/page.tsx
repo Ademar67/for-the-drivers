@@ -7,12 +7,13 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  orderBy,
   query,
   serverTimestamp,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
+import { useAuth } from "@/context/AuthProvider";
 
 type FlotillaEstado = "Prospecto" | "Seguimiento" | "Activo";
 type FiltroEstado = "Todos" | FlotillaEstado;
@@ -27,6 +28,8 @@ type Unidad = {
 
 type Flotilla = {
   id?: string;
+  ownerId?: string;
+  ownerEmail?: string;
   empresa: string;
   contacto: string;
   operativo: string;
@@ -35,6 +38,7 @@ type Flotilla = {
   estado: FlotillaEstado;
   unidadesDetalle: Unidad[];
   createdAt?: unknown;
+  updatedAt?: unknown;
 };
 
 const unidadVacia: Unidad = {
@@ -70,6 +74,8 @@ function obtenerPrioridadEstado(estado: FlotillaEstado) {
 }
 
 export default function FlotillasPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [flotillas, setFlotillas] = useState<Flotilla[]>([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -110,23 +116,53 @@ export default function FlotillasPage() {
     useState<Unidad>(unidadVacia);
 
   async function cargarFlotillas() {
+    if (!user) {
+      setFlotillas([]);
+      setEmpresaSeleccionada(null);
+      setCargando(false);
+      return;
+    }
+
     try {
       setCargando(true);
 
       const q = query(
         collection(db, "flotillas"),
-        orderBy("createdAt", "desc")
+        where("ownerId", "==", user.uid)
       );
       const snapshot = await getDocs(q);
 
-      const data: Flotilla[] = snapshot.docs.map((docItem) => ({
-        id: docItem.id,
-        ...(docItem.data() as Omit<Flotilla, "id">),
-        operativo: (docItem.data() as Partial<Flotilla>).operativo ?? "",
-        pago: (docItem.data() as Partial<Flotilla>).pago ?? "",
-        unidadesDetalle:
-          (docItem.data() as Partial<Flotilla>).unidadesDetalle ?? [],
-      }));
+      const data: Flotilla[] = snapshot.docs.map((docItem) => {
+        const raw = docItem.data() as Partial<Flotilla>;
+
+        return {
+          id: docItem.id,
+          ownerId: raw.ownerId ?? "",
+          ownerEmail: raw.ownerEmail ?? "",
+          empresa: raw.empresa ?? "",
+          contacto: raw.contacto ?? "",
+          operativo: raw.operativo ?? "",
+          pago: raw.pago ?? "",
+          unidades: Number(raw.unidades ?? 0),
+          estado: (raw.estado ?? "Prospecto") as FlotillaEstado,
+          unidadesDetalle: raw.unidadesDetalle ?? [],
+          createdAt: raw.createdAt,
+          updatedAt: raw.updatedAt,
+        };
+      });
+
+      data.sort((a, b) => {
+        const aTime =
+          typeof (a.createdAt as any)?.toMillis === "function"
+            ? (a.createdAt as any).toMillis()
+            : 0;
+        const bTime =
+          typeof (b.createdAt as any)?.toMillis === "function"
+            ? (b.createdAt as any).toMillis()
+            : 0;
+
+        return bTime - aTime;
+      });
 
       setFlotillas(data);
 
@@ -147,8 +183,9 @@ export default function FlotillasPage() {
   }
 
   useEffect(() => {
+    if (authLoading) return;
     cargarFlotillas();
-  }, []);
+  }, [user, authLoading]);
 
   const flotillasFiltradas = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
@@ -305,6 +342,11 @@ export default function FlotillasPage() {
   }
 
   async function guardarFlotilla() {
+    if (!user) {
+      alert("Debes iniciar sesión para guardar flotillas.");
+      return;
+    }
+
     if (!nuevaFlotilla.empresa.trim() || !nuevaFlotilla.contacto.trim()) {
       alert("Completa empresa y contacto.");
       return;
@@ -314,6 +356,8 @@ export default function FlotillasPage() {
       setGuardando(true);
 
       const payload = {
+        ownerId: user.uid,
+        ownerEmail: user.email ?? "",
         empresa: nuevaFlotilla.empresa.trim(),
         contacto: nuevaFlotilla.contacto.trim(),
         operativo: nuevaFlotilla.operativo.trim(),
@@ -321,6 +365,7 @@ export default function FlotillasPage() {
         unidades: (nuevaFlotilla.unidadesDetalle ?? []).length,
         estado: nuevaFlotilla.estado,
         unidadesDetalle: nuevaFlotilla.unidadesDetalle ?? [],
+        updatedAt: serverTimestamp(),
       };
 
       if (modoEdicion && editandoId) {
@@ -329,6 +374,8 @@ export default function FlotillasPage() {
         const flotillaActualizada: Flotilla = {
           id: editandoId,
           ...payload,
+          createdAt:
+            flotillas.find((f) => f.id === editandoId)?.createdAt ?? undefined,
         };
 
         setFlotillas((prev) =>
@@ -377,6 +424,8 @@ export default function FlotillasPage() {
       unidades: flotilla.unidades ?? 0,
       estado: flotilla.estado ?? "Prospecto",
       unidadesDetalle: flotilla.unidadesDetalle ?? [],
+      ownerId: flotilla.ownerId,
+      ownerEmail: flotilla.ownerEmail,
     });
 
     setNuevaUnidad(unidadVacia);
@@ -387,6 +436,11 @@ export default function FlotillasPage() {
   }
 
   async function eliminarFlotilla(id: string) {
+    if (!user) {
+      alert("Debes iniciar sesión para eliminar flotillas.");
+      return;
+    }
+
     const confirmar = confirm("¿Seguro que quieres eliminar esta flotilla?");
     if (!confirmar) return;
 
@@ -415,7 +469,7 @@ export default function FlotillasPage() {
   }
 
   async function eliminarUnidadGuardada(index: number) {
-    if (!empresaSeleccionada?.id) return;
+    if (!user || !empresaSeleccionada?.id) return;
 
     const confirmar = confirm("¿Eliminar esta unidad?");
     if (!confirmar) return;
@@ -432,8 +486,11 @@ export default function FlotillasPage() {
       };
 
       await updateDoc(doc(db, "flotillas", empresaSeleccionada.id), {
+        ownerId: user.uid,
+        ownerEmail: user.email ?? "",
         unidadesDetalle: nuevasUnidades,
         unidades: nuevasUnidades.length,
+        updatedAt: serverTimestamp(),
       });
 
       setEmpresaSeleccionada(flotillaActualizada);
@@ -468,7 +525,7 @@ export default function FlotillasPage() {
   }
 
   async function guardarEdicionUnidadGuardada() {
-    if (!empresaSeleccionada?.id || indiceUnidadEditandoGuardada === null) {
+    if (!user || !empresaSeleccionada?.id || indiceUnidadEditandoGuardada === null) {
       return;
     }
 
@@ -498,8 +555,11 @@ export default function FlotillasPage() {
       };
 
       await updateDoc(doc(db, "flotillas", empresaSeleccionada.id), {
+        ownerId: user.uid,
+        ownerEmail: user.email ?? "",
         unidadesDetalle: nuevasUnidades,
         unidades: nuevasUnidades.length,
+        updatedAt: serverTimestamp(),
       });
 
       setEmpresaSeleccionada(flotillaActualizada);
@@ -520,7 +580,7 @@ export default function FlotillasPage() {
   }
 
   async function agregarUnidadAFichaEmpresa() {
-    if (!empresaSeleccionada?.id) return;
+    if (!user || !empresaSeleccionada?.id) return;
 
     if (!validarUnidad(nuevaUnidadGuardada)) {
       alert("Completa al menos económico, placas y tipo.");
@@ -550,8 +610,11 @@ export default function FlotillasPage() {
       };
 
       await updateDoc(doc(db, "flotillas", empresaSeleccionada.id), {
+        ownerId: user.uid,
+        ownerEmail: user.email ?? "",
         unidadesDetalle: nuevasUnidades,
         unidades: nuevasUnidades.length,
+        updatedAt: serverTimestamp(),
       });
 
       setEmpresaSeleccionada(flotillaActualizada);
@@ -569,6 +632,10 @@ export default function FlotillasPage() {
     } finally {
       setAgregandoUnidadGuardada(false);
     }
+  }
+
+  if (authLoading) {
+    return <div className="space-y-6">Cargando flotillas...</div>;
   }
 
   return (

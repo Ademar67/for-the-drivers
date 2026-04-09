@@ -12,6 +12,7 @@ import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
 import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';
 import { useToast } from '@/components/ui/toast-provider';
+import { useAuth } from '@/context/AuthProvider';
 
 interface ProductoConId extends Omit<Producto, 'codigo'> {
   id: string;
@@ -85,6 +86,8 @@ function generarCondiciones(tipo: TipoPago) {
 }
 
 export default function NuevaCotizacionPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
   const [productos, setProductos] = useState<ProductoConId[]>([]);
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string>('');
@@ -100,6 +103,13 @@ export default function NuevaCotizacionPage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      setClientes([]);
+      return;
+    }
+
     const unsub = listenClientes(setClientes);
 
     async function fetchProductos() {
@@ -121,7 +131,7 @@ export default function NuevaCotizacionPage() {
 
     fetchProductos();
     return () => unsub();
-  }, [toast]);
+  }, [toast, user, authLoading]);
 
   const clienteSeleccionado = useMemo(
     () => clientes.find((c) => c.id === clienteSeleccionadoId) || null,
@@ -213,6 +223,15 @@ export default function NuevaCotizacionPage() {
   }, [items]);
 
   const handleGuardarCotizacion = async () => {
+    if (!user) {
+      toast({
+        title: 'Debes iniciar sesión',
+        description: 'No hay sesión activa para guardar la cotización.',
+        type: 'error',
+      });
+      return;
+    }
+
     if (!clienteSeleccionadoId || items.length === 0) {
       toast({
         title: 'Faltan datos',
@@ -302,7 +321,7 @@ export default function NuevaCotizacionPage() {
         month: 'long',
         year: 'numeric',
       }),
-      asesor: 'Ademar',
+      asesor: user?.displayName || user?.email || 'Asesor Liqui Moly',
       subtotal,
       descuentos: totalDescuentos,
       total,
@@ -395,6 +414,10 @@ export default function NuevaCotizacionPage() {
       setIsSharing(false);
     }
   };
+
+  if (authLoading) {
+    return <div className="space-y-6">Cargando cotización...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -768,7 +791,7 @@ export default function NuevaCotizacionPage() {
 
             <button
               onClick={handleGuardarCotizacion}
-              disabled={items.length === 0 || !clienteSeleccionadoId}
+              disabled={items.length === 0 || !clienteSeleccionadoId || !user}
               type="button"
               className="w-full rounded-xl bg-blue-600 px-6 py-3 text-white transition-colors hover:bg-blue-700 disabled:bg-gray-400 sm:w-auto"
             >

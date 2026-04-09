@@ -5,14 +5,16 @@ import {
   collection,
   onSnapshot,
   query,
-  orderBy,
   doc,
   updateDoc,
   Timestamp,
   addDoc,
   deleteDoc,
+  where,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { useAuth } from '@/context/AuthProvider';
 import type { Factura } from '@/lib/firebase-types';
 import type { ClienteFS } from '@/lib/firestore/clientes';
 import { format } from 'date-fns';
@@ -40,6 +42,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+
+type FacturaFS = Factura & {
+  id?: string;
+  ownerId?: string;
+  ownerEmail?: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
 
 function toDateSafe(value: unknown): Date | null {
   if (!value) return null;
@@ -78,7 +88,7 @@ function montoSeguro(value: unknown) {
   return Number.isFinite(n) ? n : 0;
 }
 
-async function actualizarFacturasVencidas(facturas: Factura[]) {
+async function actualizarFacturasVencidas(facturas: FacturaFS[]) {
   const hoy = new Date();
 
   const updates = facturas
@@ -92,7 +102,10 @@ async function actualizarFacturasVencidas(facturas: Factura[]) {
       );
     })
     .map((factura) =>
-      updateDoc(doc(db, 'facturas', factura.id), { estado: 'vencida' })
+      updateDoc(doc(db, 'facturas', factura.id!), {
+        estado: 'vencida',
+        updatedAt: serverTimestamp(),
+      })
     );
 
   if (updates.length > 0) {
@@ -106,19 +119,36 @@ async function actualizarFacturasVencidas(facturas: Factura[]) {
 }
 
 export default function FacturasPage() {
-  const [facturas, setFacturas] = useState<Factura[]>([]);
+  const { user, loading: authLoading } = useAuth();
+
+  const [facturas, setFacturas] = useState<FacturaFS[]>([]);
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
   const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      setFacturas([]);
+      setClientes([]);
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     const facturasRef = collection(db, 'facturas');
     const clientesRef = collection(db, 'clientes');
 
-    const facturasQuery = query(facturasRef, orderBy('fechaVencimiento', 'asc'));
-    const clientesQuery = query(clientesRef, orderBy('nombre', 'asc'));
+    const facturasQuery = query(
+      facturasRef,
+      where('ownerId', '==', user.uid)
+    );
+    const clientesQuery = query(
+      clientesRef,
+      where('ownerId', '==', user.uid)
+    );
 
     const unsubscribeFacturas = onSnapshot(
       facturasQuery,
@@ -128,8 +158,14 @@ export default function FacturasPage() {
             ({
               id: documento.id,
               ...documento.data(),
-            }) as Factura
+            }) as FacturaFS
         );
+
+        facturasData.sort((a, b) => {
+          const aDate = toDateSafe(a.fechaVencimiento)?.getTime() ?? 0;
+          const bDate = toDateSafe(b.fechaVencimiento)?.getTime() ?? 0;
+          return aDate - bDate;
+        });
 
         if (!isMounted) return;
 
@@ -159,6 +195,12 @@ export default function FacturasPage() {
             }) as ClienteFS
         );
 
+        clientesData.sort((a, b) =>
+          String(a.nombre ?? '').localeCompare(String(b.nombre ?? ''), 'es', {
+            sensitivity: 'base',
+          })
+        );
+
         if (!isMounted) return;
         setClientes(clientesData);
       },
@@ -174,7 +216,7 @@ export default function FacturasPage() {
       unsubscribeFacturas();
       unsubscribeClientes();
     };
-  }, []);
+  }, [user, authLoading]);
 
   const handleGuardarFactura = async (data: {
     folio: string;
@@ -185,14 +227,22 @@ export default function FacturasPage() {
     fechaVencimiento: string;
     pedidoId?: string;
   }) => {
+    if (!user) {
+      alert('Debes iniciar sesión para crear facturas.');
+      return;
+    }
+
     try {
       await addDoc(collection(db, 'facturas'), {
+        ownerId: user.uid,
+        ownerEmail: user.email ?? '',
         ...data,
         monto: montoSeguro(data.monto),
         estado: 'pendiente',
         fecha: Timestamp.fromDate(new Date(data.fecha)),
         fechaVencimiento: Timestamp.fromDate(new Date(data.fechaVencimiento)),
         createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
       });
 
       setOpenModal(false);
@@ -203,9 +253,17 @@ export default function FacturasPage() {
   };
 
   const marcarComoPagada = async (id: string) => {
+    if (!user) {
+      alert('Debes iniciar sesión para actualizar facturas.');
+      return;
+    }
+
     try {
       const facturaRef = doc(db, 'facturas', id);
-      await updateDoc(facturaRef, { estado: 'pagada' });
+      await updateDoc(facturaRef, {
+        estado: 'pagada',
+        updatedAt: serverTimestamp(),
+      });
     } catch (error) {
       console.error('Error al marcar como pagada:', error);
       alert('No se pudo actualizar la factura.');
@@ -213,6 +271,11 @@ export default function FacturasPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!user) {
+      alert('Debes iniciar sesión para eliminar facturas.');
+      return;
+    }
+
     try {
       await deleteDoc(doc(db, 'facturas', id));
     } catch (error) {
@@ -244,7 +307,7 @@ export default function FacturasPage() {
     );
   }, [facturas]);
 
-  const columns: ColumnDef<Factura>[] = [
+  const columns: ColumnDef<FacturaFS>[] = [
     {
       accessorKey: 'folio',
       header: 'Folio',
@@ -269,6 +332,11 @@ export default function FacturasPage() {
         </Button>
       ),
       cell: ({ row }) => formatDateSafe(row.original.fecha),
+      sortingFn: (rowA, rowB) => {
+        const a = toDateSafe(rowA.original.fecha)?.getTime() ?? 0;
+        const b = toDateSafe(rowB.original.fecha)?.getTime() ?? 0;
+        return a - b;
+      },
     },
     {
       accessorKey: 'fechaVencimiento',
@@ -282,6 +350,11 @@ export default function FacturasPage() {
         </Button>
       ),
       cell: ({ row }) => formatDateSafe(row.original.fechaVencimiento),
+      sortingFn: (rowA, rowB) => {
+        const a = toDateSafe(rowA.original.fechaVencimiento)?.getTime() ?? 0;
+        const b = toDateSafe(rowB.original.fechaVencimiento)?.getTime() ?? 0;
+        return a - b;
+      },
     },
     {
       accessorKey: 'monto',
@@ -341,7 +414,7 @@ export default function FacturasPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => marcarComoPagada(factura.id)}
+                onClick={() => marcarComoPagada(factura.id!)}
               >
                 Marcar Pagada
               </Button>
@@ -371,7 +444,7 @@ export default function FacturasPage() {
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={() => handleDelete(factura.id)}
+                      onClick={() => handleDelete(factura.id!)}
                       className="bg-red-600 hover:bg-red-700"
                     >
                       Eliminar
@@ -386,11 +459,17 @@ export default function FacturasPage() {
     },
   ];
 
+  if (authLoading) {
+    return <div className="space-y-6">Cargando cobranza...</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Panel de Cobranza</h1>
-        <Button onClick={() => setOpenModal(true)}>+ Nueva Factura</Button>
+        <Button onClick={() => setOpenModal(true)} disabled={!user}>
+          + Nueva Factura
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

@@ -1,123 +1,172 @@
-
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import {
-  collection,
   addDoc,
-  getDocs,
-  query,
-  orderBy,
-  Timestamp,
-  serverTimestamp,
-  deleteDoc,
+  collection,
   doc,
   getDoc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
 } from 'firebase/firestore';
-import type { Cotizacion as CotizacionBase, CotizacionItem as CotizacionItemBase } from '@/lib/firebase-types';
 
-export interface CotizacionItem extends CotizacionItemBase {
-  descuentos?: number[];
-}
-
-// Extend the base type to ensure 'fecha' is a Timestamp, as it will be after fetching
-export interface Cotizacion extends Omit<CotizacionBase, 'fecha' | 'items'> {
-  id: string; // Asegurarse de que el id siempre esté presente
-  fecha: Timestamp;
-  fecha_creacion?: {
-    seconds: number;
-    nanoseconds: number;
-  };
-  items: CotizacionItem[];
-  totalDescuentos: number;
-  clienteDireccion?: string;
-  clienteTelefono?: string;
-  observaciones?: string;
-  vigenciaDias?: number;
-}
-
-type CrearCotizacionInput = {
-  clienteId: string;
-  clienteNombre: string;
-  items: {
-    productoId: string;
-    nombre: string;
-    codigo: string;
-    cantidad: number;
-    precio: number;
-    descuentos: number[];
-  }[];
-  subtotal: number;
-  total: number;
-  totalDescuentos: number;
-  observaciones: string;
-  vigenciaDias: number;
+export type CotizacionItem = {
+  productoId: string;
+  nombre: string;
+  cantidad: number;
+  precio: number;
+  codigo?: string;
+  descuentos?: [number, number, number, number];
+  subtotalLinea?: number;
+  descuentoLinea?: number;
+  totalLinea?: number;
 };
 
-export async function crearCotizacion(input: CrearCotizacionInput) {
-  const cotizacionData = {
-    ...input,
-    fecha_creacion: serverTimestamp(),
-    estado: 'pendiente' as const,
-  };
-  const docRef = await addDoc(collection(db, 'cotizaciones'), cotizacionData);
-  return docRef.id;
+export type CotizacionFS = {
+  id?: string;
+  ownerId?: string;
+  ownerEmail?: string;
+  clienteId: string;
+  clienteNombre: string;
+  items: CotizacionItem[];
+  subtotal: number;
+  total: number;
+  totalDescuentos?: number;
+  observaciones?: string;
+  vigenciaDias?: number;
+  createdAt?: any;
+  updatedAt?: any;
+};
+
+function getCurrentUserOrThrow() {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error('Debes iniciar sesión.');
+  }
+
+  return user;
 }
 
-export async function obtenerCotizaciones(): Promise<Cotizacion[]> {
-  const q = query(collection(db, 'cotizaciones'), orderBy('fecha_creacion', 'desc'));
-  const snapshot = await getDocs(q);
+export async function crearCotizacion(input: {
+  clienteId: string;
+  clienteNombre: string;
+  items: CotizacionItem[];
+  subtotal: number;
+  total: number;
+  totalDescuentos?: number;
+  observaciones?: string;
+  vigenciaDias?: number;
+}) {
+  const user = getCurrentUserOrThrow();
 
-  return snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      clienteId: data.clienteId,
-      clienteNombre: data.clienteNombre,
-      fecha: data.fecha_creacion as Timestamp, // Mantener compatibilidad
-      fecha_creacion: data.fecha_creacion, // Agregar el campo para el UI
-      subtotal: data.subtotal,
-      descuentos: data.descuentos || [],
-      total: data.total,
-      estado: data.estado,
-      items: data.items || [],
-      totalDescuentos: data.totalDescuentos,
-      observaciones: data.observaciones,
-      vigenciaDias: data.vigenciaDias,
-      clienteDireccion: data.clienteDireccion,
-      clienteTelefono: data.clienteTelefono,
-    } as Cotizacion;
+  const ref = await addDoc(collection(db, 'cotizaciones'), {
+    ownerId: user.uid,
+    ownerEmail: user.email ?? '',
+    clienteId: input.clienteId,
+    clienteNombre: input.clienteNombre,
+    items: input.items,
+    subtotal: input.subtotal,
+    total: input.total,
+    totalDescuentos: input.totalDescuentos ?? 0,
+    observaciones: input.observaciones ?? '',
+    vigenciaDias: input.vigenciaDias ?? 7,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return ref.id;
+}
+
+export function listenCotizaciones(callback: (cotizaciones: CotizacionFS[]) => void) {
+  const user = getCurrentUserOrThrow();
+
+  const q = query(
+    collection(db, 'cotizaciones'),
+    where('ownerId', '==', user.uid)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...(docSnap.data() as Omit<CotizacionFS, 'id'>),
+    })) as CotizacionFS[];
+
+    data.sort((a, b) => {
+      const aTime =
+        typeof a.createdAt?.toMillis === 'function' ? a.createdAt.toMillis() : 0;
+      const bTime =
+        typeof b.createdAt?.toMillis === 'function' ? b.createdAt.toMillis() : 0;
+
+      return bTime - aTime;
+    });
+
+    callback(data);
   });
 }
 
-export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | null> {
-  const docRef = doc(db, 'cotizaciones', id);
-  const docSnap = await getDoc(docRef);
+export async function obtenerCotizaciones() {
+  const user = getCurrentUserOrThrow();
 
-  if (!docSnap.exists()) {
-    return null;
-  }
+  const q = query(
+    collection(db, 'cotizaciones'),
+    where('ownerId', '==', user.uid)
+  );
 
-  const data = docSnap.data();
-  return {
+  const snapshot = await getDocs(q);
+
+  const data = snapshot.docs.map((docSnap) => ({
     id: docSnap.id,
-    clienteId: data.clienteId,
-    clienteNombre: data.clienteNombre,
-    fecha: data.fecha_creacion as Timestamp,
-    fecha_creacion: data.fecha_creacion,
-    subtotal: data.subtotal,
-    descuentos: data.descuentos || [],
-    total: data.total,
-    estado: data.estado,
-    items: data.items || [],
-    totalDescuentos: data.totalDescuentos,
-    observaciones: data.observaciones,
-    vigenciaDias: data.vigenciaDias,
-    clienteDireccion: data.clienteDireccion,
-    clienteTelefono: data.clienteTelefono,
-  } as Cotizacion;
+    ...(docSnap.data() as Omit<CotizacionFS, 'id'>),
+  })) as CotizacionFS[];
+
+  data.sort((a, b) => {
+    const aTime =
+      typeof a.createdAt?.toMillis === 'function' ? a.createdAt.toMillis() : 0;
+    const bTime =
+      typeof b.createdAt?.toMillis === 'function' ? b.createdAt.toMillis() : 0;
+
+    return bTime - aTime;
+  });
+
+  return data;
 }
 
+export async function obtenerCotizacionPorId(id: string) {
+  getCurrentUserOrThrow();
 
-export async function eliminarCotizacion(id: string): Promise<void> {
-  const cotizacionRef = doc(db, 'cotizaciones', id);
-  await deleteDoc(cotizacionRef);
+  if (!id) {
+    throw new Error('Falta el id de la cotización.');
+  }
+
+  const ref = doc(db, 'cotizaciones', id);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    throw new Error('La cotización no existe.');
+  }
+
+  return {
+    id: snap.id,
+    ...(snap.data() as Omit<CotizacionFS, 'id'>),
+  } as CotizacionFS;
+}
+
+export async function actualizarCotizacion(
+  id: string,
+  data: Partial<Omit<CotizacionFS, 'id' | 'ownerId' | 'ownerEmail' | 'createdAt'>>
+) {
+  getCurrentUserOrThrow();
+
+  if (!id) {
+    throw new Error('Falta el id de la cotización.');
+  }
+
+  await updateDoc(doc(db, 'cotizaciones', id), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
 }
