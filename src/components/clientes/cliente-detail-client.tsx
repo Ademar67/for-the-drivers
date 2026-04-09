@@ -17,12 +17,12 @@ import {
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import type { ClienteFS } from '@/lib/firestore/clientes';
-import type { Cotizacion } from '@/lib/firestore/cotizaciones';
+import type { CotizacionFS } from '@/lib/firestore/cotizaciones';
 import type { Visita } from '@/lib/firestore/visitas';
 
 export default function ClienteDetailClient({ id }: { id: string }) {
   const [cliente, setCliente] = useState<ClienteFS | null>(null);
-  const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
+  const [cotizaciones, setCotizaciones] = useState<CotizacionFS[]>([]);
   const [visitas, setVisitas] = useState<Visita[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +42,7 @@ export default function ClienteDetailClient({ id }: { id: string }) {
 
         const cotizacionesSnap = await getDocs(collection(db, 'cotizaciones'));
         const cotizacionesCliente = cotizacionesSnap.docs
-          .map((d) => ({ id: d.id, ...d.data() } as Cotizacion))
+          .map((d) => ({ id: d.id, ...d.data() } as CotizacionFS))
           .filter((c) => c.clienteId === id)
           .sort((a, b) => {
             const aTime = a.fecha_creacion?.seconds ?? 0;
