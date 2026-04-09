@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
 import {
   FileText,
   Phone,
@@ -16,6 +23,19 @@ import {
 import { db } from '@/lib/firebase';
 import type { ClienteFS } from '@/lib/firestore/clientes';
 import type { CotizacionFS } from '@/lib/firestore/cotizaciones';
+
+function getSecondsSafe(value: unknown): number {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'seconds' in value &&
+    typeof (value as { seconds?: unknown }).seconds === 'number'
+  ) {
+    return (value as { seconds: number }).seconds;
+  }
+
+  return 0;
+}
 
 export default function ClienteDetailClient({ id }: { id: string }) {
   const [cliente, setCliente] = useState<ClienteFS | null>(null);
@@ -36,15 +56,19 @@ export default function ClienteDetailClient({ id }: { id: string }) {
           setCliente(null);
         }
 
-        const q = collection(db, 'cotizaciones');
-        const querySnapshot = await getDocs(q);
+        const cotizacionesRef = collection(db, 'cotizaciones');
+        const cotizacionesQuery = query(
+          cotizacionesRef,
+          where('clienteId', '==', id)
+        );
+
+        const querySnapshot = await getDocs(cotizacionesQuery);
 
         const cots = querySnapshot.docs
-          .map((d) => ({ id: d.id, ...d.data() } as Cotizacion))
-          .filter((c) => c.clienteId === id)
+          .map((d) => ({ id: d.id, ...d.data() } as CotizacionFS))
           .sort((a, b) => {
-            const aTime = a.fecha_creacion?.seconds ?? 0;
-            const bTime = b.fecha_creacion?.seconds ?? 0;
+            const aTime = getSecondsSafe((a as any).fecha_creacion ?? (a as any).fecha);
+            const bTime = getSecondsSafe((b as any).fecha_creacion ?? (b as any).fecha);
             return bTime - aTime;
           });
 
@@ -60,14 +84,17 @@ export default function ClienteDetailClient({ id }: { id: string }) {
   }, [id]);
 
   const handleViewPDF = (cotizacionId: string) => {
-    window.open(`/api/cotizaciones/pdf?id=${encodeURIComponent(cotizacionId)}`, '_blank');
+    window.open(
+      `/api/cotizaciones/pdf?id=${encodeURIComponent(cotizacionId)}`,
+      '_blank'
+    );
   };
 
   const ultimaCotizacion = cotizaciones[0] ?? null;
 
   const resumen = useMemo(() => {
     const totalCotizado = cotizaciones.reduce(
-      (acc, cot) => acc + Number(cot.total ?? 0),
+      (acc, cot) => acc + Number((cot as any).total ?? 0),
       0
     );
 
@@ -90,12 +117,14 @@ export default function ClienteDetailClient({ id }: { id: string }) {
 
   const ultimoContacto = (() => {
     const fechaCliente =
-      (cliente as any)?.updatedAt?.seconds ||
-      (cliente as any)?.fechaActualizacion?.seconds ||
-      (cliente as any)?.ultimoContacto?.seconds ||
+      getSecondsSafe((cliente as any)?.updatedAt) ||
+      getSecondsSafe((cliente as any)?.fechaActualizacion) ||
+      getSecondsSafe((cliente as any)?.ultimoContacto) ||
       0;
 
-    const fechaCotizacion = ultimaCotizacion?.fecha_creacion?.seconds ?? 0;
+    const fechaCotizacion = getSecondsSafe(
+      (ultimaCotizacion as any)?.fecha_creacion ?? (ultimaCotizacion as any)?.fecha
+    );
 
     const finalDate = Math.max(fechaCliente, fechaCotizacion);
 
@@ -265,39 +294,43 @@ export default function ClienteDetailClient({ id }: { id: string }) {
 
             {cotizaciones.length > 0 ? (
               <div className="space-y-4">
-                {cotizaciones.slice(0, 5).map((cot) => (
-                  <div
-                    key={cot.id}
-                    className="rounded-2xl border bg-background p-4"
-                  >
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                      <div className="space-y-1">
-                        <p className="font-semibold">Folio: {cot.id}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Fecha:{' '}
-                          {cot.fecha_creacion
-                            ? new Date(
-                                cot.fecha_creacion.seconds * 1000
-                              ).toLocaleDateString()
-                            : 'Sin fecha'}
-                        </p>
-                        <p className="text-sm">
-                          Total:{' '}
-                          <span className="font-semibold">
-                            ${Number(cot.total ?? 0).toFixed(2)}
-                          </span>
-                        </p>
-                      </div>
+                {cotizaciones.slice(0, 5).map((cot) => {
+                  const fechaSeconds = getSecondsSafe(
+                    (cot as any).fecha_creacion ?? (cot as any).fecha
+                  );
 
-                      <button
-                        onClick={() => handleViewPDF(cot.id)}
-                        className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-                      >
-                        Ver PDF
-                      </button>
+                  return (
+                    <div
+                      key={cot.id}
+                      className="rounded-2xl border bg-background p-4"
+                    >
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="space-y-1">
+                          <p className="font-semibold">Folio: {cot.id}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Fecha:{' '}
+                            {fechaSeconds
+                              ? new Date(fechaSeconds * 1000).toLocaleDateString()
+                              : 'Sin fecha'}
+                          </p>
+                          <p className="text-sm">
+                            Total:{' '}
+                            <span className="font-semibold">
+                              ${Number((cot as any).total ?? 0).toFixed(2)}
+                            </span>
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => handleViewPDF(String(cot.id))}
+                          className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                        >
+                          Ver PDF
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-muted-foreground">
