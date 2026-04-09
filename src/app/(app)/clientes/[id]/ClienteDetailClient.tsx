@@ -15,11 +15,11 @@ import {
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import type { ClienteFS } from '@/lib/firestore/clientes';
-import type { Cotizacion } from '@/lib/firestore/cotizaciones';
+import type { CotizacionFS } from '@/lib/firestore/cotizaciones';
 
 export default function ClienteDetailClient({ id }: { id: string }) {
   const [cliente, setCliente] = useState<ClienteFS | null>(null);
-  const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
+  const [cotizaciones, setCotizaciones] = useState<CotizacionFS[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
