@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFirestore } from '@/firebase/provider';
+import { useAuth } from '@/context/AuthProvider';
 import {
   addDoc,
   collection,
@@ -11,6 +12,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 
 // -----------------------------------------------------------------------------
@@ -52,7 +54,6 @@ type RutaGuardada = {
   }[];
 };
 
-// HOY (sin Domingo)
 const hoyIndex = new Date().getDay();
 const hoy: DiaSemana | null = hoyIndex === 0 ? null : DIAS_SEMANA[hoyIndex - 1];
 
@@ -63,20 +64,18 @@ export default function MapaClientesPage() {
   const mapDivRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const db = useFirestore();
+  const { user, loading: authLoading } = useAuth();
 
   const [clientes, setClientes] = useState<Punto[]>([]);
   const [rutasGuardadas, setRutasGuardadas] = useState<RutaGuardada[]>([]);
 
-  // UI
   const [vistaPanel, setVistaPanel] = useState<'plan' | 'guardadas'>('plan');
 
-  // Ruta actual
   const [rutaSeleccionada, setRutaSeleccionada] = useState<Punto[]>([]);
   const [distanciaKm, setDistanciaKm] = useState<number | null>(null);
   const [tiempoMin, setTiempoMin] = useState<number | null>(null);
   const [guardando, setGuardando] = useState(false);
 
-  // Refs Google
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -118,42 +117,73 @@ export default function MapaClientesPage() {
   };
 
   // ---------------------------------------------------------------------------
-  // FIRESTORE: CLIENTES
+  // FIRESTORE: CLIENTES MULTIUSUARIO
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!db) return;
+    if (!db || authLoading) return;
 
-    const q = query(collection(db, 'clientes'));
+    if (!user) {
+      setClientes([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'clientes'),
+      where('ownerId', '==', user.uid)
+    );
+
     const unsub = onSnapshot(q, (snapshot) => {
-      const data: Punto[] = snapshot.docs.map((ds) => {
-        const d: any = ds.data();
-        const dia = DIAS_SEMANA.includes(d.diaVisita)
-          ? (d.diaVisita as DiaSemana)
-          : undefined;
+      const data: Punto[] = snapshot.docs
+        .map((ds) => {
+          const d: any = ds.data();
 
-        return {
-          id: ds.id,
-          nombre: d.nombre ?? 'Sin nombre',
-          tipo: (d.tipo ?? 'cliente') as TipoCliente,
-          lat: Number(d.lat),
-          lng: Number(d.lng),
-          diaVisita: dia,
-        };
-      });
+          if (
+            typeof d.lat !== 'number' ||
+            typeof d.lng !== 'number' ||
+            Number.isNaN(d.lat) ||
+            Number.isNaN(d.lng)
+          ) {
+            return null;
+          }
+
+          const dia = DIAS_SEMANA.includes(d.diaVisita)
+            ? (d.diaVisita as DiaSemana)
+            : undefined;
+
+          return {
+            id: ds.id,
+            nombre: d.nombre ?? 'Sin nombre',
+            tipo: (d.tipo ?? 'cliente') as TipoCliente,
+            lat: Number(d.lat),
+            lng: Number(d.lng),
+            diaVisita: dia,
+          } as Punto;
+        })
+        .filter(Boolean) as Punto[];
 
       setClientes(data);
     });
 
     return () => unsub();
-  }, [db]);
+  }, [db, user, authLoading]);
 
   // ---------------------------------------------------------------------------
-  // FIRESTORE: RUTAS
+  // FIRESTORE: RUTAS MULTIUSUARIO
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!db) return;
+    if (!db || authLoading) return;
 
-    const q = query(collection(db, 'rutas'), orderBy('createdAt', 'desc'));
+    if (!user) {
+      setRutasGuardadas([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'rutas'),
+      where('ownerId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
     const unsub = onSnapshot(q, (snapshot) => {
       const data: RutaGuardada[] = snapshot.docs.map((ds) => {
         const d: any = ds.data();
@@ -169,7 +199,7 @@ export default function MapaClientesPage() {
     });
 
     return () => unsub();
-  }, [db]);
+  }, [db, user, authLoading]);
 
   // ---------------------------------------------------------------------------
   // GOOGLE MAPS: CARGA SCRIPT + INIT
@@ -222,7 +252,7 @@ export default function MapaClientesPage() {
   };
 
   const abrirInfoWindow = (punto: Punto, marker: google.maps.Marker) => {
-    if (!map || !db) return;
+    if (!map || !db || !user) return;
 
     if (!infoWindowRef.current) {
       infoWindowRef.current = new google.maps.InfoWindow();
@@ -446,11 +476,21 @@ export default function MapaClientesPage() {
   // GUARDAR RUTA
   // ---------------------------------------------------------------------------
   const guardarRuta = async () => {
-    if (!db || rutaSeleccionada.length < 2 || distanciaKm === null || tiempoMin === null) return;
+    if (
+      !db ||
+      !user ||
+      rutaSeleccionada.length < 2 ||
+      distanciaKm === null ||
+      tiempoMin === null
+    ) {
+      return;
+    }
 
     setGuardando(true);
     try {
       await addDoc(collection(db, 'rutas'), {
+        ownerId: user.uid,
+        ownerEmail: user.email ?? '',
         createdAt: serverTimestamp(),
         distanciaKm,
         tiempoMin,
@@ -577,12 +617,15 @@ export default function MapaClientesPage() {
     window.open(url, '_blank');
   };
 
+  if (authLoading) {
+    return <div className="p-6">Cargando mapa...</div>;
+  }
+
   // ---------------------------------------------------------------------------
   // UI
   // ---------------------------------------------------------------------------
   return (
     <div className="flex h-[calc(100vh-6rem)] w-full">
-      {/* PANEL IZQUIERDO */}
       <div className="w-[420px] overflow-y-auto border-r bg-white p-4">
         <div className="mb-4 flex items-center gap-2">
           <button
@@ -775,7 +818,6 @@ export default function MapaClientesPage() {
         )}
       </div>
 
-      {/* MAPA */}
       <div className="flex-1">
         <div ref={mapDivRef} className="h-full w-full" />
       </div>
