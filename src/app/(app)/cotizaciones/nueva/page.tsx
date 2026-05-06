@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { crearCotizacion } from '@/lib/firestore/cotizaciones';
 import type { Producto } from '@/lib/firebase-types';
-import { Trash2, FileDown, MessageCircle } from 'lucide-react';
+import { Trash2, FileDown, MessageCircle, X } from 'lucide-react';
 import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
 import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';
@@ -91,6 +91,7 @@ export default function NuevaCotizacionPage() {
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
   const [productos, setProductos] = useState<ProductoConId[]>([]);
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string>('');
+  const [busquedaCliente, setBusquedaCliente] = useState('');
   const [items, setItems] = useState<ItemCotizacion[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [observaciones, setObservaciones] = useState('');
@@ -137,6 +138,28 @@ export default function NuevaCotizacionPage() {
     () => clientes.find((c) => c.id === clienteSeleccionadoId) || null,
     [clientes, clienteSeleccionadoId]
   );
+
+  const clientesFiltrados = useMemo(() => {
+    const texto = busquedaCliente.trim().toLowerCase();
+
+    const base = texto
+      ? clientes.filter((c) => {
+          const nombre = String(c.nombre ?? '').toLowerCase();
+          const ciudad = String(c.ciudad ?? '').toLowerCase();
+          const telefono = String(c.telefono ?? '').toLowerCase();
+          const domicilio = String(c.domicilio ?? '').toLowerCase();
+
+          return (
+            nombre.includes(texto) ||
+            ciudad.includes(texto) ||
+            telefono.includes(texto) ||
+            domicilio.includes(texto)
+          );
+        })
+      : clientes;
+
+    return base.slice(0, 12);
+  }, [clientes, busquedaCliente]);
 
   const agregarProducto = (producto: ProductoConId) => {
     setItems((prev) => {
@@ -432,18 +455,90 @@ export default function NuevaCotizacionPage() {
         <div className="space-y-6 xl:col-span-1">
           <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-5">
             <h2 className="mb-3 text-lg font-semibold">Cliente</h2>
-            <select
-              value={clienteSeleccionadoId}
-              onChange={(e) => setClienteSeleccionadoId(e.target.value)}
+
+            <input
+              type="text"
+              placeholder="Buscar cliente por nombre, ciudad o teléfono..."
+              value={busquedaCliente}
+              onChange={(e) => setBusquedaCliente(e.target.value)}
               className="w-full rounded-xl border bg-gray-50 p-3 outline-none"
-            >
-              <option value="">Selecciona un cliente</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}
-                </option>
-              ))}
-            </select>
+            />
+
+            {clienteSeleccionado ? (
+              <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-blue-900">
+                      {clienteSeleccionado.nombre}
+                    </p>
+                    <p className="text-sm text-blue-700">
+                      {clienteSeleccionado.ciudad || 'Sin ciudad'}
+                    </p>
+                    {clienteSeleccionado.telefono && (
+                      <p className="text-xs text-blue-700">
+                        {clienteSeleccionado.telefono}
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClienteSeleccionadoId('');
+                      setBusquedaCliente('');
+                    }}
+                    className="rounded-full p-1 text-blue-700 hover:bg-blue-100"
+                    title="Quitar selección"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 rounded-2xl border bg-white">
+                <div className="max-h-72 overflow-y-auto">
+                  {clientesFiltrados.length > 0 ? (
+                    clientesFiltrados.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setClienteSeleccionadoId(c.id || '');
+                          setBusquedaCliente(c.nombre || '');
+                        }}
+                        className="flex w-full items-start justify-between gap-3 border-b p-3 text-left last:border-b-0 hover:bg-blue-50"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-800">
+                            {c.nombre}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            {c.ciudad || 'Sin ciudad'}
+                          </p>
+                          {c.telefono && (
+                            <p className="text-xs text-slate-500">
+                              {c.telefono}
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="p-4 text-sm text-gray-500">
+                      No se encontraron clientes con esa búsqueda.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <p className="mt-2 text-xs text-gray-500">
+              {clienteSeleccionado
+                ? 'Cliente seleccionado correctamente.'
+                : `${clientesFiltrados.length} cliente${
+                    clientesFiltrados.length === 1 ? '' : 's'
+                  } mostrado${clientesFiltrados.length === 1 ? '' : 's'}.`}
+            </p>
           </div>
 
           <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-5">

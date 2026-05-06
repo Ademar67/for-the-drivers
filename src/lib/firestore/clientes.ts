@@ -41,6 +41,9 @@ export type ClienteFS = {
   lng?: number;
   origen?: string;
 
+  // 🔥 NUEVO: ID plano para evitar problemas con queries anidados
+  denueId?: string;
+
   estadoProspecto?: EstadoProspecto;
   ultimaVisita?: Timestamp | null;
   proximaVisita?: Timestamp | null;
@@ -81,9 +84,14 @@ export function listenClientes(callback: (clientes: ClienteFS[]) => void) {
 
     clientes.sort((a, b) => {
       const aTime =
-        typeof a.createdAt?.toMillis === 'function' ? a.createdAt.toMillis() : 0;
+        typeof a.createdAt?.toMillis === 'function'
+          ? a.createdAt.toMillis()
+          : 0;
+
       const bTime =
-        typeof b.createdAt?.toMillis === 'function' ? b.createdAt.toMillis() : 0;
+        typeof b.createdAt?.toMillis === 'function'
+          ? b.createdAt.toMillis()
+          : 0;
 
       return bTime - aTime;
     });
@@ -110,17 +118,22 @@ export async function crearCliente(input: {
   await addDoc(collection(db, 'clientes'), {
     ownerId: user.uid,
     ownerEmail: user.email ?? '',
+
     nombre: input.nombre.trim(),
     ciudad: input.ciudad.trim(),
     domicilio: input.domicilio.trim(),
+
     tipo: input.tipo,
     tipoZona: input.tipoZona,
+
     diaVisita: input.diaVisita,
     frecuencia: input.frecuencia,
     semanaVisita: input.semanaVisita,
+
     nota: input.nota,
     lat: input.lat ?? null,
     lng: input.lng ?? null,
+
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   });
@@ -145,75 +158,95 @@ export async function crearProspectoDesdeDenue(input: {
 
   const denueId = input.denueId.trim();
 
-  const existingQ = query(
-    collection(db, 'clientes'),
-    where('ownerId', '==', user.uid),
-    where('denue.id', '==', denueId)
-  );
+  try {
+    // 🔍 Validar duplicado usando denueId plano
+    const existingQ = query(
+      collection(db, 'clientes'),
+      where('ownerId', '==', user.uid),
+      where('denueId', '==', denueId)
+    );
 
-  const existingSnap = await getDocs(existingQ);
+    const existingSnap = await getDocs(existingQ);
 
-  if (!existingSnap.empty) {
+    if (!existingSnap.empty) {
+      return {
+        ok: true,
+        alreadyExists: true,
+        id: existingSnap.docs[0].id,
+      };
+    }
+
+    const prospectoData: Record<string, any> = {
+      ownerId: user.uid,
+      ownerEmail: user.email ?? '',
+
+      nombre: input.nombre?.trim() || 'Prospecto DENUE',
+      tipo: 'prospecto',
+
+      estadoProspecto: 'nuevo',
+      ultimaVisita: null,
+      proximaVisita: null,
+
+      ciudad: input.ciudad?.trim() || 'N/A',
+      domicilio: input.domicilio?.trim() || 'N/A',
+
+      diaVisita: null,
+      frecuencia: null,
+      semanaVisita: null,
+
+      nota: `Importado desde DENUE.${
+        input.claseActividad?.trim()
+          ? ` Actividad: ${input.claseActividad.trim()}.`
+          : ''
+      }`,
+
+      origen: 'DENUE',
+
+      // ✅ Campo plano para queries rápidas y sin broncas
+      denueId,
+
+      // ✅ Se conserva el objeto denue para información completa
+      denue: {
+        id: denueId,
+        tipoNegocio: input.tipoNegocio,
+        fechaImportado: Timestamp.now(),
+        ...(input.claseActividad?.trim()
+          ? { actividad: input.claseActividad.trim() }
+          : {}),
+      },
+
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+
+    if (input.telefono?.trim()) {
+      prospectoData.telefono = input.telefono.trim();
+    }
+
+    if (typeof input.lat === 'number' && Number.isFinite(input.lat)) {
+      prospectoData.lat = input.lat;
+    }
+
+    if (typeof input.lng === 'number' && Number.isFinite(input.lng)) {
+      prospectoData.lng = input.lng;
+    }
+
+    const ref = await addDoc(collection(db, 'clientes'), prospectoData);
+
     return {
       ok: true,
-      alreadyExists: true,
-      id: existingSnap.docs[0].id,
+      alreadyExists: false,
+      id: ref.id,
     };
+  } catch (error) {
+    console.error('🔥 ERROR REAL DENUE:', error);
+
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : 'Error creando prospecto desde DENUE'
+    );
   }
-
-  const prospectoData: Record<string, any> = {
-    ownerId: user.uid,
-    ownerEmail: user.email ?? '',
-    nombre: input.nombre?.trim() || 'Prospecto DENUE',
-    tipo: 'prospecto',
-
-    estadoProspecto: 'nuevo',
-    ultimaVisita: null,
-    proximaVisita: null,
-
-    ciudad: input.ciudad?.trim() || 'N/A',
-    domicilio: input.domicilio?.trim() || 'N/A',
-    diaVisita: null,
-    frecuencia: null,
-    semanaVisita: null,
-    nota: `Importado desde DENUE.${
-      input.claseActividad?.trim()
-        ? ` Actividad: ${input.claseActividad.trim()}.`
-        : ''
-    }`,
-    origen: 'DENUE',
-    denue: {
-      id: denueId,
-      tipoNegocio: input.tipoNegocio,
-      fechaImportado: Timestamp.now(),
-    },
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now(),
-  };
-
-  if (input.telefono?.trim()) {
-    prospectoData.telefono = input.telefono.trim();
-  }
-
-  if (typeof input.lat === 'number' && Number.isFinite(input.lat)) {
-    prospectoData.lat = input.lat;
-  }
-
-  if (typeof input.lng === 'number' && Number.isFinite(input.lng)) {
-    prospectoData.lng = input.lng;
-  }
-
-  if (input.claseActividad?.trim()) {
-    prospectoData.denue.actividad = input.claseActividad.trim();
-  }
-
-  const ref = await addDoc(collection(db, 'clientes'), prospectoData);
-
-  return {
-    ok: true,
-    alreadyExists: false,
-    id: ref.id,
-  };
 }
 
 export async function eliminarCliente(id: string) {

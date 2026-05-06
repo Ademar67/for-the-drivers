@@ -30,6 +30,7 @@ import {
   Truck,
   Boxes,
   Building2,
+  Lightbulb,
   Menu,
   X,
 } from "lucide-react";
@@ -52,6 +53,7 @@ const menuItems = [
   { href: "/materiales", label: "Materiales", icon: FileText },
   { href: "/soporte-ia", label: "Soporte IA", icon: Bot },
   { href: "/flotillas", label: "Flotillas", icon: Truck },
+  { href: "/ideas-venta", label: "Ideas de Venta", icon: Lightbulb },
 ];
 
 const PUBLIC_ROUTES = ["/login", "/sign-up"];
