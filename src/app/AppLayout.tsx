@@ -35,6 +35,14 @@ import {
   X,
 } from "lucide-react";
 
+const mobileBottomItems = [
+  { href: "/dashboard", label: "Inicio", icon: Home },
+  { href: "/clientes", label: "Clientes", icon: Users },
+  { href: "/prospectos", label: "Prospectos", icon: UserPlus },
+  { href: "/agenda", label: "Agenda", icon: Calendar },
+  { href: "/cotizaciones", label: "Más", icon: Menu },
+];
+
 const menuItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/clientes", label: "Clientes", icon: Users },
@@ -80,6 +88,7 @@ export default function AppLayout({
 
   useEffect(() => {
     const seen = localStorage.getItem("splashSeen");
+
     if (!seen) {
       setShowSplash(true);
       localStorage.setItem("splashSeen", "1");
@@ -109,8 +118,11 @@ export default function AppLayout({
         <ToastProvider>
           <ConnectionStatus />
           <FirestoreSyncStatus />
+
           <div className="flex min-h-screen items-center justify-center bg-background p-6">
-            <p className="text-sm text-muted-foreground">Cargando...</p>
+            <p className="text-sm text-muted-foreground">
+              Cargando...
+            </p>
           </div>
         </ToastProvider>
       </FirebaseClientProvider>
@@ -123,6 +135,7 @@ export default function AppLayout({
         <ToastProvider>
           <ConnectionStatus />
           <FirestoreSyncStatus />
+
           <div className="min-h-screen bg-background" />
         </ToastProvider>
       </FirebaseClientProvider>
@@ -135,8 +148,14 @@ export default function AppLayout({
         <ToastProvider>
           <ConnectionStatus />
           <FirestoreSyncStatus />
-          {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
-          <main className="min-h-screen bg-background">{children}</main>
+
+          {showSplash && (
+            <SplashScreen onFinish={() => setShowSplash(false)} />
+          )}
+
+          <main className="min-h-screen bg-background">
+            {children}
+          </main>
         </ToastProvider>
       </FirebaseClientProvider>
     );
@@ -148,7 +167,9 @@ export default function AppLayout({
         <ConnectionStatus />
         <FirestoreSyncStatus />
 
-        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+        {showSplash && (
+          <SplashScreen onFinish={() => setShowSplash(false)} />
+        )}
 
         <div className="flex min-h-screen w-full bg-background">
           {sidebarOpen && (
@@ -162,7 +183,9 @@ export default function AppLayout({
 
           <aside
             className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r bg-sidebar text-sidebar-foreground transition-transform duration-300 md:static md:z-auto md:w-64 md:translate-x-0 ${
-              sidebarOpen ? "translate-x-0" : "-translate-x-full"
+              sidebarOpen
+                ? "translate-x-0"
+                : "-translate-x-full"
             }`}
           >
             <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-4 md:justify-start">
@@ -179,8 +202,13 @@ export default function AppLayout({
                 </div>
 
                 <div>
-                  <p className="text-sm font-semibold">Liqui Moly</p>
-                  <p className="text-xs text-sidebar-foreground/70">Sales Hub</p>
+                  <p className="text-sm font-semibold">
+                    Liqui Moly
+                  </p>
+
+                  <p className="text-xs text-sidebar-foreground/70">
+                    Sales Hub
+                  </p>
                 </div>
               </div>
 
@@ -197,8 +225,10 @@ export default function AppLayout({
             <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
               {menuItems.map((item) => {
                 const Icon = item.icon;
+
                 const isActive =
-                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  pathname === item.href ||
+                  pathname.startsWith(`${item.href}/`);
 
                 return (
                   <Link
@@ -234,14 +264,45 @@ export default function AppLayout({
                 <Menu size={20} />
               </button>
 
-              <h1 className="truncate text-lg font-semibold">{currentTitle}</h1>
+              <h1 className="truncate text-lg font-semibold">
+                {currentTitle}
+              </h1>
             </header>
 
-            <main className="min-w-0 flex-1 overflow-auto">
+            <main className="min-w-0 flex-1 overflow-auto pb-24 md:pb-0">
               <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
                 {children}
               </div>
             </main>
+
+            {/* Bottom Navigation Mobile */}
+            <nav className="fixed bottom-0 left-0 right-0 z-40 border-t bg-white md:hidden">
+              <div className="grid grid-cols-5">
+                {mobileBottomItems.map((item) => {
+                  const Icon = item.icon;
+
+                  const isActive =
+                    pathname === item.href ||
+                    pathname.startsWith(`${item.href}/`);
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex flex-col items-center justify-center gap-1 py-3 text-xs transition ${
+                        isActive
+                          ? "text-blue-600 font-semibold"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      <Icon size={20} />
+
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </nav>
           </div>
         </div>
       </ToastProvider>

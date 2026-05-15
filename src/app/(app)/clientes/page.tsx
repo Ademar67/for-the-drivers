@@ -27,6 +27,10 @@ import {
   MapPin,
   UserCheck,
   UserX,
+  Phone,
+  MessageCircle,
+  FileText,
+  Navigation,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -623,48 +627,95 @@ export default function ClientesPage() {
                       {c.tipoZona ?? '—'}
                     </Badge>
                   </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-4">
+  {c.telefono && (
+    <>
+      <Button asChild variant="outline" size="lg" className="rounded-xl">
+        <a href={`tel:${c.telefono}`}>
+          <Phone className="h-4 w-4" />
+          Llamar
+        </a>
+      </Button>
 
-                  <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row">
-                    <Button asChild variant="outline" size="lg" className="w-full rounded-xl">
-                      <Link href={`/agenda?clienteId=${c.id}`}>
-                        <Calendar className="h-4 w-4" />
-                        Agenda
-                      </Link>
-                    </Button>
+      <Button asChild variant="outline" size="lg" className="rounded-xl">
+        <a
+          href={`https://wa.me/52${String(c.telefono).replace(/\D/g, '')}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <MessageCircle className="h-4 w-4" />
+          WhatsApp
+        </a>
+      </Button>
+    </>
+  )}
 
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="destructive"
-                          size="lg"
-                          className="w-full rounded-xl"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Eliminar
-                        </Button>
-                      </AlertDialogTrigger>
+  {typeof c.lat === 'number' && typeof c.lng === 'number' && (
+    <Button asChild variant="outline" size="lg" className="rounded-xl">
+      <a
+        href={`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}&travelmode=driving`}
+        target="_blank"
+        rel="noreferrer"
+      >
+        <Navigation className="h-4 w-4" />
+        Navegar
+      </a>
+    </Button>
+  )}
 
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
+  <Button asChild variant="outline" size="lg" className="rounded-xl">
+    <Link href={`/agenda?clienteId=${c.id}`}>
+      <Calendar className="h-4 w-4" />
+      Agenda
+    </Link>
+  </Button>
 
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(c.id!)}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Eliminar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
+  <Button asChild variant="outline" size="lg" className="rounded-xl">
+    <Link href={`/cotizaciones/nueva?clienteId=${c.id}`}>
+      <FileText className="h-4 w-4" />
+      Cotizar
+    </Link>
+  </Button>
+
+  <AlertDialog>
+    <AlertDialogTrigger asChild>
+      <Button
+        variant="destructive"
+        size="lg"
+        className="rounded-xl col-span-2"
+>
+        <Trash2 className="h-4 w-4" />
+        Eliminar
+      </Button>
+    </AlertDialogTrigger>
+
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>
+          ¿Estás seguro?
+        </AlertDialogTitle>
+
+        <AlertDialogDescription>
+          Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+
+      <AlertDialogFooter>
+        <AlertDialogCancel>
+          Cancelar
+        </AlertDialogCancel>
+
+        <AlertDialogAction
+          onClick={() => handleDelete(c.id!)}
+          className="bg-red-600 hover:bg-red-700"
+        >
+          Eliminar
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+</div>
+</div>
               ))}
             </div>
 
@@ -762,4 +813,4 @@ export default function ClientesPage() {
       <CrearClienteModal open={open} onClose={() => setOpen(false)} />
     </div>
   );
-}
+}              
