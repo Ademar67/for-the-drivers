@@ -736,6 +736,37 @@ export default function ProspectosPage() {
                 </div>
 
                 <div className="mt-4 flex flex-col gap-2 border-t pt-4">
+                <div className="grid grid-cols-3 gap-2">
+  <a
+    href={`tel:${p.telefono || ''}`}
+    className="flex items-center justify-center rounded-xl border bg-white py-2 text-sm font-medium"
+  >
+    <Phone className="mr-1 h-4 w-4" />
+    Llamar
+  </a>
+
+  <a
+    href={`https://wa.me/52${String(p.telefono || '').replace(/\D/g, '')}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex items-center justify-center rounded-xl border bg-white py-2 text-sm font-medium"
+  >
+    <MessageCircle className="mr-1 h-4 w-4" />
+    WhatsApp
+  </a>
+
+  <a
+    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      p.domicilio || p.nombre || ''
+    )}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex items-center justify-center rounded-xl border bg-white py-2 text-sm font-medium"
+  >
+    <Navigation className="mr-1 h-4 w-4" />
+    Ruta
+  </a>
+</div>
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       size="sm"
