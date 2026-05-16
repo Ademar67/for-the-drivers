@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { listenClientes, ClienteFS } from '@/lib/firestore/clientes';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
@@ -101,18 +101,20 @@ export default function NuevaCotizacionPage() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const clienteIdFromUrl = searchParams.get('clienteId');
   const { toast } = useToast();
 
   useEffect(() => {
     if (authLoading) return;
-
+  
     if (!user) {
       setClientes([]);
       return;
     }
-
+  
     const unsub = listenClientes(setClientes);
-
+  
     async function fetchProductos() {
       try {
         const snap = await getDocs(collection(db, 'productos'));
@@ -129,10 +131,21 @@ export default function NuevaCotizacionPage() {
         });
       }
     }
-
+  
     fetchProductos();
     return () => unsub();
   }, [toast, user, authLoading]);
+  
+  useEffect(() => {
+    if (!clienteIdFromUrl) return;
+    if (clienteSeleccionadoId) return;
+  
+    const existeCliente = clientes.some((c) => c.id === clienteIdFromUrl);
+  
+    if (existeCliente) {
+      setClienteSeleccionadoId(clienteIdFromUrl);
+    }
+  }, [clienteIdFromUrl, clientes, clienteSeleccionadoId]);
 
   const clienteSeleccionado = useMemo(
     () => clientes.find((c) => c.id === clienteSeleccionadoId) || null,
