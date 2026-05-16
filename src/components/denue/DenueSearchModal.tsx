@@ -697,7 +697,7 @@ export default function DenueSearchModal({
               </div>
 
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_420px_minmax(0,1fr)]">
-                <div className="order-2 xl:order-1 border rounded-lg p-3 space-y-3 bg-white max-h-[40vh] xl:max-h-[calc(95vh-260px)] overflow-y-auto">
+                <div className="order-2 order-3 xl:order-1 border rounded-lg p-3 space-y-3 bg-white max-h-[40vh] xl:max-h-[calc(95vh-260px)] overflow-y-auto">
                   <div className="flex items-center gap-2">
                     <Flame className="h-4 w-4" />
                     <h3 className="font-semibold">Zonas calientes</h3>
