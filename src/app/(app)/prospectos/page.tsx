@@ -767,7 +767,17 @@ export default function ProspectosPage() {
     Ruta
   </a>
 </div>
-                  <div className="grid grid-cols-2 gap-2">
+<Button
+  size="sm"
+  asChild
+  className="rounded-xl bg-blue-600 hover:bg-blue-700"
+>
+  <Link href={`/cotizaciones/nueva?clienteId=${p.id}`}>
+    Cotizar
+  </Link>
+</Button>
+
+<div className="grid grid-cols-2 gap-2">
                     <Button
                       size="sm"
                       variant="outline"
