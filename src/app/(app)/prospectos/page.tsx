@@ -14,6 +14,10 @@ import {
   AlertTriangle,
   Sparkles,
   Filter,
+  Phone,
+  MessageCircle,
+  Navigation,
+  Search,
 } from 'lucide-react';
 import {
   collection,
@@ -186,7 +190,7 @@ export default function ProspectosPage() {
   const [marcandoId, setMarcandoId] = useState<string | null>(null);
   const [seguimientoId, setSeguimientoId] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<FiltroProspectos>('todos');
-
+  const [busqueda, setBusqueda] = useState('');
   const [denueOpen, setDenueOpen] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     null
@@ -338,26 +342,50 @@ export default function ProspectosPage() {
   }, [prospectosEnriquecidos]);
 
   const prospectosFiltrados = useMemo(() => {
+    let filtrados = [...prospectosEnriquecidos];
+  
     switch (filtro) {
       case 'para_hoy':
-        return prospectosEnriquecidos.filter((p) => p.esParaHoy);
+        filtrados = filtrados.filter((p) => p.esParaHoy);
+        break;
+  
       case 'vencidos':
-        return prospectosEnriquecidos.filter((p) => p.esVencido);
+        filtrados = filtrados.filter((p) => p.esVencido);
+        break;
+  
       case 'nuevo':
-        return prospectosEnriquecidos.filter((p) => p.estadoProspecto === 'nuevo');
+        filtrados = filtrados.filter(
+          (p) => p.estadoProspecto === 'nuevo'
+        );
+        break;
+  
       case 'seguimiento':
-        return prospectosEnriquecidos.filter(
+        filtrados = filtrados.filter(
           (p) => p.estadoProspecto === 'seguimiento'
         );
+        break;
+  
       case 'interesado':
-        return prospectosEnriquecidos.filter(
+        filtrados = filtrados.filter(
           (p) => p.estadoProspecto === 'interesado'
         );
-      case 'todos':
-      default:
-        return prospectosEnriquecidos;
+        break;
     }
-  }, [filtro, prospectosEnriquecidos]);
+  
+    if (busqueda.trim()) {
+      const texto = busqueda.toLowerCase();
+  
+      filtrados = filtrados.filter((p) => {
+        return (
+          p.nombre?.toLowerCase().includes(texto) ||
+          p.ciudad?.toLowerCase().includes(texto) ||
+          p.telefono?.toLowerCase().includes(texto)
+        );
+      });
+    }
+  
+    return filtrados;
+  }, [filtro, prospectosEnriquecidos, busqueda]);
 
   const buscarDenue = () => {
     if (!navigator.geolocation) {
@@ -529,7 +557,21 @@ export default function ProspectosPage() {
         </div>
       )}
 
-      {!loading && (
+{!loading && (
+  <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+      <input
+        type="text"
+        placeholder="Buscar prospecto..."
+        value={busqueda}
+        onChange={(e) => setBusqueda(e.target.value)}
+        className="w-full rounded-xl border bg-slate-50 py-3 pl-10 pr-4 outline-none transition focus:border-blue-500"
+      />
+    </div>
+  </div>
+)}
         <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
@@ -594,7 +636,7 @@ export default function ProspectosPage() {
             </div>
           </div>
         </section>
-      )}
+      
 
       {loading ? (
         <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
