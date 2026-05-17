@@ -44,7 +44,16 @@ export async function POST(req: Request) {
       lng,
       category,
       denueRaw,
+      ownerId,
+      ownerEmail,
     } = body ?? {};
+
+    if (!ownerId) {
+      return NextResponse.json(
+        { error: 'Falta ownerId del usuario autenticado.' },
+        { status: 401 }
+      );
+    }
 
     const denueId = getDenueId(denueRaw);
 
@@ -56,6 +65,7 @@ export async function POST(req: Request) {
     }
 
     const nombre = String(name ?? '').trim();
+
     if (!nombre) {
       return NextResponse.json(
         { error: 'Falta el nombre del establecimiento.' },
@@ -65,6 +75,7 @@ export async function POST(req: Request) {
 
     const domicilio = String(address ?? '').trim();
     const telefono = String(phone ?? '').trim();
+
     const tipoNegocio =
       category === 'taller' || category === 'refaccionaria'
         ? category
@@ -72,10 +83,13 @@ export async function POST(req: Request) {
 
     const latNumber =
       typeof lat === 'number' && Number.isFinite(lat) ? lat : null;
+
     const lngNumber =
       typeof lng === 'number' && Number.isFinite(lng) ? lng : null;
 
     console.log('DENUE DATA NORMALIZED:', {
+      ownerId,
+      ownerEmail,
       denueId,
       nombre,
       domicilio,
@@ -87,6 +101,8 @@ export async function POST(req: Request) {
     });
 
     const result = await crearProspectoDesdeDenue({
+      ownerId: String(ownerId),
+      ownerEmail: String(ownerEmail ?? ''),
       denueId,
       nombre,
       telefono,

@@ -1,5 +1,6 @@
 'use client';
 
+import { auth } from '@/lib/firebase';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dialog,
@@ -197,6 +198,7 @@ export function useDenueAdd() {
       const res = await fetch('/api/prospectos/from-denue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+      
         body: JSON.stringify({
           name,
           address,
@@ -205,6 +207,9 @@ export function useDenueAdd() {
           lng,
           category,
           denueRaw: item,
+      
+          ownerId: auth.currentUser?.uid,
+          ownerEmail: auth.currentUser?.email ?? '',
         }),
       });
 
@@ -241,9 +246,12 @@ export default function DenueSearchModal({
   onClose,
   coords,
 }: DenueSearchModalProps) {
+
+
   const [searchType, setSearchType] = useState<'taller' | 'refaccionaria'>(
     'taller'
   );
+
   const [results, setResults] = useState<DenueResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -140,6 +140,8 @@ export async function crearCliente(input: {
 }
 
 export async function crearProspectoDesdeDenue(input: {
+  ownerId: string;
+  ownerEmail?: string;
   denueId: string;
   nombre: string;
   telefono: string;
@@ -150,19 +152,22 @@ export async function crearProspectoDesdeDenue(input: {
   claseActividad: string;
   tipoNegocio: 'taller' | 'refaccionaria';
 }) {
-  const user = getCurrentUserOrThrow();
+  if (!input?.ownerId?.trim()) {
+    throw new Error('Falta ownerId para crear el prospecto.');
+  }
 
-  if (!input || !input.denueId?.trim()) {
+  if (!input?.denueId?.trim()) {
     throw new Error('Datos de negocio de DENUE inválidos o sin ID.');
   }
 
+  const ownerId = input.ownerId.trim();
   const denueId = input.denueId.trim();
 
   try {
-    // 🔍 Validar duplicado usando denueId plano
+    // 🔍 Validar duplicado por usuario + DENUE
     const existingQ = query(
       collection(db, 'clientes'),
-      where('ownerId', '==', user.uid),
+      where('ownerId', '==', ownerId),
       where('denueId', '==', denueId)
     );
 
@@ -177,8 +182,8 @@ export async function crearProspectoDesdeDenue(input: {
     }
 
     const prospectoData: Record<string, any> = {
-      ownerId: user.uid,
-      ownerEmail: user.email ?? '',
+      ownerId,
+      ownerEmail: input.ownerEmail ?? '',
 
       nombre: input.nombre?.trim() || 'Prospecto DENUE',
       tipo: 'prospecto',
@@ -202,14 +207,15 @@ export async function crearProspectoDesdeDenue(input: {
 
       origen: 'DENUE',
 
-      // ✅ Campo plano para queries rápidas y sin broncas
+      // ✅ Campo plano para queries rápidas
       denueId,
 
-      // ✅ Se conserva el objeto denue para información completa
+      // ✅ Objeto completo DENUE
       denue: {
         id: denueId,
         tipoNegocio: input.tipoNegocio,
         fechaImportado: Timestamp.now(),
+
         ...(input.claseActividad?.trim()
           ? { actividad: input.claseActividad.trim() }
           : {}),
