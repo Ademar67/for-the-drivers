@@ -12,6 +12,7 @@ import {
   serverTimestamp,
   getDocs,
   where,
+  orderBy,
 } from 'firebase/firestore';
 
 export type EstadoProspecto =
@@ -307,7 +308,13 @@ export async function marcarVisitaProspecto(
   }
 
   await updateDoc(ref, data);
+
+await agregarTimelineEvento(id, {
+  tipo: 'visita',
+  texto: 'Se registró una visita comercial.',
+});
 }
+
 
 export async function programarSeguimientoProspecto(
   id: string,
@@ -340,4 +347,66 @@ export async function programarSeguimientoProspecto(
   }
 
   await updateDoc(ref, data);
+
+await agregarTimelineEvento(id, {
+  tipo: 'seguimiento',
+  texto: 'Se programó seguimiento comercial.',
+});
+}
+
+export type TimelineEvento = {
+  id?: string;
+  tipo:
+    | 'nota'
+    | 'visita'
+    | 'seguimiento'
+    | 'cotizacion'
+    | 'whatsapp'
+    | 'conversion';
+  texto: string;
+  createdAt?: Timestamp;
+  ownerId: string;
+};
+
+export async function agregarTimelineEvento(
+  clienteId: string,
+  evento: {
+    tipo: TimelineEvento['tipo'];
+    texto: string;
+  }
+) {
+  const user = getCurrentUserOrThrow();
+
+  if (!clienteId) {
+    throw new Error('Falta clienteId');
+  }
+
+  await addDoc(collection(db, 'clientes', clienteId, 'timeline'), {
+    tipo: evento.tipo,
+    texto: evento.texto,
+    ownerId: user.uid,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export function listenTimelineCliente(
+  clienteId: string,
+  callback: (items: TimelineEvento[]) => void
+) {
+  const user = getCurrentUserOrThrow();
+
+  const q = query(
+    collection(db, 'clientes', clienteId, 'timeline'),
+    where('ownerId', '==', user.uid),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<TimelineEvento, 'id'>),
+    }));
+
+    callback(data);
+  });
 }
