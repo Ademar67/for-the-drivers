@@ -16,6 +16,7 @@ import {
   Target,
   UserRound,
 } from 'lucide-react';
+
 import {
   collection,
   doc,
@@ -28,8 +29,14 @@ import {
 
 import { db, auth } from '@/lib/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
+
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+
+import {
+  listenTimelineCliente,
+  type TimelineEvento,
+} from '@/lib/firestore/clientes';
 
 type Prospecto = {
   id: string;
@@ -104,6 +111,7 @@ useEffect(() => {
   const prospectoId = params?.id;
 
   const [prospecto, setProspecto] = useState<Prospecto | null>(null);
+  const [timeline, setTimeline] = useState<TimelineEvento[]>([]);
   const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -196,6 +204,14 @@ useEffect(() => {
     };
 
     loadData();
+  }, [prospectoId, user?.uid, isUserLoading]);
+  useEffect(() => {
+    if (isUserLoading) return;
+    if (!user?.uid || !prospectoId) return;
+  
+    const unsub = listenTimelineCliente(prospectoId, setTimeline);
+  
+    return () => unsub();
   }, [prospectoId, user?.uid, isUserLoading]);
 
   const handleCall = () => {
@@ -522,6 +538,54 @@ useEffect(() => {
             )}
           </div>
         </section>
+        <section className="rounded-3xl border bg-white p-4 shadow-sm">
+  <div className="mb-4">
+    <h2 className="text-lg font-black text-slate-900">
+      Timeline
+    </h2>
+
+    <p className="text-sm text-slate-500">
+      Actividad y seguimiento del prospecto.
+    </p>
+  </div>
+
+  <div className="space-y-3">
+    {timeline.length === 0 && (
+      <div className="rounded-2xl border border-dashed bg-slate-50 p-5 text-center">
+        <p className="text-sm font-bold text-slate-700">
+          Sin actividad todavía
+        </p>
+
+        <p className="mt-1 text-xs text-slate-500">
+          Aquí aparecerán llamadas, cotizaciones y seguimientos.
+        </p>
+      </div>
+    )}
+
+    {timeline.map((evento) => (
+      <div
+        key={evento.id}
+        className="rounded-2xl border bg-slate-50 p-4"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-black text-slate-900">
+              {evento.tipo}
+            </p>
+
+            <p className="mt-1 text-sm text-slate-600">
+            {evento.texto}
+            </p>
+          </div>
+
+          <Badge variant="secondary">
+            {formatDate(evento.createdAt)}
+          </Badge>
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
       </div>
     </main>
   );
