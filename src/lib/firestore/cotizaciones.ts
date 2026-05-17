@@ -78,8 +78,19 @@ export async function crearCotizacion(input: {
     updatedAt: serverTimestamp(),
   });
 
+  try {
+    const { agregarTimelineEvento } = await import('@/lib/firestore/clientes');
+    await agregarTimelineEvento(input.clienteId, {
+      tipo: 'cotizacion',
+      texto: `Se generó una cotización por $${input.total.toFixed(2)}.`,
+    });
+  } catch (e) {
+    console.warn('Timeline cotización no registrado:', e);
+  }
+
   return ref.id;
 }
+
 
 export function listenCotizaciones(callback: (cotizaciones: CotizacionFS[]) => void) {
   const user = getCurrentUserOrThrow();
