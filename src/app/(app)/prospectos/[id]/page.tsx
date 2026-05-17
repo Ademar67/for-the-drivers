@@ -90,7 +90,7 @@ export default function ProspectoDetallePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
-const [isUserLoading, setIsUserLoading] = useState(true);
+  const [isUserLoading, setIsUserLoading] = useState(true);
 
 useEffect(() => {
   const unsub = onAuthStateChanged(auth, (currentUser) => {

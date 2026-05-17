@@ -659,7 +659,12 @@ export default function ProspectosPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="text-lg font-bold text-slate-800">{p.nombre}</h3>
+                  <Link
+  href={`/prospectos/${p.id}`}
+  className="text-lg font-bold text-slate-800 hover:text-blue-600"
+>
+  {p.nombre}
+</Link>
                     <p className="mt-1 text-sm text-slate-500">{p.salud.texto}</p>
                   </div>
 
@@ -886,29 +891,37 @@ export default function ProspectosPage() {
           </div>
 
           <div className="hidden gap-4 md:grid">
-            {prospectosFiltrados.map((p) => (
-              <div
-                key={p.id}
-                className="rounded-2xl border bg-white p-5 shadow-sm ring-1 ring-slate-200"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <h3 className="text-lg font-semibold">{p.nombre}</h3>
-                    <p className="mt-1 text-sm text-slate-500">{p.salud.texto}</p>
-                  </div>
+  {prospectosFiltrados.map((p) => (
+    <div
+      key={p.id}
+      className="rounded-2xl border bg-white p-5 shadow-sm ring-1 ring-slate-200"
+      >
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <Link
+          href={`/prospectos/${p.id}`}
+          className="text-lg font-semibold hover:text-blue-600"
+        >
+          {p.nombre}
+        </Link>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-1 text-xs',
-                        p.salud.estado === 'activo' &&
-                          'bg-green-100 text-green-700',
-                        p.salud.estado === 'riesgo' &&
-                          'bg-orange-100 text-orange-700',
-                        p.salud.estado === 'perdido' &&
-                          'bg-red-100 text-red-700'
-                      )}
-                    >
+        <p className="mt-1 text-sm text-slate-500">
+          {p.salud.texto}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <span
+          className={cn(
+            'rounded-full px-2 py-1 text-xs',
+            p.salud.estado === 'activo' &&
+              'bg-green-100 text-green-700',
+            p.salud.estado === 'riesgo' &&
+              'bg-orange-100 text-orange-700',
+            p.salud.estado === 'perdido' &&
+              'bg-red-100 text-red-700'
+          )}
+        >
                       {p.salud.estado}
                     </span>
 
