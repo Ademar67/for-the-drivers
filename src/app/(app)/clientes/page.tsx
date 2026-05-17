@@ -737,7 +737,11 @@ export default function ClientesPage() {
                 <tbody>
                   {clientesFiltrados.map((c) => (
                     <tr key={c.id} className="border-t hover:bg-slate-50/70">
-                      <td className="p-4 font-medium">{c.nombre}</td>
+                      <td className="p-4 font-medium">
+  <Link href={`/clientes/${c.id}`} className="hover:text-blue-600 hover:underline">
+    {c.nombre}
+  </Link>
+</td>
                       <td className="p-4">
                         <Badge
                           variant="outline"
