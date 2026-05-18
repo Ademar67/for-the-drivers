@@ -18,6 +18,8 @@ import {
   MessageCircle,
   Navigation,
   Search,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import {
   collection,
@@ -192,10 +194,9 @@ export default function ProspectosPage() {
   const [filtro, setFiltro] = useState<FiltroProspectos>('todos');
   const [busqueda, setBusqueda] = useState('');
   const [denueOpen, setDenueOpen] = useState(false);
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
-    null
-  );
-
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [vista, setVista] = useState<'lista' | 'pipeline'>('lista');
+  
   useEffect(() => {
     if (authLoading) return;
 
@@ -1091,7 +1092,96 @@ export default function ProspectosPage() {
           </div>
         </>
       )}
+{/* Toggle vista */}
+{!loading && (
+        <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-200 w-fit">
+          <button
+            type="button"
+            onClick={() => setVista('lista')}
+            className={cn(
+              'flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition',
+              vista === 'lista' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+            )}
+          >
+            <List className="h-4 w-4" />
+            Lista
+          </button>
+          <button
+            type="button"
+            onClick={() => setVista('pipeline')}
+            className={cn(
+              'flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition',
+              vista === 'pipeline' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Pipeline
+          </button>
+        </div>
+      )}
 
+      {/* Vista Pipeline */}
+      {!loading && vista === 'pipeline' && (
+        <div className="overflow-x-auto pb-4">
+          <div className="flex gap-4 min-w-max">
+            {([
+              { key: 'nuevo', label: 'Nuevo', color: 'bg-blue-100 text-blue-700', border: 'border-blue-200' },
+              { key: 'visitado', label: 'Visitado', color: 'bg-green-100 text-green-700', border: 'border-green-200' },
+              { key: 'seguimiento', label: 'Seguimiento', color: 'bg-orange-100 text-orange-700', border: 'border-orange-200' },
+              { key: 'interesado', label: 'Interesado', color: 'bg-emerald-100 text-emerald-700', border: 'border-emerald-200' },
+              { key: 'no_interesado', label: 'No interesado', color: 'bg-gray-100 text-gray-700', border: 'border-gray-200' },
+            ] as const).map((col) => {
+              const items = prospectosEnriquecidos.filter(
+                (p) => (p.estadoProspecto ?? 'nuevo') === col.key
+              );
+              return (
+                <div key={col.key} className="w-72 shrink-0">
+                  <div className={cn('mb-3 flex items-center justify-between rounded-xl border px-3 py-2', col.border)}>
+                    <span className={cn('text-sm font-semibold', col.color.split(' ')[1])}>{col.label}</span>
+                    <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', col.color)}>{items.length}</span>
+                  </div>
+                  <div className="space-y-3">
+                    {items.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed bg-white p-4 text-center text-sm text-slate-400">
+                        Sin prospectos
+                      </div>
+                    ) : (
+                      items.map((p) => (
+                        <Link
+                          key={p.id}
+                          href={`/prospectos/${p.id}`}
+                          className="block rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md hover:-translate-y-0.5"
+                        >
+                          <p className="font-semibold text-slate-800 text-sm">{p.nombre}</p>
+                          <p className="mt-1 text-xs text-slate-500">{p.ciudad}</p>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {p.esParaHoy && (
+                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">Hoy</span>
+                            )}
+                            {p.esVencido && (
+                              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">Vencido</span>
+                            )}
+                            <span className={cn('rounded-full px-2 py-0.5 text-xs', 
+                              p.salud.estado === 'activo' ? 'bg-green-100 text-green-700' :
+                              p.salud.estado === 'riesgo' ? 'bg-orange-100 text-orange-700' :
+                              'bg-red-100 text-red-700'
+                            )}>{p.salud.estado}</span>
+                          </div>
+                          {p.proximaVisitaReal && (
+                            <p className="mt-2 text-xs text-slate-400">
+                              Próxima: {formatearFecha(p.proximaVisitaReal)}
+                            </p>
+                          )}
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <CrearClienteModal open={crearOpen} onClose={() => setCrearOpen(false)} />
 
       <DenueSearchModal
