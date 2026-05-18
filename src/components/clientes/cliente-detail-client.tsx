@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   doc,
   getDoc,
@@ -12,17 +13,19 @@ import {
 import {
   FileText,
   Phone,
-  Mail,
+  MessageCircle,
   MapPin,
-  User,
   CalendarDays,
   BadgeDollarSign,
-  NotebookPen,
-  Activity,
+  Clock,
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import type { ClienteFS } from '@/lib/firestore/clientes';
 import type { CotizacionFS } from '@/lib/firestore/cotizaciones';
+import {
+  listenTimelineCliente,
+  type TimelineEvento,
+} from '@/lib/firestore/clientes';
 
 function getSecondsSafe(value: unknown): number {
   if (
@@ -33,45 +36,64 @@ function getSecondsSafe(value: unknown): number {
   ) {
     return (value as { seconds: number }).seconds;
   }
-
   return 0;
 }
+
+function formatearFecha(ts: unknown): string {
+  const secs = getSecondsSafe(ts);
+  if (!secs) return '';
+  return new Date(secs * 1000).toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+const TIPO_LABEL: Record<TimelineEvento['tipo'], string> = {
+  nota: 'Nota',
+  visita: 'Visita',
+  seguimiento: 'Seguimiento',
+  cotizacion: 'Cotizacion',
+  whatsapp: 'WhatsApp',
+  conversion: 'Conversion',
+};
+
+const TIPO_COLOR: Record<TimelineEvento['tipo'], string> = {
+  nota: 'bg-slate-100 text-slate-700',
+  visita: 'bg-green-100 text-green-700',
+  seguimiento: 'bg-orange-100 text-orange-700',
+  cotizacion: 'bg-blue-100 text-blue-700',
+  whatsapp: 'bg-emerald-100 text-emerald-700',
+  conversion: 'bg-purple-100 text-purple-700',
+};
 
 export default function ClienteDetailClient({ id }: { id: string }) {
   const [cliente, setCliente] = useState<ClienteFS | null>(null);
   const [cotizaciones, setCotizaciones] = useState<CotizacionFS[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEvento[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAll() {
       try {
         setLoading(true);
-
         const docRef = doc(db, 'clientes', id);
         const docSnap = await getDoc(docRef);
-
         if (docSnap.exists()) {
           setCliente({ id: docSnap.id, ...docSnap.data() } as ClienteFS);
         } else {
           setCliente(null);
         }
-
-        const cotizacionesRef = collection(db, 'cotizaciones');
-        const cotizacionesQuery = query(
-          cotizacionesRef,
-          where('clienteId', '==', id)
+        const cotSnap = await getDocs(
+          query(collection(db, 'cotizaciones'), where('clienteId', '==', id))
         );
-
-        const querySnapshot = await getDocs(cotizacionesQuery);
-
-        const cots = querySnapshot.docs
+        const cots = cotSnap.docs
           .map((d) => ({ id: d.id, ...d.data() } as CotizacionFS))
           .sort((a, b) => {
-            const aTime = getSecondsSafe((a as any).fecha_creacion ?? (a as any).fecha);
-            const bTime = getSecondsSafe((b as any).fecha_creacion ?? (b as any).fecha);
+            const aTime = getSecondsSafe((a as any).createdAt);
+            const bTime = getSecondsSafe((b as any).createdAt);
             return bTime - aTime;
           });
-
         setCotizaciones(cots);
       } catch (error) {
         console.error('Error cargando detalle del cliente:', error);
@@ -79,25 +101,19 @@ export default function ClienteDetailClient({ id }: { id: string }) {
         setLoading(false);
       }
     }
-
     fetchAll();
   }, [id]);
 
-  const handleViewPDF = (cotizacionId: string) => {
-    window.open(
-      `/api/cotizaciones/pdf?id=${encodeURIComponent(cotizacionId)}`,
-      '_blank'
-    );
-  };
-
-  const ultimaCotizacion = cotizaciones[0] ?? null;
+  useEffect(() => {
+    const unsub = listenTimelineCliente(id, setTimeline);
+    return () => unsub();
+  }, [id]);
 
   const resumen = useMemo(() => {
     const totalCotizado = cotizaciones.reduce(
       (acc, cot) => acc + Number((cot as any).total ?? 0),
       0
     );
-
     return {
       totalCotizaciones: cotizaciones.length,
       totalCotizado,
@@ -106,252 +122,189 @@ export default function ClienteDetailClient({ id }: { id: string }) {
     };
   }, [cotizaciones]);
 
-  const estadoActual = (() => {
-    const estadoProspecto = (cliente as any)?.estadoProspecto;
-    const tipo = (cliente as any)?.tipo;
-
-    if (estadoProspecto) return estadoProspecto;
-    if (tipo) return tipo;
-    return 'Activo';
-  })();
-
-  const ultimoContacto = (() => {
-    const fechaCliente =
-      getSecondsSafe((cliente as any)?.updatedAt) ||
-      getSecondsSafe((cliente as any)?.fechaActualizacion) ||
-      getSecondsSafe((cliente as any)?.ultimoContacto) ||
-      0;
-
-    const fechaCotizacion = getSecondsSafe(
-      (ultimaCotizacion as any)?.fecha_creacion ?? (ultimaCotizacion as any)?.fecha
-    );
-
-    const finalDate = Math.max(fechaCliente, fechaCotizacion);
-
-    if (!finalDate) return 'Sin registro';
-
-    return new Date(finalDate * 1000).toLocaleDateString();
-  })();
-
-  const notasCliente =
-    (cliente as any)?.notas ||
-    (cliente as any)?.observaciones ||
-    (cliente as any)?.comentarios ||
-    '';
-
-  if (loading) {
-    return <div className="p-6">Cargando...</div>;
-  }
-
-  if (!cliente) {
-    return <div className="p-6">Cliente no encontrado.</div>;
-  }
+  if (loading) return <div className="p-6">Cargando...</div>;
+  if (!cliente) return <div className="p-6">Cliente no encontrado.</div>;
 
   return (
-    <div className="min-h-screen space-y-6 bg-background p-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">{cliente.nombre}</h1>
-        <p className="text-sm text-muted-foreground">
-          Historial comercial y resumen del cliente.
-        </p>
+    <div className="space-y-6">
+      {/* Header azul */}
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 text-white shadow-sm">
+        <div className="p-6">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium capitalize">
+              {cliente.tipo ?? 'cliente'}
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold">{cliente.nombre}</h1>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {cliente.ciudad && (
+              <span className="rounded-full bg-white/20 px-3 py-1 text-xs">
+                {cliente.ciudad}
+              </span>
+            )}
+            {cliente.telefono ? (
+              <span className="rounded-full bg-white/20 px-3 py-1 text-xs">
+                {cliente.telefono}
+              </span>
+            ) : (
+              <span className="rounded-full bg-white/20 px-3 py-1 text-xs">
+                Sin teléfono
+              </span>
+            )}
+          </div>
+          {cliente.domicilio && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-white/80">
+              <MapPin className="h-4 w-4" />
+              {cliente.domicilio}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="space-y-6 xl:col-span-1">
-          <div className="rounded-2xl border bg-card p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-              <User className="h-5 w-5" />
-              Información del cliente
-            </h2>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+  <a
+    href={`tel:${cliente.telefono ?? ''}`}
+    className="flex items-center justify-center gap-2 rounded-2xl bg-slate-700 py-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+  >
+    <Phone className="h-5 w-5" />
+    Llamar
+  </a>
 
-            <div className="space-y-3 text-sm">
-              <div className="flex items-start gap-3">
-                <Mail className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">Email</p>
-                  <p className="text-muted-foreground">
-                    {cliente.email || 'Sin email'}
-                  </p>
-                </div>
-              </div>
+  <a
+    href={`https://wa.me/52${String(cliente.telefono ?? '').replace(/\D/g, '')}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex items-center justify-center gap-2 rounded-2xl bg-green-500 py-4 text-sm font-semibold text-white transition hover:bg-green-600"
+  >
+    <MessageCircle className="h-5 w-5" />
+    WhatsApp
+  </a>
 
-              <div className="flex items-start gap-3">
-                <Phone className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">Teléfono</p>
-                  <p className="text-muted-foreground">
-                    {cliente.telefono || 'Sin teléfono'}
-                  </p>
-                </div>
-              </div>
+  <a
+    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      cliente.domicilio ?? cliente.nombre ?? ''
+    )}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex items-center justify-center gap-2 rounded-2xl bg-blue-500 py-4 text-sm font-semibold text-white transition hover:bg-blue-600"
+  >
+    <MapPin className="h-5 w-5" />
+    Maps
+  </a>
 
-              <div className="flex items-start gap-3">
-                <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">Domicilio</p>
-                  <p className="text-muted-foreground">
-                    {cliente.domicilio || 'Sin domicilio'}
-                  </p>
-                </div>
-              </div>
-            </div>
+  <Link
+    href={`/cotizaciones/nueva?clienteId=${id}`}
+    className="flex items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 text-sm font-semibold text-white transition hover:bg-red-600"
+  >
+    <FileText className="h-5 w-5" />
+    Cotizar
+  </Link>
+</div>
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-medium text-slate-500">Cotizaciones</p>
+            <FileText className="h-5 w-5 text-blue-600" />
           </div>
-
-          <div className="rounded-2xl border bg-card p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-              <Activity className="h-5 w-5" />
-              Estado actual
-            </h2>
-
-            <div className="space-y-4">
-              <div className="rounded-xl bg-muted/50 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Estado
-                </p>
-                <p className="mt-1 text-base font-semibold capitalize">
-                  {String(estadoActual)}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-muted/50 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Último contacto
-                </p>
-                <p className="mt-1 text-base font-semibold">{ultimoContacto}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border bg-card p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-              <NotebookPen className="h-5 w-5" />
-              Notas
-            </h2>
-
-            {notasCliente ? (
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {notasCliente}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Este cliente todavía no tiene notas registradas.
-              </p>
-            )}
-          </div>
+          <p className="text-3xl font-bold">{resumen.totalCotizaciones}</p>
         </div>
-
-        <div className="space-y-6 xl:col-span-2">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border bg-card p-5 shadow-sm">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Cotizaciones
-                </p>
-                <FileText className="h-5 w-5 text-blue-600" />
-              </div>
-
-              <p className="text-3xl font-bold">{resumen.totalCotizaciones}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Total de cotizaciones registradas
-              </p>
-            </div>
-
-            <div className="rounded-2xl border bg-card p-5 shadow-sm">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Total cotizado
-                </p>
-                <BadgeDollarSign className="h-5 w-5 text-emerald-600" />
-              </div>
-
-              <p className="text-3xl font-bold">
-                ${resumen.totalCotizado.toFixed(2)}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Acumulado histórico cotizado
-              </p>
-            </div>
-
-            <div className="rounded-2xl border bg-card p-5 shadow-sm">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Ticket promedio
-                </p>
-                <CalendarDays className="h-5 w-5 text-violet-600" />
-              </div>
-
-              <p className="text-3xl font-bold">
-                ${resumen.ticketPromedio.toFixed(2)}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Promedio por cotización
-              </p>
-            </div>
+        <div className="rounded-2xl border bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-medium text-slate-500">Total cotizado</p>
+            <BadgeDollarSign className="h-5 w-5 text-emerald-600" />
           </div>
-
-          <div className="rounded-2xl border bg-card p-6 shadow-sm">
-            <h2 className="mb-4 text-2xl font-bold">Últimas cotizaciones</h2>
-
-            {cotizaciones.length > 0 ? (
-              <div className="space-y-4">
-                {cotizaciones.slice(0, 5).map((cot) => {
-                  const fechaSeconds = getSecondsSafe(
-                    (cot as any).fecha_creacion ?? (cot as any).fecha
-                  );
-
-                  return (
-                    <div
-                      key={cot.id}
-                      className="rounded-2xl border bg-background p-4"
-                    >
-                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div className="space-y-1">
-                          <p className="font-semibold">Folio: {cot.id}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Fecha:{' '}
-                            {fechaSeconds
-                              ? new Date(fechaSeconds * 1000).toLocaleDateString()
-                              : 'Sin fecha'}
-                          </p>
-                          <p className="text-sm">
-                            Total:{' '}
-                            <span className="font-semibold">
-                              ${Number((cot as any).total ?? 0).toFixed(2)}
-                            </span>
-                          </p>
-                        </div>
-
-                        <button
-                          onClick={() => handleViewPDF(String(cot.id))}
-                          className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-                        >
-                          Ver PDF
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-muted-foreground">
-                No hay cotizaciones para este cliente.
-              </p>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-dashed bg-card p-6 shadow-sm">
-            <h2 className="mb-2 text-xl font-semibold">Siguiente mejora</h2>
-            <p className="text-sm text-muted-foreground">
-              Aquí después podemos conectar:
-            </p>
-
-            <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <p>• Últimas visitas</p>
-              <p>• Productos que más compra</p>
-              <p>• Próximo seguimiento</p>
-            </div>
-          </div>
+          <p className="text-3xl font-bold">${resumen.totalCotizado.toFixed(2)}</p>
         </div>
+        <div className="rounded-2xl border bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-medium text-slate-500">Ticket promedio</p>
+            <CalendarDays className="h-5 w-5 text-violet-600" />
+          </div>
+          <p className="text-3xl font-bold">${resumen.ticketPromedio.toFixed(2)}</p>
+        </div>
+      </div>
+
+      {/* Últimas cotizaciones */}
+      <div className="rounded-2xl border bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold">Últimas cotizaciones</h2>
+          <Link
+            href={`/cotizaciones/nueva?clienteId=${id}`}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Nueva
+          </Link>
+        </div>
+        {cotizaciones.length === 0 ? (
+          <p className="text-sm text-slate-500">Sin cotizaciones todavía.</p>
+        ) : (
+          <div className="space-y-3">
+            {cotizaciones.slice(0, 5).map((cot) => (
+              <div
+                key={cot.id}
+                className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">Folio: {cot.id?.slice(-6)}</p>
+                  <p className="text-xs text-slate-500">
+                    {formatearFecha((cot as any).createdAt)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <p className="font-bold text-green-600">
+                    ${Number((cot as any).total ?? 0).toFixed(2)}
+                  </p>
+                  <button
+                    onClick={() =>
+                      window.open(`/api/cotizaciones/pdf?id=${cot.id}`, '_blank')
+                    }
+                    className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                  >
+                    PDF
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Timeline */}
+      <div className="rounded-2xl border bg-white p-5 shadow-sm">
+        <h2 className="mb-1 flex items-center gap-2 text-lg font-bold">
+          <Clock className="h-5 w-5" />
+          Timeline
+        </h2>
+        <p className="mb-4 text-sm text-slate-500">
+          Actividad y seguimiento del cliente.
+        </p>
+        {timeline.length === 0 ? (
+          <div className="rounded-xl border border-dashed p-6 text-center">
+            <p className="text-sm text-slate-500">Sin actividad todavía.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {timeline.map((evento) => (
+              <div
+                key={evento.id}
+                className="flex items-start gap-3 rounded-xl border bg-slate-50 px-4 py-3"
+              >
+                <span
+                  className={`mt-0.5 rounded-full px-2 py-0.5 text-xs font-medium ${
+                    TIPO_COLOR[evento.tipo] ?? 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  {TIPO_LABEL[evento.tipo] ?? evento.tipo}
+                </span>
+                <p className="flex-1 text-sm text-slate-700">{evento.texto}</p>
+                <p className="shrink-0 text-xs text-slate-400">
+                  {formatearFecha(evento.createdAt)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

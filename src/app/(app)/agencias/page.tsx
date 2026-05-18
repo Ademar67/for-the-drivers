@@ -509,7 +509,7 @@ export default function AgenciasPage() {
       costoTotal: simulacion.costoMensual,
       precioTotal: simulacion.ventaMensual,
       utilidadTotal: simulacion.utilidadMensualBruta,
-      utilidadNetaCombo: simulacion.utilidadNetaCombo,
+      utilidadNetaCombo: 0,
       comisionTotalCombo: simulacion.comisionMensualAsesor,
       utilidadMensualAgencia: simulacion.utilidadMensualAgencia,
       comisionMensualAsesor: simulacion.comisionMensualAsesor,
