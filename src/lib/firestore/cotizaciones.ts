@@ -1,6 +1,7 @@
 import { db, auth } from '@/lib/firebase';
 import {
   addDoc,
+  deleteDoc,
   collection,
   doc,
   getDoc,
@@ -180,4 +181,9 @@ export async function actualizarCotizacion(
     ...data,
     updatedAt: serverTimestamp(),
   });
+}
+export async function eliminarCotizacion(id: string) {
+  getCurrentUserOrThrow();
+  if (!id) throw new Error('Falta el id de la cotizacion.');
+  await deleteDoc(doc(db, 'cotizaciones', id));
 }

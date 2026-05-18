@@ -2,8 +2,19 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { FileText, Plus, Eye } from 'lucide-react';
-import { listenCotizaciones, type CotizacionFS } from '@/lib/firestore/cotizaciones';
+import { FileText, Plus, Eye, Trash2 } from 'lucide-react';
+import { listenCotizaciones, eliminarCotizacion, type CotizacionFS } from '@/lib/firestore/cotizaciones';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -64,6 +75,15 @@ export default function CotizacionesPage() {
       { total: 0, monto: 0 }
     );
   }, [cotizaciones]);
+
+  const handleEliminar = async (id: string) => {
+    try {
+      await eliminarCotizacion(id);
+    } catch (error) {
+      console.error(error);
+      alert('No se pudo eliminar la cotizacion.');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -234,12 +254,41 @@ export default function CotizacionesPage() {
                         {formatCurrency(cot.total || 0)}
                       </td>
                       <td className="p-4">
-                        <Button asChild variant="outline" size="sm" className="rounded-xl">
-                          <Link href={`/cotizaciones/${cot.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Ver detalle
-                          </Link>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button asChild variant="outline" size="sm" className="rounded-xl">
+                            <Link href={`/cotizaciones/${cot.id}`}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Ver detalle
+                            </Link>
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="rounded-xl text-red-500 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Eliminar cotizacion</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta accion no se puede deshacer.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => {
+                                    if (!cot.id) return;
+                                    handleEliminar(cot.id);
+                                  }}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </td>
                     </tr>
                   ))}
