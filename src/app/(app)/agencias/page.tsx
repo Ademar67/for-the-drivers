@@ -509,7 +509,7 @@ export default function AgenciasPage() {
       costoTotal: simulacion.costoMensual,
       precioTotal: simulacion.ventaMensual,
       utilidadTotal: simulacion.utilidadMensualBruta,
-      utilidadNetaCombo: simulacion.utilidadMensualAgencia,
+      utilidadNetaCombo: simulacion.utilidadNetaCombo,
       comisionTotalCombo: simulacion.comisionMensualAsesor,
       utilidadMensualAgencia: simulacion.utilidadMensualAgencia,
       comisionMensualAsesor: simulacion.comisionMensualAsesor,
@@ -1231,7 +1231,7 @@ export default function AgenciasPage() {
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-2">
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
           <div className="rounded-2xl border border-emerald-200 bg-white p-5">
             <p className="text-sm text-slate-500">Utilidad mensual agencia</p>
             <p className="mt-2 text-4xl font-bold text-emerald-700">

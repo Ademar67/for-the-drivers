@@ -19,15 +19,10 @@ import {
   BadgeDollarSign,
   NotebookPen,
   Activity,
-  Clock,
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import type { ClienteFS } from '@/lib/firestore/clientes';
 import type { CotizacionFS } from '@/lib/firestore/cotizaciones';
-import {
-  listenTimelineCliente,
-  type TimelineEvento,
-} from '@/lib/firestore/clientes';
 
 function getSecondsSafe(value: unknown): number {
   if (
@@ -38,41 +33,13 @@ function getSecondsSafe(value: unknown): number {
   ) {
     return (value as { seconds: number }).seconds;
   }
+
   return 0;
 }
-
-function formatearFechaTimeline(ts: unknown): string {
-  const secs = getSecondsSafe(ts);
-  if (!secs) return '';
-  return new Date(secs * 1000).toLocaleDateString('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-const TIPO_LABEL: Record<TimelineEvento['tipo'], string> = {
-  nota: 'Nota',
-  visita: 'Visita',
-  seguimiento: 'Seguimiento',
-  cotizacion: 'Cotización',
-  whatsapp: 'WhatsApp',
-  conversion: 'Conversión',
-};
-
-const TIPO_COLOR: Record<TimelineEvento['tipo'], string> = {
-  nota: 'bg-slate-100 text-slate-700',
-  visita: 'bg-green-100 text-green-700',
-  seguimiento: 'bg-orange-100 text-orange-700',
-  cotizacion: 'bg-blue-100 text-blue-700',
-  whatsapp: 'bg-emerald-100 text-emerald-700',
-  conversion: 'bg-purple-100 text-purple-700',
-};
 
 export default function ClienteDetailClient({ id }: { id: string }) {
   const [cliente, setCliente] = useState<ClienteFS | null>(null);
   const [cotizaciones, setCotizaciones] = useState<CotizacionFS[]>([]);
-  const [timeline, setTimeline] = useState<TimelineEvento[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -116,11 +83,6 @@ export default function ClienteDetailClient({ id }: { id: string }) {
     fetchAll();
   }, [id]);
 
-  useEffect(() => {
-    const unsub = listenTimelineCliente(id, setTimeline);
-    return () => unsub();
-  }, [id]);
-
   const handleViewPDF = (cotizacionId: string) => {
     window.open(
       `/api/cotizaciones/pdf?id=${encodeURIComponent(cotizacionId)}`,
@@ -135,6 +97,7 @@ export default function ClienteDetailClient({ id }: { id: string }) {
       (acc, cot) => acc + Number((cot as any).total ?? 0),
       0
     );
+
     return {
       totalCotizaciones: cotizaciones.length,
       totalCotizado,
@@ -146,6 +109,7 @@ export default function ClienteDetailClient({ id }: { id: string }) {
   const estadoActual = (() => {
     const estadoProspecto = (cliente as any)?.estadoProspecto;
     const tipo = (cliente as any)?.tipo;
+
     if (estadoProspecto) return estadoProspecto;
     if (tipo) return tipo;
     return 'Activo';
@@ -163,7 +127,9 @@ export default function ClienteDetailClient({ id }: { id: string }) {
     );
 
     const finalDate = Math.max(fechaCliente, fechaCotizacion);
+
     if (!finalDate) return 'Sin registro';
+
     return new Date(finalDate * 1000).toLocaleDateString();
   })();
 
@@ -197,26 +163,35 @@ export default function ClienteDetailClient({ id }: { id: string }) {
               <User className="h-5 w-5" />
               Información del cliente
             </h2>
+
             <div className="space-y-3 text-sm">
               <div className="flex items-start gap-3">
                 <Mail className="mt-0.5 h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Email</p>
-                  <p className="text-muted-foreground">{cliente.email || 'Sin email'}</p>
+                  <p className="text-muted-foreground">
+                    {cliente.email || 'Sin email'}
+                  </p>
                 </div>
               </div>
+
               <div className="flex items-start gap-3">
                 <Phone className="mt-0.5 h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Teléfono</p>
-                  <p className="text-muted-foreground">{cliente.telefono || 'Sin teléfono'}</p>
+                  <p className="text-muted-foreground">
+                    {cliente.telefono || 'Sin teléfono'}
+                  </p>
                 </div>
               </div>
+
               <div className="flex items-start gap-3">
                 <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Domicilio</p>
-                  <p className="text-muted-foreground">{cliente.domicilio || 'Sin domicilio'}</p>
+                  <p className="text-muted-foreground">
+                    {cliente.domicilio || 'Sin domicilio'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -227,13 +202,21 @@ export default function ClienteDetailClient({ id }: { id: string }) {
               <Activity className="h-5 w-5" />
               Estado actual
             </h2>
+
             <div className="space-y-4">
               <div className="rounded-xl bg-muted/50 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Estado</p>
-                <p className="mt-1 text-base font-semibold capitalize">{String(estadoActual)}</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Estado
+                </p>
+                <p className="mt-1 text-base font-semibold capitalize">
+                  {String(estadoActual)}
+                </p>
               </div>
+
               <div className="rounded-xl bg-muted/50 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Último contacto</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Último contacto
+                </p>
                 <p className="mt-1 text-base font-semibold">{ultimoContacto}</p>
               </div>
             </div>
@@ -244,8 +227,11 @@ export default function ClienteDetailClient({ id }: { id: string }) {
               <NotebookPen className="h-5 w-5" />
               Notas
             </h2>
+
             {notasCliente ? (
-              <p className="text-sm leading-relaxed text-muted-foreground">{notasCliente}</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {notasCliente}
+              </p>
             ) : (
               <p className="text-sm text-muted-foreground">
                 Este cliente todavía no tiene notas registradas.
@@ -258,42 +244,66 @@ export default function ClienteDetailClient({ id }: { id: string }) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-2xl border bg-card p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">Cotizaciones</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Cotizaciones
+                </p>
                 <FileText className="h-5 w-5 text-blue-600" />
               </div>
+
               <p className="text-3xl font-bold">{resumen.totalCotizaciones}</p>
-              <p className="mt-1 text-sm text-muted-foreground">Total registradas</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Total de cotizaciones registradas
+              </p>
             </div>
 
             <div className="rounded-2xl border bg-card p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">Total cotizado</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Total cotizado
+                </p>
                 <BadgeDollarSign className="h-5 w-5 text-emerald-600" />
               </div>
-              <p className="text-3xl font-bold">${resumen.totalCotizado.toFixed(2)}</p>
-              <p className="mt-1 text-sm text-muted-foreground">Acumulado histórico</p>
+
+              <p className="text-3xl font-bold">
+                ${resumen.totalCotizado.toFixed(2)}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Acumulado histórico cotizado
+              </p>
             </div>
 
             <div className="rounded-2xl border bg-card p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">Ticket promedio</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Ticket promedio
+                </p>
                 <CalendarDays className="h-5 w-5 text-violet-600" />
               </div>
-              <p className="text-3xl font-bold">${resumen.ticketPromedio.toFixed(2)}</p>
-              <p className="mt-1 text-sm text-muted-foreground">Promedio por cotización</p>
+
+              <p className="text-3xl font-bold">
+                ${resumen.ticketPromedio.toFixed(2)}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Promedio por cotización
+              </p>
             </div>
           </div>
 
           <div className="rounded-2xl border bg-card p-6 shadow-sm">
             <h2 className="mb-4 text-2xl font-bold">Últimas cotizaciones</h2>
+
             {cotizaciones.length > 0 ? (
               <div className="space-y-4">
                 {cotizaciones.slice(0, 5).map((cot) => {
                   const fechaSeconds = getSecondsSafe(
                     (cot as any).fecha_creacion ?? (cot as any).fecha
                   );
+
                   return (
-                    <div key={cot.id} className="rounded-2xl border bg-background p-4">
+                    <div
+                      key={cot.id}
+                      className="rounded-2xl border bg-background p-4"
+                    >
                       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div className="space-y-1">
                           <p className="font-semibold">Folio: {cot.id}</p>
@@ -310,6 +320,7 @@ export default function ClienteDetailClient({ id }: { id: string }) {
                             </span>
                           </p>
                         </div>
+
                         <button
                           onClick={() => handleViewPDF(String(cot.id))}
                           className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
@@ -322,49 +333,23 @@ export default function ClienteDetailClient({ id }: { id: string }) {
                 })}
               </div>
             ) : (
-              <p className="text-muted-foreground">No hay cotizaciones para este cliente.</p>
+              <p className="text-muted-foreground">
+                No hay cotizaciones para este cliente.
+              </p>
             )}
           </div>
 
-          {/* Timeline */}
-          <div className="rounded-2xl border bg-card p-6 shadow-sm">
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-bold">
-              <Clock className="h-5 w-5" />
-              Timeline
-            </h2>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Actividad y seguimiento del cliente.
+          <div className="rounded-2xl border border-dashed bg-card p-6 shadow-sm">
+            <h2 className="mb-2 text-xl font-semibold">Siguiente mejora</h2>
+            <p className="text-sm text-muted-foreground">
+              Aquí después podemos conectar:
             </p>
 
-            {timeline.length === 0 ? (
-              <div className="rounded-xl border border-dashed p-6 text-center">
-                <p className="font-medium text-muted-foreground">Sin actividad todavía</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Aquí aparecerán llamadas, cotizaciones y seguimientos.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {timeline.map((evento) => (
-                  <div
-                    key={evento.id}
-                    className="flex items-start gap-3 rounded-xl border bg-background p-4"
-                  >
-                    <span
-                      className={`mt-0.5 rounded-full px-2 py-0.5 text-xs font-medium ${TIPO_COLOR[evento.tipo]}`}
-                    >
-                      {TIPO_LABEL[evento.tipo]}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-slate-700">{evento.texto}</p>
-                    </div>
-                    <p className="shrink-0 text-xs text-muted-foreground">
-                      {formatearFechaTimeline(evento.createdAt)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <p>• Últimas visitas</p>
+              <p>• Productos que más compra</p>
+              <p>• Próximo seguimiento</p>
+            </div>
           </div>
         </div>
       </div>

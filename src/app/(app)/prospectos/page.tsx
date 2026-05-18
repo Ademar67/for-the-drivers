@@ -178,8 +178,6 @@ function inicioDelDia(fecha = new Date()) {
   return d;
 }
 
-/* ------------------ página ------------------ */
-
 export default function ProspectosPage() {
   const { user, loading: authLoading } = useAuth();
 
@@ -197,7 +195,7 @@ export default function ProspectosPage() {
   const [denueOpen, setDenueOpen] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [vista, setVista] = useState<'lista' | 'pipeline'>('lista');
-  
+
   useEffect(() => {
     if (authLoading) return;
 
@@ -326,7 +324,7 @@ export default function ProspectosPage() {
         salud,
         esParaHoy,
         esVencido,
-      };
+      } as any;
     });
   }, [prospectos, ultimaVisitaMap, hoy]);
 
@@ -345,38 +343,38 @@ export default function ProspectosPage() {
 
   const prospectosFiltrados = useMemo(() => {
     let filtrados = [...prospectosEnriquecidos];
-  
+
     switch (filtro) {
       case 'para_hoy':
         filtrados = filtrados.filter((p) => p.esParaHoy);
         break;
-  
+
       case 'vencidos':
         filtrados = filtrados.filter((p) => p.esVencido);
         break;
-  
+
       case 'nuevo':
         filtrados = filtrados.filter(
           (p) => p.estadoProspecto === 'nuevo'
         );
         break;
-  
+
       case 'seguimiento':
         filtrados = filtrados.filter(
           (p) => p.estadoProspecto === 'seguimiento'
         );
         break;
-  
+
       case 'interesado':
         filtrados = filtrados.filter(
           (p) => p.estadoProspecto === 'interesado'
         );
         break;
     }
-  
+
     if (busqueda.trim()) {
       const texto = busqueda.toLowerCase();
-  
+
       filtrados = filtrados.filter((p) => {
         return (
           p.nombre?.toLowerCase().includes(texto) ||
@@ -385,7 +383,7 @@ export default function ProspectosPage() {
         );
       });
     }
-  
+
     return filtrados;
   }, [filtro, prospectosEnriquecidos, busqueda]);
 
@@ -559,86 +557,45 @@ export default function ProspectosPage() {
         </div>
       )}
 
-{!loading && (
-  <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-    <div className="relative">
-      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-      <input
-        type="text"
-        placeholder="Buscar prospecto..."
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-        className="w-full rounded-xl border bg-slate-50 py-3 pl-10 pr-4 outline-none transition focus:border-blue-500"
-      />
-    </div>
-  </div>
-)}
-        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="flex items-center gap-2 text-lg font-semibold">
-                <Filter className="h-5 w-5" />
-                Filtros
-              </h2>
-              <p className="text-sm text-slate-500">
-                Enfócate en lo urgente y organiza mejor tu seguimiento.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={filtro === 'todos' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFiltro('todos')}
-                className="rounded-xl"
-              >
-                Todos
-              </Button>
-              <Button
-                variant={filtro === 'para_hoy' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFiltro('para_hoy')}
-                className="rounded-xl"
-              >
-                Para hoy
-              </Button>
-              <Button
-                variant={filtro === 'vencidos' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFiltro('vencidos')}
-                className="rounded-xl"
-              >
-                Vencidos
-              </Button>
-              <Button
-                variant={filtro === 'nuevo' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFiltro('nuevo')}
-                className="rounded-xl"
-              >
-                Nuevos
-              </Button>
-              <Button
-                variant={filtro === 'seguimiento' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFiltro('seguimiento')}
-                className="rounded-xl"
-              >
-                Seguimiento
-              </Button>
-              <Button
-                variant={filtro === 'interesado' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFiltro('interesado')}
-                className="rounded-xl"
-              >
-                Interesados
-              </Button>
-            </div>
+      {!loading && (
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="relative flex-1 max-w-lg">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar prospecto..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="w-full rounded-xl border bg-white py-3 pl-10 pr-4 outline-none transition focus:border-blue-500 shadow-sm"
+            />
           </div>
-        </section>
-      
+
+          <div className="flex items-center gap-2 rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-200 w-fit">
+            <button
+              type="button"
+              onClick={() => setVista('lista')}
+              className={cn(
+                'flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition',
+                vista === 'lista' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'
+              )}
+            >
+              <List className="h-4 w-4" />
+              Lista
+            </button>
+            <button
+              type="button"
+              onClick={() => setVista('pipeline')}
+              className={cn(
+                'flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition',
+                vista === 'pipeline' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Pipeline
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
@@ -651,9 +608,11 @@ export default function ProspectosPage() {
             Ajusta el filtro o agrega un nuevo prospecto para continuar.
           </p>
         </div>
+      ) : vista === 'pipeline' ? (
+        <PipelineKanban prospectos={prospectosFiltrados} />
       ) : (
-        <>
-          <div className="space-y-4 md:hidden">
+        <div className="space-y-4">
+          <div className="md:hidden space-y-4">
             {prospectosFiltrados.map((p) => (
               <div
                 key={p.id}
@@ -661,12 +620,12 @@ export default function ProspectosPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                  <Link
-  href={`/prospectos/${p.id}`}
-  className="text-lg font-bold text-slate-800 hover:text-blue-600"
->
-  {p.nombre}
-</Link>
+                    <Link
+                      href={`/prospectos/${p.id}`}
+                      className="text-lg font-bold text-slate-800 hover:text-blue-600"
+                    >
+                      {p.nombre}
+                    </Link>
                     <p className="mt-1 text-sm text-slate-500">{p.salud.texto}</p>
                   </div>
 
@@ -724,67 +683,20 @@ export default function ProspectosPage() {
                         : 'Sin visitas'}
                     </p>
                   </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3 sm:col-span-2">
-                    <p className="text-slate-500">Domicilio</p>
-                    <p className="mt-1 font-medium">
-                      {p.domicilio || 'Sin domicilio'}
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3 sm:col-span-2">
-                    <p className="text-slate-500">Próxima visita</p>
-                    <p className="mt-1 font-medium">
-                      {p.proximaVisitaReal
-                        ? formatearFecha(p.proximaVisitaReal)
-                        : 'Sin programar'}
-                    </p>
-                  </div>
                 </div>
 
                 <div className="mt-4 flex flex-col gap-2 border-t pt-4">
-                <div className="grid grid-cols-3 gap-2">
-  <a
-    href={`tel:${p.telefono || ''}`}
-    className="flex items-center justify-center rounded-xl border bg-white py-2 text-sm font-medium"
-  >
-    <Phone className="mr-1 h-4 w-4" />
-    Llamar
-  </a>
+                  <Button
+                    size="sm"
+                    asChild
+                    className="rounded-xl bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Link href={`/cotizaciones/nueva?clienteId=${p.id}`}>
+                      Cotizar
+                    </Link>
+                  </Button>
 
-  <a
-    href={`https://wa.me/52${String(p.telefono || '').replace(/\D/g, '')}`}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="flex items-center justify-center rounded-xl border bg-white py-2 text-sm font-medium"
-  >
-    <MessageCircle className="mr-1 h-4 w-4" />
-    WhatsApp
-  </a>
-
-  <a
-    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      p.domicilio || p.nombre || ''
-    )}`}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="flex items-center justify-center rounded-xl border bg-white py-2 text-sm font-medium"
-  >
-    <Navigation className="mr-1 h-4 w-4" />
-    Ruta
-  </a>
-</div>
-<Button
-  size="sm"
-  asChild
-  className="rounded-xl bg-blue-600 hover:bg-blue-700"
->
-  <Link href={`/cotizaciones/nueva?clienteId=${p.id}`}>
-    Cotizar
-  </Link>
-</Button>
-
-<div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -802,131 +714,29 @@ export default function ProspectosPage() {
                       </Link>
                     </Button>
                   </div>
-
-                  <div className="grid grid-cols-1 gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => p.id && marcarVisita(p.id)}
-                      disabled={marcandoId === p.id}
-                      className="rounded-xl"
-                    >
-                      <ClipboardCheck className="mr-1 h-4 w-4" />
-                      {marcandoId === p.id ? 'Guardando...' : 'Marcar visita'}
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => p.id && programarSeguimiento22Dias(p.id)}
-                      disabled={seguimientoId === p.id}
-                      className="rounded-xl"
-                    >
-                      <Clock3 className="mr-1 h-4 w-4" />
-                      {seguimientoId === p.id
-                        ? 'Programando...'
-                        : `Seguimiento +${DIAS_SEGUIMIENTO} días`}
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          className="rounded-xl bg-green-600 hover:bg-green-700"
-                          disabled={convirtiendoId === p.id}
-                        >
-                          <CheckCircle2 className="mr-1 h-4 w-4" />
-                          Convertir
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Convertir a cliente?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {p.nombre} pasará a Clientes.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => p.id && convertir(p.id)}>
-                            Convertir
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="rounded-xl"
-                        >
-                          <Trash2 className="mr-1 h-4 w-4" />
-                          Eliminar
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Eliminar prospecto?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Se eliminará permanentemente a {p.nombre}.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => p.id && eliminarCliente(p.id)}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Eliminar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="hidden gap-4 md:grid">
-  {prospectosFiltrados.map((p) => (
-    <div
-      key={p.id}
-      className="rounded-2xl border bg-white p-5 shadow-sm ring-1 ring-slate-200"
-      >
-    <div className="flex items-start justify-between gap-4">
-      <div className="min-w-0">
-        <Link
-          href={`/prospectos/${p.id}`}
-          className="text-lg font-semibold hover:text-blue-600"
-        >
-          {p.nombre}
-        </Link>
+          <div className="hidden md:grid gap-4">
+            {prospectosFiltrados.map((p) => (
+              <div
+                key={p.id}
+                className="rounded-2xl border bg-white p-5 shadow-sm ring-1 ring-slate-200"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/prospectos/${p.id}`}
+                      className="text-lg font-semibold hover:text-blue-600"
+                    >
+                      {p.nombre}
+                    </Link>
+                    <p className="mt-1 text-sm text-slate-500">{p.salud.texto}</p>
+                  </div>
 
-        <p className="mt-1 text-sm text-slate-500">
-          {p.salud.texto}
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <span
-          className={cn(
-            'rounded-full px-2 py-1 text-xs',
-            p.salud.estado === 'activo' &&
-              'bg-green-100 text-green-700',
-            p.salud.estado === 'riesgo' &&
-              'bg-orange-100 text-orange-700',
-            p.salud.estado === 'perdido' &&
-              'bg-red-100 text-red-700'
-          )}
-        >
-                      {p.salud.estado}
-                    </span>
-
+                  <div className="flex items-center gap-2">
                     <span
                       className={cn(
                         'rounded-full px-2 py-1 text-xs',
@@ -935,194 +745,23 @@ export default function ProspectosPage() {
                     >
                       {getEstadoProspectoLabel(p.estadoProspecto)}
                     </span>
-
-                    {p.esParaHoy && (
-                      <span className="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-700">
-                        Para hoy
-                      </span>
-                    )}
-
-                    {p.esVencido && (
-                      <span className="rounded-full bg-red-100 px-2 py-1 text-xs text-red-700">
-                        Vencido
-                      </span>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      asChild
+                      className="rounded-xl"
+                    >
+                      <Link href={`/prospectos/${p.id}`}>Ver Ficha</Link>
+                    </Button>
                   </div>
-                </div>
-
-                <div className="mt-4 grid gap-3 lg:grid-cols-4">
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <p className="text-sm text-slate-500">Ciudad</p>
-                    <p className="mt-1 font-medium">{p.ciudad || 'Sin ciudad'}</p>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <p className="text-sm text-slate-500">Última visita</p>
-                    <p className="mt-1 font-medium">
-                      {p.ultimaVisitaReal
-                        ? formatearFecha(p.ultimaVisitaReal)
-                        : 'Sin visitas'}
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <p className="text-sm text-slate-500">Próxima visita</p>
-                    <p className="mt-1 font-medium">
-                      {p.proximaVisitaReal
-                        ? formatearFecha(p.proximaVisitaReal)
-                        : 'Sin programar'}
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <p className="text-sm text-slate-500">Estado comercial</p>
-                    <p className="mt-1 font-medium">
-                      {getEstadoProspectoLabel(p.estadoProspecto)}
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3 lg:col-span-4">
-                    <p className="text-sm text-slate-500">Domicilio</p>
-                    <p className="mt-1 font-medium">
-                      {p.domicilio || 'Sin domicilio'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setNota(p.nota || '')}
-                    className="rounded-xl"
-                  >
-                    <StickyNote className="mr-1 h-4 w-4" />
-                    Nota
-                  </Button>
-
-                  <Button size="sm" variant="outline" asChild className="rounded-xl">
-                    <Link href={`/agenda?clienteId=${p.id}`}>
-                      <Calendar className="mr-1 h-4 w-4" />
-                      Agenda
-                    </Link>
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => p.id && marcarVisita(p.id)}
-                    disabled={marcandoId === p.id}
-                    className="rounded-xl"
-                  >
-                    <ClipboardCheck className="mr-1 h-4 w-4" />
-                    {marcandoId === p.id ? 'Guardando...' : 'Marcar visita'}
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => p.id && programarSeguimiento22Dias(p.id)}
-                    disabled={seguimientoId === p.id}
-                    className="rounded-xl"
-                  >
-                    <Clock3 className="mr-1 h-4 w-4" />
-                    {seguimientoId === p.id
-                      ? 'Programando...'
-                      : `Seguimiento +${DIAS_SEGUIMIENTO} días`}
-                  </Button>
-
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        size="sm"
-                        className="rounded-xl bg-green-600 hover:bg-green-700"
-                        disabled={convirtiendoId === p.id}
-                      >
-                        <CheckCircle2 className="mr-1 h-4 w-4" />
-                        Convertir
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Convertir a cliente?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {p.nombre} pasará a Clientes.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => p.id && convertir(p.id)}>
-                          Convertir
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="rounded-xl"
-                      >
-                        <Trash2 className="mr-1 h-4 w-4" />
-                        Eliminar
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar prospecto?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta acción no se puede deshacer. Se eliminará permanentemente a {p.nombre}.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => p.id && eliminarCliente(p.id)}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          Eliminar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                 </div>
               </div>
             ))}
           </div>
-        </>
-      )}
-{/* Toggle vista */}
-{!loading && (
-        <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-200 w-fit">
-          <button
-            type="button"
-            onClick={() => setVista('lista')}
-            className={cn(
-              'flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition',
-              vista === 'lista' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
-            )}
-          >
-            <List className="h-4 w-4" />
-            Lista
-          </button>
-          <button
-            type="button"
-            onClick={() => setVista('pipeline')}
-            className={cn(
-              'flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition',
-              vista === 'pipeline' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
-            )}
-          >
-            <LayoutGrid className="h-4 w-4" />
-            Pipeline
-          </button>
         </div>
       )}
 
-undefined
-            <CrearClienteModal open={crearOpen} onClose={() => setCrearOpen(false)} />
+      <CrearClienteModal open={crearOpen} onClose={() => setCrearOpen(false)} />
 
       <DenueSearchModal
         open={denueOpen}
