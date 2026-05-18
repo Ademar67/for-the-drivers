@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils';
 
 import CrearClienteModal from '@/components/clientes/crear-cliente-modal';
 import DenueSearchModal from '@/components/denue/DenueSearchModal';
+import PipelineKanban from '@/components/prospectos/PipelineKanban';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -1120,69 +1121,8 @@ export default function ProspectosPage() {
         </div>
       )}
 
-      {/* Vista Pipeline */}
-      {!loading && vista === 'pipeline' && (
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-4 min-w-max">
-            {([
-              { key: 'nuevo', label: 'Nuevo', color: 'bg-blue-100 text-blue-700', border: 'border-blue-200' },
-              { key: 'visitado', label: 'Visitado', color: 'bg-green-100 text-green-700', border: 'border-green-200' },
-              { key: 'seguimiento', label: 'Seguimiento', color: 'bg-orange-100 text-orange-700', border: 'border-orange-200' },
-              { key: 'interesado', label: 'Interesado', color: 'bg-emerald-100 text-emerald-700', border: 'border-emerald-200' },
-              { key: 'no_interesado', label: 'No interesado', color: 'bg-gray-100 text-gray-700', border: 'border-gray-200' },
-            ] as const).map((col) => {
-              const items = prospectosEnriquecidos.filter(
-                (p) => (p.estadoProspecto ?? 'nuevo') === col.key
-              );
-              return (
-                <div key={col.key} className="w-72 shrink-0">
-                  <div className={cn('mb-3 flex items-center justify-between rounded-xl border px-3 py-2', col.border)}>
-                    <span className={cn('text-sm font-semibold', col.color.split(' ')[1])}>{col.label}</span>
-                    <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', col.color)}>{items.length}</span>
-                  </div>
-                  <div className="space-y-3">
-                    {items.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed bg-white p-4 text-center text-sm text-slate-400">
-                        Sin prospectos
-                      </div>
-                    ) : (
-                      items.map((p) => (
-                        <Link
-                          key={p.id}
-                          href={`/prospectos/${p.id}`}
-                          className="block rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md hover:-translate-y-0.5"
-                        >
-                          <p className="font-semibold text-slate-800 text-sm">{p.nombre}</p>
-                          <p className="mt-1 text-xs text-slate-500">{p.ciudad}</p>
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {p.esParaHoy && (
-                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">Hoy</span>
-                            )}
-                            {p.esVencido && (
-                              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">Vencido</span>
-                            )}
-                            <span className={cn('rounded-full px-2 py-0.5 text-xs', 
-                              p.salud.estado === 'activo' ? 'bg-green-100 text-green-700' :
-                              p.salud.estado === 'riesgo' ? 'bg-orange-100 text-orange-700' :
-                              'bg-red-100 text-red-700'
-                            )}>{p.salud.estado}</span>
-                          </div>
-                          {p.proximaVisitaReal && (
-                            <p className="mt-2 text-xs text-slate-400">
-                              Próxima: {formatearFecha(p.proximaVisitaReal)}
-                            </p>
-                          )}
-                        </Link>
-                      ))
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      <CrearClienteModal open={crearOpen} onClose={() => setCrearOpen(false)} />
+undefined
+            <CrearClienteModal open={crearOpen} onClose={() => setCrearOpen(false)} />
 
       <DenueSearchModal
         open={denueOpen}
