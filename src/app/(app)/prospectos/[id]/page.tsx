@@ -16,6 +16,9 @@ import {
   Target,
   UserRound,
   CheckCircle2,
+  Pencil,
+  Save,
+  X,
 } from 'lucide-react';
 
 import {
@@ -25,6 +28,8 @@ import {
   getDocs,
   query,
   Timestamp,
+  updateDoc,
+  serverTimestamp,
   where,
 } from 'firebase/firestore';
 
@@ -119,6 +124,9 @@ useEffect(() => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [convirtiendo, setConvirtiendo] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [editForm, setEditForm] = useState({ nombre: '', telefono: '', ciudad: '', domicilio: '', nota: '' });
 
   const telefonoLimpio = useMemo(
     () => cleanPhone(prospecto?.telefono),
@@ -217,6 +225,39 @@ useEffect(() => {
   
     return () => unsub();
   }, [prospectoId, user?.uid, isUserLoading]);
+
+  const handleEditarAbrir = () => {
+    setEditForm({
+      nombre: prospecto?.nombre ?? '',
+      telefono: prospecto?.telefono ?? '',
+      ciudad: prospecto?.ciudad ?? '',
+      domicilio: prospecto?.domicilio ?? '',
+      nota: prospecto?.nota ?? '',
+    });
+    setEditando(true);
+  };
+
+  const handleGuardarEdicion = async () => {
+    if (!prospectoId) return;
+    try {
+      setGuardando(true);
+      await updateDoc(doc(db, 'clientes', prospectoId), {
+        nombre: editForm.nombre.trim(),
+        telefono: editForm.telefono.trim(),
+        ciudad: editForm.ciudad.trim(),
+        domicilio: editForm.domicilio.trim(),
+        nota: editForm.nota.trim(),
+        updatedAt: serverTimestamp(),
+      });
+      setProspecto(prev => prev ? { ...prev, ...editForm } : prev);
+      setEditando(false);
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo guardar los cambios.');
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   const handleConvertir = async () => {
     if (!prospectoId) return;
@@ -325,9 +366,15 @@ useEffect(() => {
             Volver
           </Button>
 
-          <Badge className="rounded-full bg-blue-700 px-3 py-1 text-white">
-            Ficha CRM
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={handleEditarAbrir} className="rounded-xl">
+              <Pencil className="mr-1 h-4 w-4" />
+              Editar
+            </Button>
+            <Badge className="rounded-full bg-blue-700 px-3 py-1 text-white">
+              Ficha CRM
+            </Badge>
+          </div>
         </div>
       </section>
 
@@ -620,6 +667,48 @@ useEffect(() => {
   </div>
 </section>
       </div>
+      {/* Modal edicion */}
+      {editando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black text-slate-900">Editar prospecto</h2>
+              <button onClick={() => setEditando(false)} className="rounded-xl p-2 hover:bg-slate-100">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase text-slate-500">Nombre</label>
+                <input className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" value={editForm.nombre} onChange={e => setEditForm(f => ({ ...f, nombre: e.target.value }))} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase text-slate-500">Teléfono</label>
+                <input className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" value={editForm.telefono} onChange={e => setEditForm(f => ({ ...f, telefono: e.target.value }))} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase text-slate-500">Ciudad</label>
+                <input className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" value={editForm.ciudad} onChange={e => setEditForm(f => ({ ...f, ciudad: e.target.value }))} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase text-slate-500">Domicilio</label>
+                <input className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" value={editForm.domicilio} onChange={e => setEditForm(f => ({ ...f, domicilio: e.target.value }))} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase text-slate-500">Notas</label>
+                <textarea className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" rows={3} value={editForm.nota} onChange={e => setEditForm(f => ({ ...f, nota: e.target.value }))} />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setEditando(false)}>Cancelar</Button>
+              <Button className="flex-1 rounded-xl bg-blue-600 text-white hover:bg-blue-700" onClick={handleGuardarEdicion} disabled={guardando}>
+                <Save className="mr-2 h-4 w-4" />
+                {guardando ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
