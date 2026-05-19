@@ -15,6 +15,7 @@ import {
   Phone,
   Target,
   UserRound,
+  CheckCircle2,
 } from 'lucide-react';
 
 import {
@@ -35,6 +36,8 @@ import { Badge } from '@/components/ui/badge';
 
 import {
   listenTimelineCliente,
+  cambiarTipoCliente,
+  agregarTimelineEvento,
   type TimelineEvento,
 } from '@/lib/firestore/clientes';
 
@@ -115,6 +118,7 @@ useEffect(() => {
   const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [convirtiendo, setConvirtiendo] = useState(false);
 
   const telefonoLimpio = useMemo(
     () => cleanPhone(prospecto?.telefono),
@@ -213,6 +217,26 @@ useEffect(() => {
   
     return () => unsub();
   }, [prospectoId, user?.uid, isUserLoading]);
+
+  const handleConvertir = async () => {
+    if (!prospectoId) return;
+    const confirmado = window.confirm('¿Convertir a ' + (prospecto?.nombre ?? 'este prospecto') + ' en cliente? Esta accion no se puede deshacer.');
+    if (!confirmado) return;
+    try {
+      setConvirtiendo(true);
+      await cambiarTipoCliente(prospectoId, 'cliente');
+      await agregarTimelineEvento(prospectoId, {
+        tipo: 'conversion',
+        texto: 'Prospecto convertido a cliente.',
+      });
+      router.push('/clientes');
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo convertir el prospecto.');
+    } finally {
+      setConvirtiendo(false);
+    }
+  };
 
   const handleCall = () => {
     if (!telefonoLimpio) return;
@@ -394,6 +418,15 @@ useEffect(() => {
           >
             <CalendarPlus className="mr-2 h-4 w-4" />
             Agendar
+          </Button>
+
+          <Button
+            onClick={handleConvertir}
+            disabled={convirtiendo}
+            className="col-span-2 h-16 rounded-2xl bg-green-600 text-white hover:bg-green-700 md:col-span-5"
+          >
+            <CheckCircle2 className="mr-2 h-5 w-5" />
+            {convirtiendo ? 'Convirtiendo...' : 'Convertir a Cliente'}
           </Button>
         </section>
 
