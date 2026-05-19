@@ -19,6 +19,7 @@ import {
   Pencil,
   Save,
   X,
+  StickyNote,
 } from 'lucide-react';
 
 import {
@@ -127,6 +128,8 @@ useEffect(() => {
   const [editando, setEditando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [editForm, setEditForm] = useState({ nombre: '', telefono: '', ciudad: '', domicilio: '', nota: '' });
+  const [notaRapida, setNotaRapida] = useState('');
+  const [guardandoNota, setGuardandoNota] = useState(false);
 
   const telefonoLimpio = useMemo(
     () => cleanPhone(prospecto?.telefono),
@@ -276,6 +279,23 @@ useEffect(() => {
       alert('No se pudo convertir el prospecto.');
     } finally {
       setConvirtiendo(false);
+    }
+  };
+
+  const handleAgregarNota = async () => {
+    if (!prospectoId || !notaRapida.trim()) return;
+    try {
+      setGuardandoNota(true);
+      await agregarTimelineEvento(prospectoId, {
+        tipo: 'nota',
+        texto: notaRapida.trim(),
+      });
+      setNotaRapida('');
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo guardar la nota.');
+    } finally {
+      setGuardandoNota(false);
     }
   };
 
@@ -618,6 +638,28 @@ useEffect(() => {
             )}
           </div>
         </section>
+        <section className="rounded-3xl border bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <StickyNote className="h-5 w-5 text-slate-400" />
+            <h2 className="text-lg font-black text-slate-900">Agregar nota</h2>
+          </div>
+          <textarea
+            className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+            rows={3}
+            placeholder="Escribe lo que dijo el cliente, acuerdos, detalles importantes..."
+            value={notaRapida}
+            onChange={e => setNotaRapida(e.target.value)}
+          />
+          <button
+            onClick={handleAgregarNota}
+            disabled={guardandoNota || !notaRapida.trim()}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-800 py-3 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
+          >
+            <Save className="h-4 w-4" />
+            {guardandoNota ? 'Guardando...' : 'Guardar nota'}
+          </button>
+        </section>
+
         <section className="rounded-3xl border bg-white p-4 shadow-sm">
   <div className="mb-4">
     <h2 className="text-lg font-black text-slate-900">
