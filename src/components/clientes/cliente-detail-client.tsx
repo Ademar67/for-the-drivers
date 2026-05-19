@@ -9,6 +9,8 @@ import {
   getDocs,
   query,
   where,
+  updateDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 import {
   FileText,
@@ -18,6 +20,9 @@ import {
   CalendarDays,
   BadgeDollarSign,
   Clock,
+  Pencil,
+  Save,
+  X,
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import type { ClienteFS } from '@/lib/firestore/clientes';
@@ -72,6 +77,9 @@ export default function ClienteDetailClient({ id }: { id: string }) {
   const [cotizaciones, setCotizaciones] = useState<CotizacionFS[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvento[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editando, setEditando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [editForm, setEditForm] = useState({ nombre: '', telefono: '', ciudad: '', domicilio: '', nota: '' });
 
   useEffect(() => {
     async function fetchAll() {
@@ -122,6 +130,39 @@ export default function ClienteDetailClient({ id }: { id: string }) {
     };
   }, [cotizaciones]);
 
+  const handleEditarAbrir = () => {
+    setEditForm({
+      nombre: cliente?.nombre ?? '',
+      telefono: cliente?.telefono ?? '',
+      ciudad: cliente?.ciudad ?? '',
+      domicilio: cliente?.domicilio ?? '',
+      nota: (cliente as any)?.nota ?? '',
+    });
+    setEditando(true);
+  };
+
+  const handleGuardarEdicion = async () => {
+    if (!id) return;
+    try {
+      setGuardando(true);
+      await updateDoc(doc(db, 'clientes', id), {
+        nombre: editForm.nombre.trim(),
+        telefono: editForm.telefono.trim(),
+        ciudad: editForm.ciudad.trim(),
+        domicilio: editForm.domicilio.trim(),
+        nota: editForm.nota.trim(),
+        updatedAt: serverTimestamp(),
+      });
+      setCliente(prev => prev ? { ...prev, ...editForm } : prev);
+      setEditando(false);
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo guardar los cambios.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   if (loading) return <div className="p-6">Cargando...</div>;
   if (!cliente) return <div className="p-6">Cliente no encontrado.</div>;
 
@@ -130,10 +171,16 @@ export default function ClienteDetailClient({ id }: { id: string }) {
       {/* Header azul */}
       <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 text-white shadow-sm">
         <div className="p-6">
-          <div className="mb-2 flex items-center gap-2">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
             <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium capitalize">
               {cliente.tipo ?? 'cliente'}
             </span>
+            </div>
+            <button onClick={handleEditarAbrir} className="flex items-center gap-1 rounded-xl bg-white/20 px-3 py-1 text-xs font-medium text-white hover:bg-white/30">
+              <Pencil className="h-3 w-3" />
+              Editar
+            </button>
           </div>
           <h1 className="text-2xl font-bold">{cliente.nombre}</h1>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -306,6 +353,31 @@ export default function ClienteDetailClient({ id }: { id: string }) {
           </div>
         )}
       </div>
+      {editando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black text-slate-900">Editar cliente</h2>
+              <button onClick={() => setEditando(false)} className="rounded-xl p-2 hover:bg-slate-100">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div><label className="mb-1 block text-xs font-bold uppercase text-slate-500">Nombre</label><input className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" value={editForm.nombre} onChange={e => setEditForm(f => ({ ...f, nombre: e.target.value }))} /></div>
+              <div><label className="mb-1 block text-xs font-bold uppercase text-slate-500">Telefono</label><input className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" value={editForm.telefono} onChange={e => setEditForm(f => ({ ...f, telefono: e.target.value }))} /></div>
+              <div><label className="mb-1 block text-xs font-bold uppercase text-slate-500">Ciudad</label><input className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" value={editForm.ciudad} onChange={e => setEditForm(f => ({ ...f, ciudad: e.target.value }))} /></div>
+              <div><label className="mb-1 block text-xs font-bold uppercase text-slate-500">Domicilio</label><input className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" value={editForm.domicilio} onChange={e => setEditForm(f => ({ ...f, domicilio: e.target.value }))} /></div>
+              <div><label className="mb-1 block text-xs font-bold uppercase text-slate-500">Notas</label><textarea className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" rows={3} value={editForm.nota} onChange={e => setEditForm(f => ({ ...f, nota: e.target.value }))} /></div>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button onClick={() => setEditando(false)} className="flex-1 rounded-xl border border-slate-200 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancelar</button>
+              <button onClick={handleGuardarEdicion} disabled={guardando} className="flex-1 rounded-xl bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                <span className="flex items-center justify-center gap-2"><Save className="h-4 w-4" />{guardando ? 'Guardando...' : 'Guardar'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
