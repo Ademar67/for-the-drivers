@@ -23,12 +23,14 @@ import {
   Pencil,
   Save,
   X,
+  StickyNote,
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import type { ClienteFS } from '@/lib/firestore/clientes';
 import type { CotizacionFS } from '@/lib/firestore/cotizaciones';
 import {
   listenTimelineCliente,
+  agregarTimelineEvento,
   type TimelineEvento,
 } from '@/lib/firestore/clientes';
 
@@ -78,6 +80,8 @@ export default function ClienteDetailClient({ id }: { id: string }) {
   const [timeline, setTimeline] = useState<TimelineEvento[]>([]);
   const [loading, setLoading] = useState(true);
   const [editando, setEditando] = useState(false);
+  const [notaRapida, setNotaRapida] = useState('');
+  const [guardandoNota, setGuardandoNota] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [editForm, setEditForm] = useState({ nombre: '', telefono: '', ciudad: '', domicilio: '', nota: '' });
 
@@ -129,6 +133,23 @@ export default function ClienteDetailClient({ id }: { id: string }) {
         cotizaciones.length > 0 ? totalCotizado / cotizaciones.length : 0,
     };
   }, [cotizaciones]);
+
+  const handleAgregarNota = async () => {
+    if (!id || !notaRapida.trim()) return;
+    try {
+      setGuardandoNota(true);
+      await agregarTimelineEvento(id, {
+        tipo: 'nota',
+        texto: notaRapida.trim(),
+      });
+      setNotaRapida('');
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo guardar la nota.');
+    } finally {
+      setGuardandoNota(false);
+    }
+  };
 
   const handleEditarAbrir = () => {
     setEditForm({
@@ -315,6 +336,29 @@ export default function ClienteDetailClient({ id }: { id: string }) {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Nota rapida */}
+      <div className="rounded-2xl border bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <StickyNote className="h-5 w-5 text-slate-400" />
+          <h2 className="text-lg font-bold">Agregar nota</h2>
+        </div>
+        <textarea
+          className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+          rows={3}
+          placeholder="Escribe lo que dijo el cliente, acuerdos, detalles importantes..."
+          value={notaRapida}
+          onChange={e => setNotaRapida(e.target.value)}
+        />
+        <button
+          onClick={handleAgregarNota}
+          disabled={guardandoNota || !notaRapida.trim()}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-800 py-3 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
+        >
+          <Save className="h-4 w-4" />
+          {guardandoNota ? 'Guardando...' : 'Guardar nota'}
+        </button>
       </div>
 
       {/* Timeline */}
