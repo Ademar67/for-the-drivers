@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { obtenerCotizacionPorId, type CotizacionFS } from '@/lib/firestore/cotizaciones';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Printer, MessageCircle, CheckCircle2, Clock, XCircle, Send } from 'lucide-react';
 import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
 import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { type CotizacionPDFData } from '@/lib/pdf/types';
@@ -96,6 +98,8 @@ export default function CotizacionDetallePage() {
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [estado, setEstado] = useState('');
+  const [guardandoEstado, setGuardandoEstado] = useState(false);
 
   useEffect(() => {
     if (typeof params.id !== 'string') return;
@@ -108,6 +112,7 @@ export default function CotizacionDetallePage() {
         const cot = await obtenerCotizacionPorId(safeId);
         if (cot) {
           setCotizacion(cot);
+          setEstado((cot as any).estado ?? 'pendiente');
         } else {
           setCotizacion(null);
         }
@@ -121,6 +126,30 @@ export default function CotizacionDetallePage() {
 
     loadCotizacion();
   }, [params.id]);
+
+  const handleGuardarEstado = async (nuevoEstado: string) => {
+    if (!cotizacion?.id) return;
+    try {
+      setGuardandoEstado(true);
+      setEstado(nuevoEstado);
+      await updateDoc(doc(db, 'cotizaciones', cotizacion.id), {
+        estado: nuevoEstado,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo actualizar el estado.');
+    } finally {
+      setGuardandoEstado(false);
+    }
+  };
+
+  const ESTADOS = [
+    { key: 'pendiente', label: 'Pendiente', color: 'bg-slate-100 text-slate-700 border-slate-200', icon: Clock },
+    { key: 'enviada', label: 'Enviada', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Send },
+    { key: 'aceptada', label: 'Aceptada', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle2 },
+    { key: 'rechazada', label: 'Rechazada', color: 'bg-red-100 text-red-700 border-red-200', icon: XCircle },
+  ];
 
   if (loading) {
     return <div className="p-6">Cargando cotización...</div>;
@@ -215,6 +244,30 @@ export default function CotizacionDetallePage() {
           </p>
         </div>
       </div>
+
+      <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Estado de la cotización</h2>
+          {guardandoEstado && <span className="text-xs text-slate-400">Guardando...</span>}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {ESTADOS.map((e) => {
+            const Icon = e.icon;
+            const activo = estado === e.key;
+            return (
+              <button
+                key={e.key}
+                onClick={() => handleGuardarEstado(e.key)}
+                disabled={guardandoEstado}
+                className={`flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition ${activo ? e.color + ' ring-2 ring-offset-1' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+              >
+                <Icon className="h-4 w-4" />
+                {e.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5">
         <h2 className="text-lg font-semibold">Productos</h2>
