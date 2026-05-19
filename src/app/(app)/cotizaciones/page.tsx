@@ -70,9 +70,12 @@ export default function CotizacionesPage() {
       (acc, cot) => {
         acc.total += 1;
         acc.monto += Number(cot.total || 0);
+        const estado = (cot as any).estado ?? 'pendiente';
+        if (estado === 'aceptada') acc.aceptadas += 1;
+        if (estado === 'pendiente') acc.pendientes += 1;
         return acc;
       },
-      { total: 0, monto: 0 }
+      { total: 0, monto: 0, aceptadas: 0, pendientes: 0 }
     );
   }, [cotizaciones]);
 
@@ -121,6 +124,14 @@ export default function CotizacionesPage() {
           <p className="mt-2 text-2xl font-bold">
             {formatCurrency(resumen.total > 0 ? resumen.monto / resumen.total : 0)}
           </p>
+        </div>
+        <div className="rounded-2xl bg-green-50 p-4 shadow-sm ring-1 ring-green-200">
+          <p className="text-sm text-green-700">Aceptadas</p>
+          <p className="mt-2 text-2xl font-bold text-green-700">{resumen.aceptadas}</p>
+        </div>
+        <div className="rounded-2xl bg-orange-50 p-4 shadow-sm ring-1 ring-orange-200">
+          <p className="text-sm text-orange-700">Pendientes</p>
+          <p className="mt-2 text-2xl font-bold text-orange-700">{resumen.pendientes}</p>
         </div>
       </div>
 
@@ -175,9 +186,25 @@ export default function CotizacionesPage() {
                       </p>
                     </div>
 
-                    <Badge variant="outline">
-                      {Array.isArray(cot.items) ? cot.items.length : 0} productos
-                    </Badge>
+<div className="flex flex-col items-end gap-1">
+                      <Badge variant="outline">
+                        {Array.isArray(cot.items) ? cot.items.length : 0} productos
+                      </Badge>
+                      {(() => {
+                        const estado = (cot as any).estado ?? 'pendiente';
+                        const map: Record<string, string> = {
+                          pendiente: 'bg-slate-100 text-slate-600',
+                          enviada: 'bg-blue-100 text-blue-700',
+                          aceptada: 'bg-green-100 text-green-700',
+                          rechazada: 'bg-red-100 text-red-700',
+                        };
+                        return (
+                          <span className={`rounded-full px-2 py-1 text-xs font-medium capitalize ${map[estado] ?? map.pendiente}`}>
+                            {estado}
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -232,6 +259,7 @@ export default function CotizacionesPage() {
                     <th className="p-4 text-left text-sm font-semibold">Subtotal</th>
                     <th className="p-4 text-left text-sm font-semibold">Descuentos</th>
                     <th className="p-4 text-left text-sm font-semibold">Total</th>
+                    <th className="p-4 text-left text-sm font-semibold">Estado</th>
                     <th className="p-4 text-left text-sm font-semibold">Acciones</th>
                   </tr>
                 </thead>
@@ -252,6 +280,22 @@ export default function CotizacionesPage() {
                       </td>
                       <td className="p-4 font-semibold">
                         {formatCurrency(cot.total || 0)}
+                      </td>
+                      <td className="p-4">
+                        {(() => {
+                          const estado = (cot as any).estado ?? 'pendiente';
+                          const map: Record<string, string> = {
+                            pendiente: 'bg-slate-100 text-slate-600',
+                            enviada: 'bg-blue-100 text-blue-700',
+                            aceptada: 'bg-green-100 text-green-700',
+                            rechazada: 'bg-red-100 text-red-700',
+                          };
+                          return (
+                            <span className={`rounded-full px-2 py-1 text-xs font-medium capitalize ${map[estado] ?? map.pendiente}`}>
+                              {estado}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
