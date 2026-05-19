@@ -28,10 +28,12 @@ import {
   Truck,
   TrendingUp,
   DollarSign,
+  AlertTriangle,
 } from "lucide-react";
 import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 
 import { db } from "@/firebase/config";
+import { obtenerProspectosEnRiesgo, type ClienteFS } from "@/lib/firestore/clientes";
 import { useAuth } from "@/context/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -170,6 +172,7 @@ export default function DashboardPage() {
   });
 
   const [ultimasCotizaciones, setUltimasCotizaciones] = useState<UltimaCotizacion[]>([]);
+  const [prospectosEnRiesgo, setProspectosEnRiesgo] = useState<ClienteFS[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -275,6 +278,14 @@ export default function DashboardPage() {
         });
 
         setUltimasCotizaciones(ultimas);
+
+        // Prospectos sin contacto en 7+ dias
+        try {
+          const enRiesgo = await obtenerProspectosEnRiesgo(7);
+          if (mounted) setProspectosEnRiesgo(enRiesgo.slice(0, 5));
+        } catch (e) {
+          console.warn("No se pudieron cargar prospectos en riesgo:", e);
+        }
       } catch (error) {
         console.error("Error cargando dashboard:", error);
       } finally {
@@ -394,6 +405,47 @@ export default function DashboardPage() {
                     ${cot.total.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
                   </p>
                 </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Prospectos que necesitan atencion */}
+      {!loading && prospectosEnRiesgo.length > 0 && (
+        <section className="rounded-2xl border border-orange-200 bg-orange-50 p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              <h2 className="text-lg font-semibold text-slate-900">Prospectos sin contacto</h2>
+            </div>
+            <Link href="/prospectos" className="text-sm text-orange-600 hover:underline">Ver todos</Link>
+          </div>
+          <div className="space-y-3">
+            {prospectosEnRiesgo.map((p) => {
+              const diasSinContacto = (() => {
+                const ref = p.ultimaVisita ?? p.createdAt;
+                if (!ref || typeof ref.toDate !== "function") return null;
+                const diff = Date.now() - ref.toDate().getTime();
+                return Math.floor(diff / (1000 * 60 * 60 * 24));
+              })();
+              return (
+                <Link
+                  key={p.id}
+                  href={"/prospectos/" + p.id}
+                  className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm transition hover:shadow-md"
+                >
+                  <div>
+                    <p className="font-medium text-slate-800">{p.nombre}</p>
+                    <p className="text-xs text-slate-500">{p.ciudad}</p>
+                  </div>
+                  <div className="text-right">
+                    {diasSinContacto !== null && (
+                      <p className="text-sm font-bold text-orange-500">{diasSinContacto} días</p>
+                    )}
+                    <p className="text-xs text-slate-400 capitalize">{p.estadoProspecto ?? "nuevo"}</p>
+                  </div>
+                </Link>
               );
             })}
           </div>

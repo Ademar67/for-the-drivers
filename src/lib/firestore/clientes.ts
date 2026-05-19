@@ -410,3 +410,39 @@ export function listenTimelineCliente(
     callback(data);
   });
 }
+export async function obtenerProspectosEnRiesgo(diasSinContacto = 7): Promise<ClienteFS[]> {
+  const user = getCurrentUserOrThrow();
+
+  const snap = await getDocs(
+    query(
+      collection(db, 'clientes'),
+      where('ownerId', '==', user.uid),
+      where('tipo', '==', 'prospecto')
+    )
+  );
+
+  const ahora = Date.now();
+  const limite = diasSinContacto * 24 * 60 * 60 * 1000;
+
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as ClienteFS))
+    .filter((p) => {
+      if (p.estadoProspecto === 'no_interesado') return false;
+
+      const ultimoContacto =
+        p.ultimaVisita instanceof Timestamp
+          ? p.ultimaVisita.toMillis()
+          : p.proximaVisita instanceof Timestamp
+          ? p.proximaVisita.toMillis()
+          : p.createdAt instanceof Timestamp
+          ? p.createdAt.toMillis()
+          : 0;
+
+      return ahora - ultimoContacto > limite;
+    })
+    .sort((a, b) => {
+      const aMs = a.ultimaVisita instanceof Timestamp ? a.ultimaVisita.toMillis() : 0;
+      const bMs = b.ultimaVisita instanceof Timestamp ? b.ultimaVisita.toMillis() : 0;
+      return aMs - bMs;
+    });
+}
