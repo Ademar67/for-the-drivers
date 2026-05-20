@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Copy,
@@ -160,6 +162,7 @@ function buildCopyText(message?: Message | null) {
 }
 
 export default function SoporteIAPage() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [loading, setLoading] = useState(false);
@@ -325,7 +328,11 @@ export default function SoporteIAPage() {
           </div>
 
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold text-[#00468E] sm:text-xl">
+                  <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="truncate text-lg font-bold text-[#00468E] sm:text-xl">
               Asesor Digital Liqui Moly
             </h1>
             <p className="text-xs text-slate-500 sm:text-sm">

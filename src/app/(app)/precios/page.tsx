@@ -1,4 +1,6 @@
 'use client';
+import { ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
@@ -16,6 +18,7 @@ interface ItemPrecio extends ProductoConId {
 }
 
 export default function PreciosPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const searchFromUrl = searchParams.get('search') || '';
 
@@ -150,7 +153,11 @@ export default function PreciosPage() {
   return (
     <div className="min-h-screen space-y-6 bg-background p-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Precios y Descuentos</h1>
+              <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="text-3xl font-bold tracking-tight">Precios y Descuentos</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Busca productos, agrégalos al resumen y calcula descuentos en segundos.
         </p>

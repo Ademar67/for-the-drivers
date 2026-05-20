@@ -1,4 +1,6 @@
 'use client';
+import { ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { useEffect, useRef, useState } from 'react';
 import { obtenerVisitas, Visita } from '@/lib/firestore/visitas';
@@ -11,6 +13,7 @@ type PuntoRuta = {
 };
 
 export default function MapaVisitasPage() {
+  const router = useRouter();
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [allVisitas, setAllVisitas] = useState<Visita[]>([]);
@@ -300,7 +303,11 @@ export default function MapaVisitasPage() {
   return (
     <div className="h-[calc(100vh-6rem)] flex flex-col">
       <div className="p-4 border-b bg-white flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Mapa de Visitas</h1>
+              <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="text-2xl font-bold">Mapa de Visitas</h1>
 
         <div className="flex gap-2">
           <Button

@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -14,6 +15,7 @@ import {
 } from "firebase/firestore";
 import {
   Building2,
+  ArrowLeft,
   Phone,
   Mail,
   MapPin,
@@ -273,6 +275,7 @@ function badgePotencial(potencial: PotencialAgencia) {
 }
 
 export default function AgenciasPage() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
   const [agencias, setAgencias] = useState<Agencia[]>([]);
@@ -839,7 +842,11 @@ export default function AgenciasPage() {
               Módulo Comercial
             </div>
 
-            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+                  <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
               Agencias PRO
             </h1>
 

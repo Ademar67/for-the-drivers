@@ -1,4 +1,6 @@
 'use client';
+import { ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -115,6 +117,7 @@ function getDiasAtraso(clienteId: string, ultimaVisitaMap: Map<string, Date>, ho
 }
 
 function AgendaView() {
+  const router = useRouter()
   const { user, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const clienteIdFromUrl = searchParams.get('clienteId');
@@ -574,7 +577,11 @@ function AgendaView() {
     <div className="p-6 pb-24 md:pb-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">
+                <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="text-3xl font-bold">
             {nombreClienteFiltrado ? `Agenda de ${nombreClienteFiltrado}` : 'Agenda'}
           </h1>
           {clienteIdFromUrl && (

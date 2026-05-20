@@ -1,4 +1,6 @@
 "use client";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { useEffect, useMemo, useState } from "react";
 import jsPDF from "jspdf";
@@ -98,6 +100,7 @@ function createVisitRow(): VisitRow {
 }
 
 export default function InventarioPage() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
   const [nombre, setNombre] = useState("");
@@ -689,7 +692,11 @@ export default function InventarioPage() {
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">
+                <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="text-3xl font-bold text-gray-900">
             Inventario diario
           </h1>
           <p className="mt-2 text-sm text-gray-600">

@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { MATERIALES, type MaterialCategory } from "@/lib/materiales-manifest";
 
 const CATEGORY_LABEL: Record<MaterialCategory | "ALL", string> = {
@@ -17,6 +19,7 @@ function categoryBadgeText(cat: MaterialCategory) {
 }
 
 export default function MaterialesPage() {
+  const router = useRouter();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<MaterialCategory | "ALL">("ALL");
 
@@ -57,7 +60,11 @@ export default function MaterialesPage() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">Material de Apoyo</h1>
+              <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="text-2xl font-semibold">Material de Apoyo</h1>
         <p className="text-sm text-muted-foreground">
           Encuentra listas de precios, catálogos, promociones y más.
         </p>

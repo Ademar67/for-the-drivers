@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import * as XLSX from 'xlsx'
 import {
   collection,
@@ -45,6 +47,7 @@ type ExcelRow = {
 }
 
 export default function ProductosPage() {
+  const router = useRouter();
   const [productos, setProductos] = useState<Producto[]>([])
   const [open, setOpen] = useState(false)
   const [importando, setImportando] = useState(false)
@@ -233,7 +236,11 @@ export default function ProductosPage() {
   return (
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Productos</h1>
+              <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="text-xl font-semibold">Productos</h1>
 
         <div className="flex items-center gap-2">
           <input

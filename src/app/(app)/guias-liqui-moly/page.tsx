@@ -1,3 +1,6 @@
+'use client';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import Link from "next/link";
 import { Droplet, FileText } from "lucide-react";
 import { ActionCard } from "@/components/ui/action-card";
@@ -20,8 +23,13 @@ const guias = [
 ];
 
 export default function GuiasLiquiMolyPage() {
+  const router = useRouter();
   return (
     <div className="space-y-6">
+            <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
       <h1 className="text-2xl font-bold">Guías Liqui Moly</h1>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {guias.map((guia) => (

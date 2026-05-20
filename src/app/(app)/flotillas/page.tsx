@@ -1,6 +1,8 @@
 "use client";
+import { ArrowLeft } from "lucide-react";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   addDoc,
   collection,
@@ -74,6 +76,7 @@ function obtenerPrioridadEstado(estado: FlotillaEstado) {
 }
 
 export default function FlotillasPage() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
   const [flotillas, setFlotillas] = useState<Flotilla[]>([]);
@@ -642,7 +645,11 @@ export default function FlotillasPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Flotillas</h1>
+                <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="text-3xl font-bold">Flotillas</h1>
           <p className="text-sm text-slate-500">
             Control comercial y técnico de clientes corporativos
           </p>

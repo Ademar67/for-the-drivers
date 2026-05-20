@@ -1,4 +1,6 @@
 'use client';
+import { ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -116,6 +118,7 @@ function getCategoriaLabel(categoria: CategoriaIdea) {
 }
 
 export default function IdeasVentaPage() {
+  const router = useRouter();
   const [filtro, setFiltro] = useState<'todas' | CategoriaIdea>('todas');
   const [copiadoId, setCopiadoId] = useState<string | null>(null);
 
@@ -152,7 +155,11 @@ export default function IdeasVentaPage() {
             </div>
 
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">
+                    <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="text-2xl font-bold tracking-tight">
                 Ideas de Venta PRO
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">

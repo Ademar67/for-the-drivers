@@ -1,4 +1,6 @@
 'use client';
+import { ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -93,6 +95,7 @@ function getZonaBadgeClasses(zona?: string) {
 }
 
 export default function ClientesPage() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
   const [clientes, setClientes] = useState<ClienteFS[]>([]);
@@ -443,7 +446,11 @@ export default function ClientesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
+                <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
           <p className="mt-1 text-sm text-slate-500">
             Gestiona tu cartera, agenda de visitas e importación masiva.
           </p>

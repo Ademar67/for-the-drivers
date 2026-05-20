@@ -1,4 +1,6 @@
 'use client';
+import { ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -119,6 +121,7 @@ async function actualizarFacturasVencidas(facturas: FacturaFS[]) {
 }
 
 export default function FacturasPage() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
   const [facturas, setFacturas] = useState<FacturaFS[]>([]);
@@ -466,7 +469,11 @@ export default function FacturasPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Panel de Cobranza</h1>
+              <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <ArrowLeft className="h-4 w-4" />
+        Volver
+      </button>
+      <h1 className="text-3xl font-bold">Panel de Cobranza</h1>
         <Button onClick={() => setOpenModal(true)} disabled={!user}>
           + Nueva Factura
         </Button>
