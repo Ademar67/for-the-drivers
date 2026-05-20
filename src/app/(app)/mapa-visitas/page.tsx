@@ -3,6 +3,8 @@
 import { ArrowLeft, MapPin, Clock, CheckCircle2, Navigation, Phone, MessageCircle, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { collection, getDocs, query, where, orderBy as firestoreOrderBy } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
 import { obtenerVisitas, marcarVisitaRealizada, type Visita } from '@/lib/firestore/visitas';
 import { listenClientes, type ClienteFS } from '@/lib/firestore/clientes';
 import { Button } from '@/components/ui/button';
@@ -203,11 +205,41 @@ export default function MapaVisitasPage() {
       const visitasHoy = allVisitas.filter(v => v.fecha === today).sort((a, b) => a.hora.localeCompare(b.hora));
       const realizadas = visitasHoy.filter(v => v.estado === 'realizada');
       const pendientes = visitasHoy.filter(v => v.estado === 'pendiente');
+      const uid = auth.currentUser?.uid;
+
+      const inicioHoy = new Date(hoy);
+      inicioHoy.setHours(0, 0, 0, 0);
+
+      // Obtener notas del timeline de cada cliente visitado hoy
+      const notasPorCliente: Record<string, string[]> = {};
+      await Promise.all(
+        visitasHoy.map(async (visita) => {
+          try {
+            const timelineSnap = await getDocs(
+              query(
+                collection(db, 'clientes', visita.clienteId, 'timeline'),
+                where('ownerId', '==', uid),
+                firestoreOrderBy('createdAt', 'desc')
+              )
+            );
+            const notasHoy = timelineSnap.docs
+              .filter(d => {
+                const ts = d.data().createdAt;
+                if (!ts || typeof ts.toDate !== 'function') return false;
+                return ts.toDate() >= inicioHoy;
+              })
+              .map(d => d.data().texto as string)
+              .filter(Boolean);
+            if (notasHoy.length > 0) notasPorCliente[visita.clienteId] = notasHoy;
+          } catch (e) {
+            console.warn('No se pudo cargar timeline de', visita.cliente);
+          }
+        })
+      );
 
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
 
-      // Header
       doc.setFillColor(0, 70, 142);
       doc.rect(0, 0, 210, 35, 'F');
       doc.setTextColor(255, 255, 255);
@@ -218,14 +250,12 @@ export default function MapaVisitasPage() {
       doc.setFont('helvetica', 'normal');
       doc.text(fechaStr.toUpperCase(), 105, 25, { align: 'center' });
 
-      // Resumen
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('RESUMEN DEL DÍA', 14, 50);
       doc.setDrawColor(0, 70, 142);
       doc.line(14, 52, 196, 52);
-
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
       doc.text(`Total de visitas programadas: ${visitasHoy.length}`, 14, 62);
@@ -233,7 +263,6 @@ export default function MapaVisitasPage() {
       doc.text(`Visitas pendientes: ${pendientes.length}`, 14, 78);
       doc.text(`Efectividad: ${visitasHoy.length > 0 ? Math.round((realizadas.length / visitasHoy.length) * 100) : 0}%`, 14, 86);
 
-      // Detalle de visitas
       let y = 100;
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
@@ -242,34 +271,38 @@ export default function MapaVisitasPage() {
       y += 12;
 
       visitasHoy.forEach((visita, index) => {
-        if (y > 260) { doc.addPage(); y = 20; }
+        if (y > 255) { doc.addPage(); y = 20; }
 
-        doc.setFillColor(visita.estado === 'realizada' ? 240 : 255, visita.estado === 'realizada' ? 250 : 240, visita.estado === 'realizada' ? 240 : 240);
+        doc.setFillColor(245, 247, 250);
         doc.rect(14, y - 5, 182, 8, 'F');
-
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
         doc.setTextColor(0, 70, 142);
         doc.text(`${index + 1}. ${visita.cliente}`, 16, y);
-
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(100, 100, 100);
         doc.text(`${visita.hora} · ${visita.tipo} · ${visita.estado === 'realizada' ? '✓ Realizada' : '○ Pendiente'}`, 16, y + 6);
+        y += 14;
 
-        y += 12;
-
-        if (visita.notas) {
-          doc.setTextColor(50, 50, 50);
-          doc.setFontSize(9);
-          const lines = doc.splitTextToSize(`Nota: ${visita.notas}`, 175);
-          lines.forEach((line: string) => {
+        const notas = notasPorCliente[visita.clienteId];
+        if (notas && notas.length > 0) {
+          notas.forEach(nota => {
             if (y > 265) { doc.addPage(); y = 20; }
-            doc.text(line, 20, y);
-            y += 5;
+            doc.setTextColor(50, 50, 50);
+            doc.setFontSize(9);
+            const lines = doc.splitTextToSize(`• ${nota}`, 172);
+            lines.forEach((line: string) => {
+              if (y > 265) { doc.addPage(); y = 20; }
+              doc.text(line, 20, y);
+              y += 5;
+            });
           });
           y += 3;
         } else {
-          y += 3;
+          doc.setTextColor(180, 180, 180);
+          doc.setFontSize(9);
+          doc.text('Sin notas registradas hoy.', 20, y);
+          y += 8;
         }
 
         doc.setDrawColor(220, 220, 220);
@@ -283,7 +316,6 @@ export default function MapaVisitasPage() {
         doc.text('No hay visitas registradas para hoy.', 105, y, { align: 'center' });
       }
 
-      // Footer
       const pageCount = (doc as any).internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -307,7 +339,6 @@ export default function MapaVisitasPage() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
-      {/* Header */}
       <div className="flex items-center justify-between border-b bg-white px-4 py-3 flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
@@ -329,9 +360,7 @@ export default function MapaVisitasPage() {
         </div>
       </div>
 
-      {/* Contenido */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Lista de paradas */}
         <div className="w-80 shrink-0 overflow-y-auto border-r bg-white">
           {loading ? (
             <div className="p-4 text-center text-sm text-slate-500">Cargando visitas...</div>
@@ -342,21 +371,16 @@ export default function MapaVisitasPage() {
             </div>
           ) : (
             <div>
-              {/* Progreso */}
               <div className="border-b bg-slate-50 px-4 py-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium text-slate-700">{pendientes.length} pendientes</span>
                   <span className="text-green-600 font-medium">{realizadas.length} realizadas</span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                  <div
-                    className="h-full rounded-full bg-green-500 transition-all"
-                    style={{ width: filteredVisitas.length > 0 ? `${(realizadas.length / filteredVisitas.length) * 100}%` : '0%' }}
-                  />
+                  <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: filteredVisitas.length > 0 ? `${(realizadas.length / filteredVisitas.length) * 100}%` : '0%' }} />
                 </div>
               </div>
 
-              {/* Paradas pendientes */}
               {pendientes.length > 0 && (
                 <div>
                   <p className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Por visitar</p>
@@ -366,43 +390,28 @@ export default function MapaVisitasPage() {
                       <div key={visita.id} className="border-b px-4 py-3 hover:bg-slate-50">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-start gap-2 min-w-0">
-                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
-                              {index + 1}
-                            </span>
+                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">{index + 1}</span>
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold text-slate-800">{visita.cliente}</p>
                               <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
                                 <Clock className="h-3 w-3" />{visita.hora}
                               </div>
-                              <span className={cn('mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium', TIPO_COLOR[visita.tipo] ?? 'bg-slate-100 text-slate-700')}>
-                                {visita.tipo}
-                              </span>
+                              <span className={cn('mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium', TIPO_COLOR[visita.tipo] ?? 'bg-slate-100 text-slate-700')}>{visita.tipo}</span>
                             </div>
                           </div>
-                          <button
-                            onClick={() => { setNotaModal({ visita }); setNotaTexto(visita.notas ?? ''); }}
-                            disabled={marcandoId === visita.id}
-                            className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-green-50 hover:text-green-600 transition"
-                            title="Marcar como realizada"
-                          >
+                          <button onClick={() => { setNotaModal({ visita }); setNotaTexto(visita.notas ?? ''); }} disabled={marcandoId === visita.id} className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-green-50 hover:text-green-600 transition" title="Marcar como realizada">
                             <CheckCircle2 className="h-5 w-5" />
                           </button>
                         </div>
                         <div className="mt-2 flex gap-2">
                           {cliente?.telefono && (
                             <>
-                              <a href={`tel:${cliente.telefono}`} className="flex items-center gap-1 rounded-lg border px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">
-                                <Phone className="h-3 w-3" />Llamar
-                              </a>
-                              <a href={`https://wa.me/52${String(cliente.telefono).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-lg border px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">
-                                <MessageCircle className="h-3 w-3" />WA
-                              </a>
+                              <a href={`tel:${cliente.telefono}`} className="flex items-center gap-1 rounded-lg border px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"><Phone className="h-3 w-3" />Llamar</a>
+                              <a href={`https://wa.me/52${String(cliente.telefono).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-lg border px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"><MessageCircle className="h-3 w-3" />WA</a>
                             </>
                           )}
                           {typeof cliente?.lat === 'number' && (
-                            <a href={`https://www.google.com/maps/dir/?api=1&destination=${cliente.lat},${cliente.lng}&travelmode=driving`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-lg border px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">
-                              <Navigation className="h-3 w-3" />Ir
-                            </a>
+                            <a href={`https://www.google.com/maps/dir/?api=1&destination=${cliente.lat},${cliente.lng}&travelmode=driving`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-lg border px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"><Navigation className="h-3 w-3" />Ir</a>
                           )}
                         </div>
                       </div>
@@ -411,7 +420,6 @@ export default function MapaVisitasPage() {
                 </div>
               )}
 
-              {/* Paradas realizadas */}
               {realizadas.length > 0 && (
                 <div>
                   <p className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Realizadas</p>
@@ -422,9 +430,7 @@ export default function MapaVisitasPage() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-slate-600">{visita.cliente}</p>
                           <p className="text-xs text-slate-400">{visita.hora} · {visita.tipo}</p>
-                          {visita.notas && (
-                            <p className="mt-1 text-xs text-slate-500 italic">"{visita.notas}"</p>
-                          )}
+                          {visita.notas && <p className="mt-1 text-xs text-slate-500 italic">"{visita.notas}"</p>}
                         </div>
                       </div>
                     </div>
@@ -435,7 +441,6 @@ export default function MapaVisitasPage() {
           )}
         </div>
 
-        {/* Mapa */}
         <div className="relative flex-1">
           {loading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
@@ -446,7 +451,6 @@ export default function MapaVisitasPage() {
         </div>
       </div>
 
-      {/* Modal nota de visita */}
       {notaModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
@@ -455,23 +459,14 @@ export default function MapaVisitasPage() {
             <textarea
               value={notaTexto}
               onChange={(e) => setNotaTexto(e.target.value)}
-              placeholder="Ej: Cliente interesado en aceite 5W30, pidió cotización para 10 litros. Regresar en 3 días..."
+              placeholder="Ej: Cliente interesado en aceite 5W30, pidió cotización para 10 litros..."
               className="mt-4 w-full rounded-xl border bg-slate-50 p-3 text-sm outline-none focus:border-blue-500"
               rows={4}
               autoFocus
             />
             <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => { setNotaModal(null); setNotaTexto(''); }}
-                className="flex-1 rounded-xl border py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleMarcarRealizada}
-                disabled={marcandoId !== null}
-                className="flex-1 rounded-xl bg-green-600 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-              >
+              <button onClick={() => { setNotaModal(null); setNotaTexto(''); }} className="flex-1 rounded-xl border py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancelar</button>
+              <button onClick={handleMarcarRealizada} disabled={marcandoId !== null} className="flex-1 rounded-xl bg-green-600 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">
                 {marcandoId ? 'Guardando...' : 'Marcar realizada'}
               </button>
             </div>
