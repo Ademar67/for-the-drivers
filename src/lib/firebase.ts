@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
@@ -14,23 +14,15 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = typeof window !== 'undefined'
+  ? initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    })
+  : getFirestore(app);
 const storage = getStorage(app);
 
-if (typeof window !== 'undefined') {
-  try {
-    enableIndexedDbPersistence(db)
-      .then(() => console.log('Firestore offline persistence enabled.'))
-      .catch((error: any) => {
-        if (error.code == 'failed-precondition') {
-          console.warn('Firestore offline persistence failed: multiple tabs open.');
-        } else if (error.code == 'unimplemented') {
-          console.warn('Firestore offline persistence not available in this browser.');
-        }
-      });
-  } catch (e) {
-    console.error("Error enabling Firestore persistence", e);
-  }
-}
+
 
 export { app, auth, db, storage };
