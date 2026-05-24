@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFirestore } from '@/firebase/provider';
 import { useAuth } from '@/context/AuthProvider';
+import { generateMonthlyPlan } from '@/algorithms/routePlanner';
 import {
   addDoc,
   collection,
@@ -75,6 +76,7 @@ export default function MapaClientesPage() {
   const [distanciaKm, setDistanciaKm] = useState<number | null>(null);
   const [tiempoMin, setTiempoMin] = useState<number | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [monthlyPlan, setMonthlyPlan] = useState<any>(null);
 
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
@@ -596,8 +598,30 @@ export default function MapaClientesPage() {
 
   // ---------------------------------------------------------------------------
   // NAVEGACIÓN EXTERNA
-  // ---------------------------------------------------------------------------
-  const iniciarNavegacion = () => {
+  //
+  const handleGenerateMonth = () => {
+    if (!clientes.length) {
+      alert('No hay clientes cargados');
+      return;
+    }
+  
+    const clientesTransformados = clientes.map((c) => ({
+      id: c.id,
+      nombre: c.nombre,
+      ciudad:'GENERAL',
+      lat: c.lat,
+      lng: c.lng,
+    }));
+  
+    const plan = generateMonthlyPlan(clientesTransformados);
+  
+    console.log('PLAN MENSUAL:', plan);
+  
+    setMonthlyPlan(plan);
+  
+    alert('Planeación mensual generada');
+  };
+    const iniciarNavegacion = () => {
     if (rutaSeleccionada.length < 2) return;
 
     const origen = rutaSeleccionada[0];
@@ -726,7 +750,12 @@ export default function MapaClientesPage() {
                 );
               })}
             </div>
-
+            <button
+  onClick={handleGenerateMonth}
+  className="mt-4 w-full rounded bg-indigo-600 py-2 text-white"
+>
+  Generar Mes Inteligente
+</button>
             <button
               onClick={trazarRuta}
               disabled={rutaSeleccionada.length < 2}
@@ -817,7 +846,53 @@ export default function MapaClientesPage() {
           </>
         )}
       </div>
+      {monthlyPlan && (
+  <div className="mt-6 rounded-xl border bg-black p-4 text-white">
+    <h2 className="mb-4 text-xl font-bold">
+      Planeación Mensual Inteligente
+    </h2>
 
+    {Object.entries(monthlyPlan).map(
+      ([semana, dias]: any) => (
+        <div key={semana} className="mb-6">
+          <h3 className="mb-3 text-lg font-bold text-cyan-400">
+            {semana.toUpperCase()}
+          </h3>
+
+          {Object.entries(dias).map(
+            ([dia, visitas]: any) => (
+              <div
+                key={dia}
+                className="mb-4 rounded-lg border border-gray-700 bg-gray-900 p-3"
+              >
+                <div className="mb-2 font-semibold text-yellow-400">
+                  {dia.toUpperCase()} ({visitas.length} visitas)
+                </div>
+
+                {visitas.length === 0 ? (
+                  <div className="text-sm text-gray-500">
+                    Sin visitas
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {visitas.map((cliente: any) => (
+                      <div
+                        key={cliente.id}
+                        className="rounded bg-gray-800 p-2 text-sm"
+                      >
+                        {cliente.nombre}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          )}
+        </div>
+      )
+    )}
+  </div>
+)}
       <div className="flex-1">
         <div ref={mapDivRef} className="h-full w-full" />
       </div>

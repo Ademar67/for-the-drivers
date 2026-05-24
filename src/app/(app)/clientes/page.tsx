@@ -6,6 +6,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import * as XLSX from 'xlsx';
+import { generateMonthlyPlan } from '@/algorithms/routePlanner';
+import { doc, updateDoc } from 'firebase/firestore';
 import {
   collection,
   addDoc,
@@ -97,10 +99,10 @@ function getZonaBadgeClasses(zona?: string) {
 export default function ClientesPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-
-  const [clientes, setClientes] = useState<ClienteFS[]>([]);
+  const [autoPlanning, setAutoPlanning] = useState(false);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [clientes, setClientes] = useState<any[]>([]);
   const [importando, setImportando] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -155,16 +157,29 @@ export default function ClientesPage() {
   }, [user, authLoading]);
 
   const clientesFiltrados = useMemo(() => {
-    const term = busqueda.trim().toLowerCase();
-
+    if (!clientes?.length) return [];
+  
+    const term = busqueda.toLowerCase();
+  
     if (!term) return clientes;
-
-    return clientes.filter((c) => {
+  
+    return clientes.filter((c: any) => {
       return (
-        String(c.nombre ?? '').toLowerCase().includes(term) ||
-        String(c.ciudad ?? '').toLowerCase().includes(term) ||
-        String(c.tipo ?? '').toLowerCase().includes(term) ||
-        String(c.tipoZona ?? '').toLowerCase().includes(term)
+        String(c.nombre ?? '')
+          .toLowerCase()
+          .includes(term) ||
+  
+        String(c.ciudad ?? '')
+          .toLowerCase()
+          .includes(term) ||
+  
+        String(c.tipo ?? '')
+          .toLowerCase()
+          .includes(term) ||
+  
+        String(c.tipoZona ?? '')
+          .toLowerCase()
+          .includes(term)
       );
     });
   }, [clientes, busqueda]);
@@ -427,6 +442,63 @@ export default function ClientesPage() {
     }
   };
 
+
+
+const autoPlanearClientes = async () => {
+  try {
+    setAutoPlanning(true);
+
+    if (!clientes.length) {
+      alert('No hay clientes');
+      return;
+    }
+
+    const clientesTransformados = clientes.map((c: any) => ({
+      id: c.id,
+      nombre: c.nombre,
+      ciudad: c.ciudad || 'GENERAL',
+      lat: c.lat || 0,
+      lng: c.lng || 0,
+    }));
+
+    const plan = generateMonthlyPlan(clientesTransformados);
+
+    const updates: Promise<any>[] = [];
+
+    Object.entries(plan).forEach(([semana, dias]: any) => {
+      Object.entries(dias).forEach(([dia, visitas]: any) => {
+        visitas.forEach((cliente: any) => {
+          const clienteRef = doc(db, 'clientes', cliente.id);
+
+          updates.push(
+            updateDoc(clienteRef, {
+              semanaVisita: semana,
+              diaVisita: dia,
+              frecuencia: 'mensual',
+              updatedAt: Timestamp.now(),
+            })
+          );
+        });
+      });
+    });
+
+    await Promise.all(updates);
+
+    alert('Planeación automática completada');
+
+    window.location.reload();
+
+  } catch (error) {
+    console.error(error);
+
+    alert('Error al generar planeación');
+  } finally {
+    setAutoPlanning(false);
+  }
+  
+  };
+
+
   if (authLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -575,22 +647,26 @@ export default function ClientesPage() {
         ) : (
           <>
             <div className="mt-6 space-y-4 md:hidden">
-              {clientesFiltrados.map((c) => (
+            {Array.isArray(clientesFiltrados) &&
+             clientesFiltrados.map((c) => (
                 <div
                   key={c.id}
                   className="rounded-2xl border bg-white p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="text-lg font-bold text-slate-800">
-                        {c.nombre}
+                    <h3 className="text-lg font-bold text-slate-800">
+                    {c?.nombre ?? 'Sin nombre'}
                       </h3>
                       <p className="mt-1 text-sm text-slate-500">{c.ciudad}</p>
                     </div>
 
                     <Badge
                       variant="outline"
-                      className={cn('capitalize', getTipoBadgeClasses(c.tipo))}
+                      className={cn(
+                        'capitalize',
+                        getTipoBadgeClasses(c?.tipo ?? '')
+                      )}
                     >
                       {c.tipo ?? '—'}
                     </Badge>
@@ -629,7 +705,7 @@ export default function ClientesPage() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge
                       variant="outline"
-                      className={cn('capitalize', getZonaBadgeClasses(c.tipoZona))}
+                      className={cn('capitalize', getZonaBadgeClasses(c?.tipoZona ?? ''))}
                     >
                       {c.tipoZona ?? '—'}
                     </Badge>
@@ -822,6 +898,7 @@ export default function ClientesPage() {
       </section>
 
       <CrearClienteModal open={open} onClose={() => setOpen(false)} />
-    </div>
-  );
-}              
+      </div>
+);
+}
+         
