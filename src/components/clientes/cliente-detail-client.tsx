@@ -63,7 +63,6 @@ const TIPO_LABEL: Record<TimelineEvento['tipo'], string> = {
   cotizacion: 'Cotización',
   whatsapp: 'WhatsApp',
   conversion: 'Conversión',
-  importacion: 'Importación'
 };
 
 const TIPO_COLOR: Record<TimelineEvento['tipo'], string> = {
