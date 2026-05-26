@@ -60,9 +60,10 @@ const TIPO_LABEL: Record<TimelineEvento['tipo'], string> = {
   nota: 'Nota',
   visita: 'Visita',
   seguimiento: 'Seguimiento',
-  cotizacion: 'Cotizacion',
+  cotizacion: 'Cotización',
   whatsapp: 'WhatsApp',
-  conversion: 'Conversion',
+  conversion: 'Conversión',
+  importacion: 'Importación'
 };
 
 const TIPO_COLOR: Record<TimelineEvento['tipo'], string> = {
@@ -72,6 +73,7 @@ const TIPO_COLOR: Record<TimelineEvento['tipo'], string> = {
   cotizacion: 'bg-blue-100 text-blue-700',
   whatsapp: 'bg-emerald-100 text-emerald-700',
   conversion: 'bg-purple-100 text-purple-700',
+  importacion: 'bg-slate-200 text-slate-600'
 };
 
 export default function ClienteDetailClient({ id }: { id: string }) {
@@ -209,7 +211,6 @@ export default function ClienteDetailClient({ id }: { id: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Header azul */}
       <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 text-white shadow-sm">
         <div className="p-6">
           <div className="mb-2 flex items-center justify-between">
@@ -244,7 +245,6 @@ export default function ClienteDetailClient({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* Botones de acción */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <a href={`tel:${cliente.telefono ?? ''}`} className="flex items-center justify-center gap-2 rounded-2xl bg-slate-700 py-4 text-sm font-semibold text-white transition hover:bg-slate-800">
           <Phone className="h-5 w-5" />Llamar
@@ -260,7 +260,6 @@ export default function ClienteDetailClient({ id }: { id: string }) {
         </Link>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
@@ -285,7 +284,6 @@ export default function ClienteDetailClient({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* Últimas cotizaciones */}
       <div className="rounded-2xl border bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">Últimas cotizaciones</h2>
@@ -311,7 +309,6 @@ export default function ClienteDetailClient({ id }: { id: string }) {
         )}
       </div>
 
-      {/* Nota rapida */}
       <div className="rounded-2xl border bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
           <StickyNote className="h-5 w-5 text-slate-400" />
@@ -334,7 +331,6 @@ export default function ClienteDetailClient({ id }: { id: string }) {
         </button>
       </div>
 
-      {/* Timeline */}
       <div className="rounded-2xl border bg-white p-5 shadow-sm">
         <h2 className="mb-1 flex items-center gap-2 text-lg font-bold">
           <Clock className="h-5 w-5" />Timeline
@@ -359,7 +355,6 @@ export default function ClienteDetailClient({ id }: { id: string }) {
         )}
       </div>
 
-      {/* Modal editar */}
       {editando && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">

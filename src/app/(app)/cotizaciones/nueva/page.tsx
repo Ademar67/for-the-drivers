@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { crearCotizacion } from '@/lib/firestore/cotizaciones';
 import type { Producto } from '@/lib/firebase-types';
-import { Trash2, FileDown, MessageCircle, X } from 'lucide-react';
+import { Trash2, FileDown, MessageCircle, X, Plus } from 'lucide-react';
 import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
 import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';

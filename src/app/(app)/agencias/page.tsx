@@ -309,8 +309,6 @@ export default function AgenciasPage() {
       return;
     }
 
-    let mounted = true;
-
     const cargarAgencias = async () => {
       setLoading(true);
 
@@ -318,8 +316,6 @@ export default function AgenciasPage() {
         const agenciasRef = collection(db, "agencias");
         const q = query(agenciasRef, where("ownerId", "==", user.uid));
         const snapshot = await getDocs(q);
-
-        if (!mounted) return;
 
         const data: Agencia[] = snapshot.docs.map((ds) => {
           const d: any = ds.data();
@@ -354,17 +350,13 @@ export default function AgenciasPage() {
         setAgencias(data);
       } catch (error) {
         console.error("Error cargando agencias:", error);
-        if (mounted) setAgencias([]);
+        setAgencias([]);
       } finally {
-        if (mounted) setLoading(false);
+        setLoading(false);
       }
     };
 
     cargarAgencias();
-
-    return () => {
-      mounted = false;
-    };
   }, [user, authLoading]);
 
   const agenciasFiltradas = useMemo(() => {
@@ -512,7 +504,7 @@ export default function AgenciasPage() {
       costoTotal: simulacion.costoMensual,
       precioTotal: simulacion.ventaMensual,
       utilidadTotal: simulacion.utilidadMensualBruta,
-      utilidadNetaCombo: 0,
+      utilidadNetaCombo: simulacion.utilidadMensualAgencia,
       comisionTotalCombo: simulacion.comisionMensualAsesor,
       utilidadMensualAgencia: simulacion.utilidadMensualAgencia,
       comisionMensualAsesor: simulacion.comisionMensualAsesor,
@@ -795,8 +787,6 @@ export default function AgenciasPage() {
             ? {
                 ...agencia,
                 ...editingForm,
-                ownerId: user.uid,
-                ownerEmail: user.email ?? "",
               }
             : agencia
         )
@@ -842,11 +832,12 @@ export default function AgenciasPage() {
               Módulo Comercial
             </div>
 
-                  <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
-        <ArrowLeft className="h-4 w-4" />
-        Volver
-      </button>
-      <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+            <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+              <ArrowLeft className="h-4 w-4" />
+              Volver
+            </button>
+
+            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
               Agencias PRO
             </h1>
 

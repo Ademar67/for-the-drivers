@@ -409,46 +409,6 @@ export default function ProspectosPage() {
     );
   };
 
-  const convertir = async (id: string) => {
-    try {
-      setConvirtiendoId(id);
-      await cambiarTipoCliente(id, 'cliente');
-    } catch (error) {
-      console.error(error);
-      alert('No se pudo convertir el prospecto a cliente');
-    } finally {
-      setConvirtiendoId(null);
-    }
-  };
-
-  const marcarVisita = async (id: string) => {
-    try {
-      setMarcandoId(id);
-      await marcarVisitaProspecto(id);
-    } catch (error) {
-      console.error(error);
-      alert('No se pudo marcar la visita');
-    } finally {
-      setMarcandoId(null);
-    }
-  };
-
-  const programarSeguimiento22Dias = async (id: string) => {
-    try {
-      setSeguimientoId(id);
-
-      const fecha = new Date();
-      fecha.setDate(fecha.getDate() + DIAS_SEGUIMIENTO);
-
-      await programarSeguimientoProspecto(id, fecha);
-    } catch (error) {
-      console.error(error);
-      alert('No se pudo programar el seguimiento');
-    } finally {
-      setSeguimientoId(null);
-    }
-  };
-
   if (authLoading) {
     return (
       <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
