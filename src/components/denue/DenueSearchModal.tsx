@@ -11,6 +11,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import {
@@ -216,22 +217,21 @@ export function useDenueAdd() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data?.error ?? 'No se pudo agregar el prospecto');
+        toast.error(data?.error ?? 'No se pudo agregar el prospecto');
         return false;
       }
 
       setAddedIds((prev) => ({ ...prev, [localId]: true }));
 
-      alert(
-        data.created
-          ? '✅ Prospecto agregado'
-          : 'ℹ️ Ya existía, no se duplicó'
-      );
-
+      if (data.created) {
+        toast.success('Prospecto agregado');
+      } else {
+        toast.info('Ya existía, no se duplicó');
+      }
       return true;
     } catch (error) {
       console.error('Error agregando prospecto DENUE:', error);
-      alert('No se pudo agregar el prospecto');
+      toast.error('No se pudo agregar el prospecto');
       return false;
     } finally {
       setAddingId(null);
@@ -576,7 +576,7 @@ export default function DenueSearchModal({
     const current = safeReadRouteItems();
 
     if (current.some((routeItem) => routeItem.key === newItem.key)) {
-      alert('ℹ️ Este negocio ya está guardado en la ruta.');
+      toast.info('Este negocio ya está guardado en la ruta');
       setRouteItems(current);
       return;
     }
@@ -585,7 +585,7 @@ export default function DenueSearchModal({
     safeWriteRouteItems(updated);
     setRouteItems(updated);
 
-    alert('✅ Guardado para ruta');
+    toast.success('Guardado para ruta');
   }
 
   function limpiarRuta() {
@@ -595,7 +595,7 @@ export default function DenueSearchModal({
 
   function generarRuta() {
     if (routeItems.length === 0) {
-      alert('No hay negocios guardados para ruta.');
+      toast.error('No hay negocios guardados para ruta');
       return;
     }
 
