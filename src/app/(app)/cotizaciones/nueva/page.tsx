@@ -12,6 +12,7 @@ import { generarCotizacionPDF } from '@/lib/pdf/generarCotizacionPDF';
 import { sharePdfViaWhatsapp } from '@/lib/sharePdfWhatsApp';
 import { CotizacionPDFData } from '@/lib/pdf/types';
 import { useToast } from '@/components/ui/toast-provider';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthProvider';
 
 interface ProductoConId extends Omit<Producto, 'codigo'> {
