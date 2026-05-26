@@ -2,6 +2,7 @@
 
 import { auth } from '@/lib/firebase';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { guardarRutaDenue } from '@/lib/firestore/sales-routes';
 import {
   Dialog,
   DialogContent,
@@ -598,43 +599,32 @@ export default function DenueSearchModal({
       toast.error('No hay negocios guardados para ruta');
       return;
     }
-
-    if (routeItems.length === 1) {
-      const only = routeItems[0];
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${only.lat},${only.lng}&travelmode=driving`;
-      window.open(url, '_blank');
-      return;
-    }
-
-    const destino = routeItems[routeItems.length - 1];
-    const intermedios = routeItems.slice(0, -1);
-
-    const params = new URLSearchParams({
-      api: '1',
-      destination: `${destino.lat},${destino.lng}`,
-      travelmode: 'driving',
-    });
-
-    if (coords) {
-      params.set('origin', `${coords.lat},${coords.lng}`);
-    } else {
-      const first = routeItems[0];
-      params.set('origin', `${first.lat},${first.lng}`);
-    }
-
-    const waypointsBase = coords ? intermedios : routeItems.slice(1, -1);
-
-    if (waypointsBase.length > 0) {
-      params.set(
-        'waypoints',
-        waypointsBase.map((item) => `${item.lat},${item.lng}`).join('|')
-      );
-    }
-
-    const url = `https://www.google.com/maps/dir/?${params.toString()}`;
+  
+    const points = routeItems
+      .map((i) => `${i.Latitud},${i.Longitud}`)
+      .join('/');
+  
+    const url = `https://www.google.com/maps/dir/${points}`;
+  
     window.open(url, '_blank');
   }
-
+  
+  async function guardarRutaFirestore() {
+    try {
+      if (routeItems.length === 0) {
+        toast.error('No hay negocios para guardar');
+        return;
+      }
+  
+      await guardarRutaDenue(routeItems);
+  
+      toast.success('Ruta guardada correctamente');
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudo guardar la ruta');
+    }
+  }
+  
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-7xl h-[95vh] max-h-[95vh] overflow-hidden p-0">
@@ -670,11 +660,20 @@ export default function DenueSearchModal({
                   </Button>
 
                   <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={limpiarRuta}
-                    disabled={routeItems.length === 0}
-                  >
+  size="sm"
+  variant="default"
+  onClick={guardarRutaFirestore}
+  disabled={routeItems.length === 0}
+>
+  Guardar ruta
+</Button>
+
+<Button
+  size="sm"
+  variant="outline"
+  onClick={limpiarRuta}
+  disabled={routeItems.length === 0}
+>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Limpiar
                   </Button>
