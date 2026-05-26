@@ -72,7 +72,6 @@ const TIPO_COLOR: Record<TimelineEvento['tipo'], string> = {
   cotizacion: 'bg-blue-100 text-blue-700',
   whatsapp: 'bg-emerald-100 text-emerald-700',
   conversion: 'bg-purple-100 text-purple-700',
-  importacion: 'bg-slate-200 text-slate-600'
 };
 
 export default function ClienteDetailClient({ id }: { id: string }) {
