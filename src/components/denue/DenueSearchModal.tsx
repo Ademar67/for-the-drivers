@@ -601,7 +601,7 @@ export default function DenueSearchModal({
     }
   
     const points = routeItems
-      .map((i) => `${i.Latitud},${i.Longitud}`)
+    .map((i) => `${i.lat},${i.lng}`)
       .join('/');
   
     const url = `https://www.google.com/maps/dir/${points}`;
