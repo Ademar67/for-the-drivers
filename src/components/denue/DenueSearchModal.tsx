@@ -800,7 +800,11 @@ export default function DenueSearchModal({
                     return (
                       <div
                         key={keyId}
-                        className="p-3 border rounded-lg flex flex-col gap-3"
+                        className={`p-3 border rounded-lg flex flex-col gap-3 transition-all ${
+                          isSavedForRoute
+                            ? 'border-blue-500 bg-blue-50 shadow-sm'
+                            : 'border-gray-200'
+                        }`}
                       >
                         <div>
                           <p className="font-semibold">
