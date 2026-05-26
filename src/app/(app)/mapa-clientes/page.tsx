@@ -649,8 +649,8 @@ export default function MapaClientesPage() {
   // UI
   // ---------------------------------------------------------------------------
   return (
-    <div className="flex h-[calc(100vh-6rem)] w-full">
-      <div className="w-[420px] overflow-y-auto border-r bg-white p-4">
+    <div className="flex flex-col gap-4 lg:flex-row lg:h-[calc(100vh-6rem)] w-full">
+      <div className="w-full shrink-0 overflow-y-auto border-r bg-white lg:w-[420px]">
         <div className="mb-4 flex items-center gap-2">
           <button
             onClick={() => setVistaPanel('plan')}
@@ -893,7 +893,7 @@ export default function MapaClientesPage() {
     )}
   </div>
 )}
-      <div className="flex-1">
+      <div className="h-[320px] w-full lg:h-full lg:flex-1">
         <div ref={mapDivRef} className="h-full w-full" />
       </div>
     </div>
