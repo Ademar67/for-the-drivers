@@ -266,6 +266,11 @@ export default function DenueSearchModal({
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  useEffect(() => {
+  if (!open) {
+    mapInstanceRef.current = null;
+  }
+}, [open]);
 
   useEffect(() => {
     if (open) {
