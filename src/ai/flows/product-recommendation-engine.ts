@@ -9,6 +9,8 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { recommendFluid } from "@/lib/compatibility/recommendFluid";
+import { detectVehicle } from "@/lib/vehicles/detectVehicle";
 import { obtenerProductosFirestore } from '@/lib/firebase/productos';
 
 const HistoryMessageSchema = z.object({
@@ -69,7 +71,8 @@ function buildPrompt(params: {
   historyText: string;
   maxProducts: number;
   includeComplementaryProducts: boolean;
-  responseStyle: 'professional' | 'simple';
+  responseStyle: "professional" | "simple";
+  technicalContext: string;
   productList: string;
 }) {
   const {
@@ -79,6 +82,7 @@ function buildPrompt(params: {
     includeComplementaryProducts,
     responseStyle,
     productList,
+    technicalContext,
   } = params;
 
   return `
@@ -148,13 +152,23 @@ ${historyText}
 CASO ACTUAL DEL USUARIO:
 "${customerNeeds}"
 
+CONTEXTO TÉCNICO VALIDADO:
+${technicalContext}
+
+Si existe contexto técnico:
+- Priorízalo sobre inferencias.
+- No contradigas OEM ni compatibilidades.
+- Usa esta información como fuente principal.
+
 PRODUCTOS DISPONIBLES (México - única fuente de verdad para nombres/SKUs):
 ${productList}
 
 INSTRUCCIONES PARA PRODUCTOS
 - Debes recomendar entre 1 y ${maxProducts} productos.
 - Debe haber EXACTAMENTE 1 producto con prioridad "principal".
-- includeComplementaryProducts = ${includeComplementaryProducts ? 'true' : 'false'}
+- includeComplementaryProducts = ${
+    includeComplementaryProducts ? "true" : "false"
+  }
 - Si includeComplementaryProducts = true, puedes agregar complementarios si ayudan realmente.
 - Si includeComplementaryProducts = false, devuelve solo el producto principal.
 - No agregues complementarios de relleno.
@@ -260,6 +274,21 @@ export const recommendProducts = ai.defineFlow(
   },
   async (input) => {
     const allProducts = await obtenerProductosFirestore();
+    const query = input.customerNeeds.toLowerCase();
+
+let technicalContext = "";
+
+const detectedVehicle = detectVehicle(input.customerNeeds);
+
+if (detectedVehicle) {
+  const fluidResult = recommendFluid({
+    brand: detectedVehicle.brand,
+    model: detectedVehicle.model,
+    year: detectedVehicle.year,
+  });
+
+  technicalContext = JSON.stringify(fluidResult, null, 2);
+}
     const productList = JSON.stringify(allProducts);
 
     const historyText =
@@ -280,6 +309,7 @@ export const recommendProducts = ai.defineFlow(
         input.includeComplementaryProducts ?? true,
       responseStyle: input.responseStyle ?? 'professional',
       productList,
+      technicalContext,
     });
 
     const response = await ai.generate({
@@ -307,6 +337,6 @@ export const recommendProducts = ai.defineFlow(
       advertencia:
         output?.advertencia ??
         'Verifica la compatibilidad exacta con el manual del vehículo antes de aplicar el producto.',
-    };
+        };
   }
 );
