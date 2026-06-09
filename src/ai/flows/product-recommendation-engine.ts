@@ -159,6 +159,20 @@ Si existe contexto técnico:
 - Priorízalo sobre inferencias.
 - No contradigas OEM ni compatibilidades.
 - Usa esta información como fuente principal.
+REGLA OEM OBLIGATORIA
+Si CONTEXTO TÉCNICO VALIDADO contiene:
+compatibility.compatible = true
+y existe:
+compatibility.recommendedProducts
+ENTONCES:
+- Debes recomendar EXCLUSIVAMENTE productos incluidos en compatibility.recommendedProducts.
+- No puedes sustituirlos por otros productos.
+- No puedes sugerir productos alternativos.
+- No puedes afirmar que la compatibilidad es incierta.
+- No puedes pedir verificar compatibilidad OEM si ya fue validada.
+- Debes asumir que la compatibilidad ya fue confirmada por el motor técnico.
+
+Si existe una recomendación OEM validada, ésta tiene prioridad absoluta sobre cualquier infe
 
 PRODUCTOS DISPONIBLES (México - única fuente de verdad para nombres/SKUs):
 ${productList}
@@ -288,6 +302,8 @@ if (detectedVehicle) {
   });
 
   technicalContext = JSON.stringify(fluidResult, null, 2);
+
+  console.log("TECHNICAL CONTEXT:", technicalContext);
 }
     const productList = JSON.stringify(allProducts);
 

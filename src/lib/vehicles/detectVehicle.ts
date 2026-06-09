@@ -1,3 +1,5 @@
+import { VEHICLE_RULES } from "./vehicle-rules";
+
 export type DetectedVehicle = {
   brand: string;
   model: string;
@@ -7,31 +9,26 @@ export type DetectedVehicle = {
 export function detectVehicle(text: string): DetectedVehicle | null {
   const query = text.toLowerCase();
 
-  // Toyota RAV4 2015
-  if (query.includes("rav4") && query.includes("2015")) {
-    return {
-      brand: "Toyota",
-      model: "RAV4",
-      year: 2015,
-    };
+  const yearMatch = query.match(/\b(19|20)\d{2}\b/);
+
+  if (!yearMatch) {
+    return null;
   }
 
-  // Volkswagen Golf GTI 2018
-  if (query.includes("golf gti") && query.includes("2018")) {
-    return {
-      brand: "Volkswagen",
-      model: "Golf GTI",
-      year: 2018,
-    };
-  }
+  const year = Number(yearMatch[0]);
 
-  // Nissan Sentra 2017
-  if (query.includes("sentra") && query.includes("2017")) {
-    return {
-      brand: "Nissan",
-      model: "Sentra",
-      year: 2017,
-    };
+  for (const vehicle of VEHICLE_RULES) {
+    const modelMatch = query.includes(vehicle.model.toLowerCase());
+
+    const yearMatchRule = year >= vehicle.yearFrom && year <= vehicle.yearTo;
+
+    if (modelMatch && yearMatchRule) {
+      return {
+        brand: vehicle.brand,
+        model: vehicle.model,
+        year,
+      };
+    }
   }
 
   return null;
