@@ -25,9 +25,12 @@ export async function GET(request: NextRequest) {
       }),
     });
 
-    const data = await response.json();
+  const data = await response.json();
 
-    return NextResponse.json(data);
+  return NextResponse.json({
+    status: response.status,
+    zoho: data,
+  });
   } catch (error: any) {
     return NextResponse.json(
       {
