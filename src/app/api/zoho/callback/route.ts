@@ -11,7 +11,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const response = await fetch("https://accounts.zoho.com/oauth/v2/token", {
+    const accountsServer =
+      request.nextUrl.searchParams.get("accounts-server") ||
+      "https://accounts.zoho.com";
+
+    const tokenUrl = `${decodeURIComponent(accountsServer)}/oauth/v2/token`;
+
+    console.log("ZOHO TOKEN URL:", tokenUrl);
+
+    const response = await fetch(tokenUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -25,12 +33,13 @@ export async function GET(request: NextRequest) {
       }),
     });
 
-  const text = await response.text();
+    const text = await response.text();
 
-  return NextResponse.json({
-    status: response.status,
-    raw: text,
-  });
+    return NextResponse.json({
+      status: response.status,
+      tokenUrl,
+      raw: text,
+    });
   } catch (error: any) {
     return NextResponse.json(
       {
