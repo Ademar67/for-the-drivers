@@ -19,6 +19,9 @@ export async function GET(request: NextRequest) {
 
     console.log("ZOHO TOKEN URL:", tokenUrl);
 
+    console.log("CLIENT ID EXISTS:", !!process.env.ZOHO_CLIENT_ID);
+    console.log("CLIENT SECRET EXISTS:", !!process.env.ZOHO_CLIENT_SECRET);
+
     const response = await fetch(tokenUrl, {
       method: "POST",
       headers: {
@@ -38,6 +41,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       status: response.status,
       tokenUrl,
+      codeExists: !!code,
+      clientIdExists: !!process.env.ZOHO_CLIENT_ID,
+      clientSecretExists: !!process.env.ZOHO_CLIENT_SECRET,
+      clientIdLength: process.env.ZOHO_CLIENT_ID?.length ?? 0,
+      clientSecretLength: process.env.ZOHO_CLIENT_SECRET?.length ?? 0,
       raw: text,
     });
   } catch (error: any) {
