@@ -1,245 +1,41 @@
 'use client';
 
-import { auth } from '@/lib/firebase';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { guardarRutaDenue } from '@/lib/firestore/sales-routes';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import {
-  Loader2,
-  MapPin,
-  Navigation,
-  Route,
-  Trash2,
-  Flame,
-} from 'lucide-react';
+import { Search, MapPin, Building2, Phone, Loader2, Plus } from 'lucide-react';
+import { useAuth } from '@/context/AuthProvider';
 
-type DenueSearchModalProps = {
+type DenueEstablishment = {
+  Id: string;
+  Nombre: string;
+  Razon_social: string;
+  Clase_actividad: string;
+  Estrato: string;
+  Tipo_vialidad: string;
+  Calle: string;
+  Num_Exterior: string;
+  Num_Interior: string;
+  Colonia: string;
+  CP: string;
+  Ubicacion: string;
+  Telefono: string;
+  Correo_e: string;
+  Sitio_internet: string;
+  Tipo: string;
+  Longitud: string;
+  Latitud: string;
+};
+
+interface DenueSearchModalProps {
   open: boolean;
   onClose: () => void;
   coords: { lat: number; lng: number } | null;
-};
-
-export type DenueResult = {
-  Id?: string;
-  id?: string;
-  clee?: string;
-  nom_estab?: string;
-  name?: string;
-  nom_vial?: string;
-  numero_ext?: string;
-  colonia?: string;
-  cod_postal?: string;
-  municipio?: string;
-  entidad?: string;
-  telefono?: string;
-  tel?: string;
-  phone?: string;
-  latitud?: string;
-  longitud?: string;
-  lat?: string;
-  lng?: string;
-  direccion?: string;
-  id_denue?: string;
-
-  Nombre: string;
-  Calle: string;
-  Num_Exterior?: string;
-  Num_Interior?: string;
-  Colonia?: string;
-  Municipio?: string;
-  Telefono?: string;
-  Latitud?: string;
-  Longitud?: string;
-  Clase_actividad?: string;
-};
-
-type PuntoMapa = {
-  key: string;
-  nombre: string;
-  direccion: string;
-  telefono: string;
-  lat: number;
-  lng: number;
-  raw: DenueResult;
-};
-
-type RutaDenueItem = {
-  key: string;
-  nombre: string;
-  direccion: string;
-  telefono: string;
-  lat: number;
-  lng: number;
-  tipo: 'taller' | 'refaccionaria';
-  raw: DenueResult;
-};
-
-type ZonaCaliente = {
-  nombre: string;
-  total: number;
-};
-
-const DENUE_ROUTE_STORAGE_KEY = 'denue-route-items';
-
-function buildDomicilio(d: DenueResult) {
-  const calle = d.Calle || d.nom_vial || '';
-  const ext =
-    d.Num_Exterior || d.numero_ext
-      ? ` ${d.Num_Exterior || d.numero_ext}`
-      : '';
-  const col = d.Colonia || d.colonia ? `, ${d.Colonia || d.colonia}` : '';
-  return `${calle}${ext}${col}`.trim();
-}
-
-function getDenueKey(item: DenueResult): string {
-  return String(
-    item?.clee ??
-      item?.Id ??
-      item?.id ??
-      item?.id_denue ??
-      `${item?.nom_estab ?? item?.Nombre ?? 'x'}-${
-        item?.latitud ?? item?.Latitud ?? ''
-      }-${item?.longitud ?? item?.Longitud ?? ''}`
-  );
-}
-
-function buildAddress(item: DenueResult) {
-  return (
-    item?.direccion ||
-    [
-      item?.nom_vial || item?.Calle,
-      item?.numero_ext || item?.Num_Exterior,
-      item?.colonia || item?.Colonia,
-      item?.cod_postal,
-      item?.municipio || item?.Municipio,
-      item?.entidad,
-    ]
-      .filter(Boolean)
-      .join(' ')
-  );
-}
-
-function getDenueLat(item: DenueResult) {
-  const lat = Number(item?.latitud ?? item?.lat ?? item?.Latitud ?? null);
-  return Number.isFinite(lat) ? lat : null;
-}
-
-function getDenueLng(item: DenueResult) {
-  const lng = Number(item?.longitud ?? item?.lng ?? item?.Longitud ?? null);
-  return Number.isFinite(lng) ? lng : null;
-}
-
-function getZonaNombre(item: DenueResult) {
-  const colonia = item?.Colonia ?? item?.colonia ?? '';
-  const municipio = item?.Municipio ?? item?.municipio ?? '';
-
-  if (colonia && municipio) return `${colonia} — ${municipio}`;
-  if (colonia) return colonia;
-  if (municipio) return municipio;
-  return 'Zona no identificada';
-}
-
-function safeReadRouteItems(): RutaDenueItem[] {
-  if (typeof window === 'undefined') return [];
-
-  try {
-    const raw = localStorage.getItem(DENUE_ROUTE_STORAGE_KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.error('Error leyendo ruta DENUE guardada:', error);
-    return [];
-  }
-}
-
-function safeWriteRouteItems(items: RutaDenueItem[]) {
-  if (typeof window === 'undefined') return;
-
-  try {
-    localStorage.setItem(DENUE_ROUTE_STORAGE_KEY, JSON.stringify(items));
-  } catch (error) {
-    console.error('Error guardando ruta DENUE:', error);
-  }
-}
-
-export function useDenueAdd() {
-  const [addingId, setAddingId] = useState<string | null>(null);
-  const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
-
-  async function addFromDenue(
-    item: DenueResult,
-    category: 'taller' | 'refaccionaria'
-  ) {
-    const localId = getDenueKey(item);
-
-    try {
-      setAddingId(localId);
-
-      const name =
-        item?.nom_estab ?? item?.name ?? item?.Nombre ?? 'SIN NOMBRE';
-      const phone =
-        item?.telefono ?? item?.tel ?? item?.phone ?? item?.Telefono ?? null;
-      const address = buildAddress(item) || buildDomicilio(item);
-
-      const lat = getDenueLat(item);
-      const lng = getDenueLng(item);
-
-      const res = await fetch('/api/prospectos/from-denue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      
-        body: JSON.stringify({
-          name,
-          address,
-          phone,
-          lat,
-          lng,
-          category,
-          denueRaw: item,
-      
-          ownerId: auth.currentUser?.uid,
-          ownerEmail: auth.currentUser?.email ?? '',
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data?.error ?? 'No se pudo agregar el prospecto');
-        return false;
-      }
-
-      setAddedIds((prev) => ({ ...prev, [localId]: true }));
-
-      if (data.created) {
-        toast.success('Prospecto agregado');
-      } else {
-        toast.info('Ya existía, no se duplicó');
-      }
-      return true;
-    } catch (error) {
-      console.error('Error agregando prospecto DENUE:', error);
-      toast.error('No se pudo agregar el prospecto');
-      return false;
-    } finally {
-      setAddingId(null);
-    }
-  }
-
-  return { addFromDenue, addingId, addedIds };
 }
 
 export default function DenueSearchModal({
@@ -247,650 +43,162 @@ export default function DenueSearchModal({
   onClose,
   coords,
 }: DenueSearchModalProps) {
-
-
-  const [searchType, setSearchType] = useState<'taller' | 'refaccionaria'>(
-    'taller'
-  );
-
-  const [results, setResults] = useState<DenueResult[]>([]);
+  const { user } = useAuth();
+  const [tipo, setTipo] = useState<'taller' | 'refaccionaria'>('taller');
+  const [radio, setRadius] = useState('2000');
+  const [results, setResults] = useState<DenueEstablishment[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const { addFromDenue, addingId, addedIds } = useDenueAdd();
-
-  const [routeItems, setRouteItems] = useState<RutaDenueItem[]>([]);
-  const [selectedZona, setSelectedZona] = useState<string | null>(null);
-
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<google.maps.Marker[]>([]);
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
-  useEffect(() => {
-  if (!open) {
-    mapInstanceRef.current = null;
-  }
-}, [open]);
-
-  useEffect(() => {
-    if (open) {
-      setRouteItems(safeReadRouteItems());
-    }
-  }, [open]);
-
-  const zonasCalientes = useMemo<ZonaCaliente[]>(() => {
-    const countMap = new Map<string, number>();
-
-    results.forEach((item) => {
-      const zona = getZonaNombre(item);
-      countMap.set(zona, (countMap.get(zona) ?? 0) + 1);
-    });
-
-    return Array.from(countMap.entries())
-      .map(([nombre, total]) => ({ nombre, total }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 8);
-  }, [results]);
-
-  const filteredResults = useMemo(() => {
-    if (!selectedZona) return results;
-    return results.filter((item) => getZonaNombre(item) === selectedZona);
-  }, [results, selectedZona]);
-
-  const puntosMapa = useMemo<PuntoMapa[]>(() => {
-    return filteredResults
-      .map((item) => {
-        const lat = getDenueLat(item);
-        const lng = getDenueLng(item);
-
-        if (lat === null || lng === null) return null;
-
-        return {
-          key: getDenueKey(item),
-          nombre: item?.nom_estab ?? item?.name ?? item?.Nombre ?? 'SIN NOMBRE',
-          direccion:
-            buildAddress(item) || buildDomicilio(item) || 'Sin dirección',
-          telefono:
-            item?.telefono ??
-            item?.tel ??
-            item?.phone ??
-            item?.Telefono ??
-            'No disponible',
-          lat,
-          lng,
-          raw: item,
-        };
-      })
-      .filter((item): item is PuntoMapa => item !== null);
-  }, [filteredResults]);
-
-  useEffect(() => {
-    if (!open) return;
-    if (typeof window === 'undefined') return;
-
-    const initMap = () => {
-      if (!mapRef.current || !(window as any).google?.maps) return;
-
-      if (!mapInstanceRef.current) {
-        mapInstanceRef.current = new google.maps.Map(mapRef.current, {
-          center: coords ?? { lat: 19.703, lng: -101.192 },
-          zoom: 14,
-          mapTypeControl: true,
-          streetViewControl: false,
-          fullscreenControl: true,
-        });
-
-        infoWindowRef.current = new google.maps.InfoWindow();
-      } else if (coords) {
-        mapInstanceRef.current.setCenter(coords);
-      }
-
-      setTimeout(() => {
-        google.maps.event.trigger(mapInstanceRef.current!, 'resize');
-        if (coords) {
-          mapInstanceRef.current?.setCenter(coords);
-        }
-      }, 150);
-    };
-
-    if ((window as any).google?.maps) {
-      initMap();
-      return;
-    }
-
-    const existingScript = document.querySelector(
-      'script[src^="https://maps.googleapis.com/maps/api/js"]'
-    ) as HTMLScriptElement | null;
-
-    if (existingScript) {
-      existingScript.addEventListener('load', initMap);
-      return () => {
-        existingScript.removeEventListener('load', initMap);
-      };
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
-    script.async = true;
-    script.defer = true;
-    script.onload = initMap;
-    document.head.appendChild(script);
-
-    return () => {
-      script.onload = null;
-    };
-  }, [open, coords]);
-
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-
-    markersRef.current.forEach((marker) => marker.setMap(null));
-    markersRef.current = [];
-
-    const bounds = new google.maps.LatLngBounds();
-
-    if (coords) {
-      const userMarker = new google.maps.Marker({
-        position: coords,
-        map,
-        title: 'Tu ubicación',
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: '#2563eb',
-          fillOpacity: 1,
-          strokeColor: '#ffffff',
-          strokeWeight: 2,
-        },
-      });
-
-      markersRef.current.push(userMarker);
-      bounds.extend(coords);
-    }
-
-    puntosMapa.forEach((punto) => {
-      const isSaved = routeItems.some((saved) => saved.key === punto.key);
-
-      const marker = new google.maps.Marker({
-        position: { lat: punto.lat, lng: punto.lng },
-        map,
-        title: punto.nombre,
-        icon: isSaved
-          ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
-          : undefined,
-      });
-
-      marker.addListener('click', () => {
-        infoWindowRef.current?.setContent(`
-          <div style="padding:8px;max-width:240px;font-family:sans-serif;">
-            <div style="font-weight:700;font-size:14px;margin-bottom:6px;">${punto.nombre}</div>
-            <div style="font-size:12px;color:#444;margin-bottom:4px;">${punto.direccion}</div>
-            <div style="font-size:12px;color:#666;">Tel: ${punto.telefono}</div>
-            <div style="font-size:12px;color:${isSaved ? '#15803d' : '#666'};margin-top:6px;">
-              ${isSaved ? 'Guardado para ruta ✅' : 'Disponible para guardar en ruta'}
-            </div>
-          </div>
-        `);
-        infoWindowRef.current?.open(map, marker);
-      });
-
-      markersRef.current.push(marker);
-      bounds.extend({ lat: punto.lat, lng: punto.lng });
-    });
-
-    if (!bounds.isEmpty()) {
-      map.fitBounds(bounds);
-
-      if (puntosMapa.length === 1) {
-        map.setZoom(16);
-      }
-    } else if (coords) {
-      map.setCenter(coords);
-      map.setZoom(14);
-    }
-
-    setTimeout(() => {
-      google.maps.event.trigger(map, 'resize');
-      if (!bounds.isEmpty()) {
-        map.fitBounds(bounds);
-      } else if (coords) {
-        map.setCenter(coords);
-        map.setZoom(14);
-      }
-    }, 150);
-  }, [puntosMapa, coords, routeItems]);
+  const [addingId, setAddingId] = useState<string | null>(null);
 
   const handleSearch = async () => {
-    if (!coords) {
-      setError('No hay coordenadas disponibles (GPS).');
-      return;
-    }
-
+    if (!coords) return;
     setLoading(true);
-    setError(null);
-    setResults([]);
-    setSelectedZona(null);
-
     try {
-      const { lat, lng } = coords;
-
-      const response = await fetch(
-        `/api/denue/search?lat=${lat}&lng=${lng}&tipo=${searchType}&radius=1000`,
-        { cache: 'no-store' }
+      const res = await fetch(
+        `/api/denue/search?lat=${coords.lat}&lng=${coords.lng}&radius=${radio}&tipo=${tipo}`
       );
-
-      const text = await response.text();
-      const clean = text.trim().replace(/^﻿/, '');
-
-      if (!response.ok) {
-        throw new Error(clean || `Error ${response.status}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setResults(data);
+      } else {
+        setResults([]);
       }
-
-      const data = JSON.parse(clean);
-      const arr: DenueResult[] = Array.isArray(data) ? data : [];
-      setResults(arr);
-    } catch (e: any) {
-      setError(e?.message || 'Error al buscar en DENUE.');
+    } catch (error) {
+      console.error('Error searching DENUE:', error);
+      setResults([]);
     } finally {
       setLoading(false);
     }
   };
 
-  function centrarZona(zonaNombre: string) {
-    setSelectedZona(zonaNombre);
-
-    const map = mapInstanceRef.current;
-    if (!map) return;
-
-    const negociosZona = results.filter(
-      (item) => getZonaNombre(item) === zonaNombre
-    );
-
-    const bounds = new google.maps.LatLngBounds();
-    let hasPoints = false;
-
-    negociosZona.forEach((item) => {
-      const lat = getDenueLat(item);
-      const lng = getDenueLng(item);
-
-      if (lat !== null && lng !== null) {
-        bounds.extend({ lat, lng });
-        hasPoints = true;
-      }
-    });
-
-    if (hasPoints) {
-      map.fitBounds(bounds);
+  useEffect(() => {
+    if (open && coords && results.length === 0) {
+      handleSearch();
     }
-  }
+  }, [open, coords]);
 
-  function abrirEnGoogleMaps(item: DenueResult) {
-    const lat = getDenueLat(item);
-    const lng = getDenueLng(item);
-
-    if (lat !== null && lng !== null) {
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-      window.open(url, '_blank');
-      return;
-    }
-
-    const address = encodeURIComponent(
-      buildAddress(item) ||
-        buildDomicilio(item) ||
-        item?.nom_estab ||
-        item?.Nombre ||
-        ''
-    );
-
-    const url = `https://www.google.com/maps/search/?api=1&query=${address}`;
-    window.open(url, '_blank');
-  }
-
-  async function handleAddAndNavigate(item: DenueResult) {
-    const ok = await addFromDenue(item, searchType);
-    if (ok) {
-      abrirEnGoogleMaps(item);
-    }
-  }
-
-  function guardarParaRuta(item: DenueResult) {
-    const lat = getDenueLat(item);
-    const lng = getDenueLng(item);
-
-    if (lat === null || lng === null) {
-      alert('Este negocio no tiene coordenadas válidas para guardarlo en ruta.');
-      return;
-    }
-
-    const newItem: RutaDenueItem = {
-      key: getDenueKey(item),
-      nombre: item?.nom_estab ?? item?.name ?? item?.Nombre ?? 'SIN NOMBRE',
-      direccion: buildAddress(item) || buildDomicilio(item) || 'Sin dirección',
-      telefono:
-        item?.telefono ??
-        item?.tel ??
-        item?.phone ??
-        item?.Telefono ??
-        'No disponible',
-      lat,
-      lng,
-      tipo: searchType,
-      raw: item,
-    };
-
-    const current = safeReadRouteItems();
-
-    if (current.some((routeItem) => routeItem.key === newItem.key)) {
-      toast.info('Este negocio ya está guardado en la ruta');
-      setRouteItems(current);
-      return;
-    }
-
-    const updated = [...current, newItem];
-    safeWriteRouteItems(updated);
-    setRouteItems(updated);
-
-    toast.success('Guardado para ruta');
-  }
-
-  function limpiarRuta() {
-    safeWriteRouteItems([]);
-    setRouteItems([]);
-  }
-
-  function generarRuta() {
-    if (routeItems.length === 0) {
-      toast.error('No hay negocios guardados para ruta');
-      return;
-    }
-  
-    const points = routeItems
-    .map((i) => `${i.lat},${i.lng}`)
-      .join('/');
-  
-    const url = `https://www.google.com/maps/dir/${points}`;
-  
-    window.open(url, '_blank');
-  }
-  
-  async function guardarRutaFirestore() {
+  const handleAddProspecto = async (item: DenueEstablishment) => {
+    if (!user) return;
+    setAddingId(item.Id);
     try {
-      if (routeItems.length === 0) {
-        toast.error('No hay negocios para guardar');
-        return;
+      const address = `${item.Calle} ${item.Num_Exterior}, ${item.Colonia}, ${item.CP}`;
+      const res = await fetch('/api/prospectos/from-denue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: item.Nombre,
+          address,
+          phone: item.Telefono,
+          lat: parseFloat(item.Latitud),
+          lng: parseFloat(item.Longitud),
+          category: tipo,
+          denueRaw: item,
+          ownerId: user.uid,
+          ownerEmail: user.email,
+        }),
+      });
+
+      if (res.ok) {
+        alert('Prospecto agregado correctamente');
+      } else {
+        const errorData = await res.json();
+        alert(`Error: ${errorData.error || 'No se pudo agregar'}`);
       }
-  
-      await guardarRutaDenue(routeItems);
-  
-      toast.success('Ruta guardada correctamente');
     } catch (error) {
-      console.error(error);
-      toast.error('No se pudo guardar la ruta');
+      console.error('Error adding prospecto:', error);
+      alert('Error de red al agregar prospecto');
+    } finally {
+      setAddingId(null);
     }
-  }
-  
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-7xl h-[95vh] max-h-[95vh] overflow-hidden p-0">
-        <div className="flex h-full flex-col">
-          <DialogHeader className="shrink-0 border-b px-4 py-4 md:px-6">
-            <DialogTitle>Buscar Negocios Cercanos en DENUE</DialogTitle>
-            <DialogDescription>
-              Encuentra talleres mecánicos o refaccionarias cerca de tu ubicación.
-            </DialogDescription>
-          </DialogHeader>
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden bg-white">
+        <DialogHeader className="p-6 pb-2">
+          <DialogTitle className="flex items-center gap-2 text-blue-700 text-xl">
+            <Search className="h-6 w-6" />
+            Buscar Negocios Cercanos (DENUE)
+          </DialogTitle>
+        </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6">
-            <div className="space-y-4">
-              <div className="rounded-lg border p-3 bg-slate-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="text-sm">
-                  <span className="font-semibold">Ruta prospectada:</span>{' '}
-                  {routeItems.length} negocio
-                  {routeItems.length === 1 ? '' : 's'} seleccionado
-                  {routeItems.length > 0 && (
-                    <span className="text-slate-500"> para visita</span>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={generarRuta}
-                    disabled={routeItems.length === 0}
-                  >
-                    <Route className="mr-2 h-4 w-4" />
-                    Generar ruta
-                  </Button>
-
-                  <Button
-  size="sm"
-  variant="default"
-  onClick={guardarRutaFirestore}
-  disabled={routeItems.length === 0}
->
-  Guardar ruta
-</Button>
-
-<Button
-  size="sm"
-  variant="outline"
-  onClick={limpiarRuta}
-  disabled={routeItems.length === 0}
->
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Limpiar
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <RadioGroup
-                  value={searchType}
-                  onValueChange={(val: any) => setSearchType(val)}
-                  className="flex flex-col gap-2 sm:flex-row sm:gap-6"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="taller" id="r-taller" />
-                    <Label htmlFor="r-taller">Talleres Mecánicos</Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="refaccionaria" id="r-refaccionaria" />
-                    <Label htmlFor="r-refaccionaria">Refaccionarias</Label>
-                  </div>
-                </RadioGroup>
-
-                <Button onClick={handleSearch} disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Buscar
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_420px_minmax(0,1fr)]">
-              <div className="order-3 xl:order-1 border rounded-lg p-3 space-y-3 bg-white max-h-[40vh] xl:max-h-[calc(95vh-260px)] overflow-y-auto">
-                  <div className="flex items-center gap-2">
-                    <Flame className="h-4 w-4" />
-                    <h3 className="font-semibold">Zonas calientes</h3>
-                  </div>
-
-                  {zonasCalientes.length === 0 ? (
-                    <p className="text-sm text-gray-500">
-                      Busca negocios para detectar las zonas con más concentración.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {zonasCalientes.map((zona, index) => {
-                        const active = selectedZona === zona.nombre;
-
-                        return (
-                          <button
-                            key={zona.nombre}
-                            type="button"
-                            onClick={() => centrarZona(zona.nombre)}
-                            className={`w-full text-left border rounded-lg p-3 transition ${
-                              active
-                                ? 'border-blue-600 bg-blue-50'
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium text-sm">
-                                #{index + 1} {zona.nombre}
-                              </span>
-                              <span className="text-xs px-2 py-1 rounded-full bg-slate-100">
-                                {zona.total}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-
-                      {selectedZona && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => setSelectedZona(null)}
-                        >
-                          Quitar filtro de zona
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="order-1 rounded-lg border bg-slate-100 overflow-hidden h-[360px] min-h-[360px] xl:order-3 xl:h-[calc(95vh-260px)]">
-  <div ref={mapRef} className="h-full w-full min-h-[360px]" />
-</div>
-
-<div className="order-2 xl:order-2 max-h-[50vh] xl:max-h-[calc(95vh-260px)] overflow-y-auto pr-1 space-y-3">
-                  {loading && (
-                    <p className="text-center text-gray-500">Buscando...</p>
-                  )}
-
-                  {error && <p className="text-center text-red-500">{error}</p>}
-
-                  {!loading && !error && results.length === 0 && (
-                    <p className="text-center text-gray-500">
-                      No se encontraron resultados.
-                    </p>
-                  )}
-
-                  {!loading && !error && results.length > 0 && (
-                    <div className="text-xs text-slate-500">
-                      Mostrando {filteredResults.length} de {results.length}{' '}
-                      resultados
-                      {selectedZona ? ` en ${selectedZona}` : ''}
-                    </div>
-                  )}
-
-                  {filteredResults.map((item) => {
-                    const keyId = getDenueKey(item);
-                    const domicilio = buildAddress(item) || buildDomicilio(item);
-                    const telefono =
-                      item?.telefono ??
-                      item?.tel ??
-                      item?.phone ??
-                      item?.Telefono ??
-                      'No disponible';
-
-                    const isAdding = addingId === keyId;
-                    const isAdded = !!addedIds[keyId];
-                    const isSavedForRoute = routeItems.some(
-                      (routeItem) => routeItem.key === keyId
-                    );
-
-                    return (
-                      <div
-                        key={keyId}
-                        className={`p-3 border rounded-lg flex flex-col gap-3 transition-all ${
-                          isSavedForRoute
-                            ? 'border-blue-500 bg-blue-50 shadow-sm'
-                            : 'border-gray-200'
-                        }`}
-                      >
-                        <div>
-                          <p className="font-semibold">
-                            {item?.nom_estab ??
-                              item?.name ??
-                              item?.Nombre ??
-                              'SIN NOMBRE'}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {domicilio || 'Sin dirección'}
-                          </p>
-                          <p className="text-xs text-gray-500">Tel: {telefono}</p>
-                          <p className="text-xs text-slate-500 mt-1">
-                            Zona: {getZonaNombre(item)}
-                          </p>
-
-                          {isSavedForRoute && (
-                            <p className="text-xs text-green-600 mt-2 font-medium">
-                              Guardado para ruta ✅
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => addFromDenue(item, searchType)}
-                            disabled={isAdding || isAdded}
-                          >
-                            {isAdded
-                              ? 'Agregado ✅'
-                              : isAdding
-                              ? 'Agregando...'
-                              : 'Agregar'}
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleAddAndNavigate(item)}
-                            disabled={isAdding}
-                          >
-                            <Navigation className="mr-2 h-4 w-4" />
-                            {isAdding ? 'Agregando...' : 'Agregar + Navegar'}
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => guardarParaRuta(item)}
-                            disabled={isSavedForRoute}
-                          >
-                            <Route className="mr-2 h-4 w-4" />
-                            {isSavedForRoute
-                              ? 'Guardado en ruta'
-                              : 'Guardar para ruta'}
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => abrirEnGoogleMaps(item)}
-                          >
-                            <MapPin className="mr-2 h-4 w-4" />
-                            Ver en Maps
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+        <div className="flex flex-col gap-4 p-6 overflow-hidden flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Tipo</label>
+              <select
+                value={tipo}
+                onChange={(e) => setTipo(e.target.value as any)}
+                className="w-full rounded-xl border border-slate-200 p-2.5 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="taller">Talleres Mecánicos</option>
+                <option value="refaccionaria">Refaccionarias</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Radio de búsqueda</label>
+              <select
+                value={radio}
+                onChange={(e) => setRadius(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 p-2.5 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="500">500 m</option>
+                <option value="1000">1 km</option>
+                <option value="2000">2 km</option>
+                <option value="5000">5 km</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <Button onClick={handleSearch} disabled={loading} className="w-full h-11 bg-blue-600 hover:bg-blue-700">
+                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Buscar Negocios'}
+              </Button>
             </div>
           </div>
 
-          <DialogFooter className="shrink-0 border-t px-4 py-4 md:px-6">
-            <Button variant="secondary" onClick={onClose}>
-              Cerrar
-            </Button>
-          </DialogFooter>
+          <div className="flex-1 overflow-y-auto min-h-0 rounded-2xl border border-slate-100 bg-slate-50 shadow-inner">
+            {results.length === 0 && !loading ? (
+              <div className="p-16 text-center text-slate-400">
+                <Building2 className="mx-auto h-16 w-12 opacity-10 mb-4" />
+                <p className="text-sm font-medium">No se encontraron resultados en el radio seleccionado.</p>
+                <p className="text-xs mt-1">Prueba aumentando el radio o cambiando el tipo.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 bg-white">
+                {results.map((item) => (
+                  <div key={item.Id} className="p-4 hover:bg-blue-50/30 transition-colors flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-slate-900 truncate text-sm">{item.Nombre}</h4>
+                      <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{item.Calle} {item.Num_Exterior}, {item.Colonia}</p>
+                      <div className="flex flex-wrap gap-3 mt-1.5">
+                        {item.Telefono && (
+                          <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
+                            <Phone className="h-2.5 w-3" /> {item.Telefono}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
+                          <MapPin className="h-2.5 w-3" /> {item.Estrato}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 w-9 p-0 rounded-full border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                      onClick={() => handleAddProspecto(item)}
+                      disabled={addingId === item.Id}
+                      title="Agregar como prospecto"
+                    >
+                      {addingId === item.Id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-5 w-5" />
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

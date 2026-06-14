@@ -108,25 +108,6 @@ function getSaludProspecto({
   return { estado: 'perdido', texto: `Sin contacto ${dias} días` };
 }
 
-function formatearFecha(fecha?: any) {
-  if (!fecha) return 'Sin fecha';
-
-  try {
-    const date =
-      typeof fecha?.toDate === 'function' ? fecha.toDate() : new Date(fecha);
-
-    if (Number.isNaN(date.getTime())) return 'Sin fecha';
-
-    return date.toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  } catch {
-    return 'Sin fecha';
-  }
-}
-
 function getEstadoProspectoLabel(estado?: string) {
   switch (estado) {
     case 'nuevo': return 'Nuevo';
@@ -149,18 +130,18 @@ function getEstadoProspectoClass(estado?: string) {
   }
 }
 
+function inicioDelDia(fecha = new Date()) {
+  const d = new Date(fecha);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 function esMismoDia(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   );
-}
-
-function inicioDelDia(fecha = new Date()) {
-  const d = new Date(fecha);
-  d.setHours(0, 0, 0, 0);
-  return d;
 }
 
 export default function ProspectosPage() {
@@ -350,8 +331,18 @@ export default function ProspectosPage() {
     );
   };
 
+  const handleEliminar = async (id: string) => {
+    if (!window.confirm('¿Eliminar prospecto?')) return;
+    try {
+      await eliminarCliente(id);
+    } catch (e) {
+      console.error(e);
+      alert('No se pudo eliminar.');
+    }
+  };
+
   if (authLoading) {
-    return <div className="p-8 text-center">Cargando...</div>;
+    return <div className="p-12 text-center text-slate-500">Cargando módulo de prospectos...</div>;
   }
 
   return (
@@ -375,11 +366,11 @@ export default function ProspectosPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {[
-          { key: 'todos', label: 'Total', count: resumen.total, icon: Users, color: 'ring-slate-400' },
-          { key: 'para_hoy', label: 'Para hoy', count: resumen.paraHoy, icon: Calendar, color: 'ring-blue-500' },
-          { key: 'vencidos', label: 'Vencidos', count: resumen.vencidos, icon: AlertTriangle, color: 'ring-red-500' },
-          { key: 'nuevo', label: 'Nuevos', count: resumen.nuevos, icon: Sparkles, color: 'ring-blue-500' },
-          { key: 'seguimiento', label: 'Seguimiento', count: resumen.seguimiento, icon: Clock3, color: 'ring-orange-500' },
+          { key: 'todos', label: 'Total', count: resumen.total, icon: Users, color: 'ring-slate-400', textColor: 'text-slate-600' },
+          { key: 'para_hoy', label: 'Para hoy', count: resumen.paraHoy, icon: Calendar, color: 'ring-blue-500', textColor: 'text-blue-600' },
+          { key: 'vencidos', label: 'Vencidos', count: resumen.vencidos, icon: AlertTriangle, color: 'ring-red-500', textColor: 'text-red-600' },
+          { key: 'nuevo', label: 'Nuevos', count: resumen.nuevos, icon: Sparkles, color: 'ring-blue-500', textColor: 'text-blue-600' },
+          { key: 'seguimiento', label: 'Seguimiento', count: resumen.seguimiento, icon: Clock3, color: 'ring-orange-500', textColor: 'text-orange-600' },
         ].map((item) => (
           <button
             key={item.key}
@@ -391,8 +382,8 @@ export default function ProspectosPage() {
             )}
           >
             <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">{item.label}</p>
-              <item.icon className={cn("h-5 w-5", item.color.replace('ring-', 'text-'))} />
+              <p className="text-sm text-slate-500 font-medium">{item.label}</p>
+              <item.icon className={cn("h-5 w-5", item.textColor)} />
             </div>
             <p className="mt-2 text-2xl font-bold">{item.count}</p>
           </button>
@@ -404,22 +395,22 @@ export default function ProspectosPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Buscar prospecto..."
+            placeholder="Buscar por nombre, ciudad o teléfono..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full rounded-xl border bg-white py-3 pl-10 pr-4 outline-none focus:border-blue-500 shadow-sm"
+            className="w-full rounded-xl border bg-white py-3 pl-10 pr-4 outline-none focus:border-blue-500 shadow-sm transition"
           />
         </div>
         <div className="flex items-center gap-2 rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-200">
           <button
             onClick={() => setVista('lista')}
-            className={cn('flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition', vista === 'lista' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100')}
+            className={cn('flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition', vista === 'lista' ? 'bg-slate-950 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100')}
           >
             <List className="h-4 w-4" /> Lista
           </button>
           <button
             onClick={() => setVista('pipeline')}
-            className={cn('flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition', vista === 'pipeline' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100')}
+            className={cn('flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition', vista === 'pipeline' ? 'bg-slate-950 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100')}
           >
             <LayoutGrid className="h-4 w-4" /> Pipeline
           </button>
@@ -427,36 +418,42 @@ export default function ProspectosPage() {
       </div>
 
       {loading ? (
-        <div className="p-12 text-center text-slate-500 italic">Cargando prospectos...</div>
+        <div className="p-12 text-center text-slate-400 italic">Cargando prospectos...</div>
       ) : prospectosFiltrados.length === 0 ? (
-        <div className="rounded-2xl border border-dashed bg-white p-10 text-center">
-          <h3 className="text-lg font-semibold">No hay prospectos para este filtro</h3>
+        <div className="rounded-2xl border border-dashed bg-white p-16 text-center shadow-sm">
+          <Users className="h-12 w-12 text-slate-200 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-800">No hay prospectos para este filtro</h3>
+          <p className="text-sm text-slate-500 mt-1">Intenta con otro filtro o agrega un nuevo prospecto.</p>
         </div>
       ) : vista === 'pipeline' ? (
         <PipelineKanban prospectos={prospectosFiltrados as any} />
       ) : (
         <div className="grid gap-4">
           {prospectosFiltrados.map((p) => (
-            <div key={p.id} className="rounded-2xl border bg-white p-5 shadow-sm ring-1 ring-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div key={p.id} className="rounded-2xl border bg-white p-5 shadow-sm ring-1 ring-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition hover:shadow-md">
               <div className="min-w-0">
-                <Link href={`/prospectos/${p.id}`} className="text-lg font-semibold hover:text-blue-600 block truncate">
+                <Link href={`/prospectos/${p.id}`} className="text-lg font-bold text-slate-900 hover:text-blue-600 transition truncate block">
                   {p.nombre}
                 </Link>
-                <div className="mt-1 flex flex-wrap gap-2">
-                  <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', p.salud.estado === 'activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold shadow-sm', p.salud.estado === 'activo' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100')}>
                     {p.salud.texto}
                   </span>
-                  <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', getEstadoProspectoClass(p.estadoProspecto))}>
+                  <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold shadow-sm', getEstadoProspectoClass(p.estadoProspecto))}>
                     {getEstadoProspectoLabel(p.estadoProspecto)}
                   </span>
+                  {p.ciudad && <span className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">{p.ciudad}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Button variant="outline" size="sm" asChild className="rounded-xl">
-                  <Link href={`/prospectos/${p.id}`}>Ver Ficha</Link>
+                <Button variant="outline" size="sm" asChild className="rounded-xl border-slate-200 hover:bg-slate-50">
+                  <Link href={`/prospectos/${p.id}`}>Ficha</Link>
                 </Button>
-                <Button size="sm" asChild className="rounded-xl bg-blue-600 hover:bg-blue-700">
+                <Button size="sm" asChild className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
                   <Link href={`/cotizaciones/nueva?clienteId=${p.id}`}>Cotizar</Link>
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => p.id && handleEliminar(p.id)} className="text-slate-400 hover:text-red-600 transition">
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -465,12 +462,22 @@ export default function ProspectosPage() {
       )}
 
       <CrearClienteModal open={crearOpen} onClose={() => setCrearOpen(false)} />
-      <DenueSearchModal open={denueOpen} onClose={() => setDenueOpen(false)} coords={coords} />
+      
+      {denueOpen && (
+        <DenueSearchModal 
+          open={denueOpen} 
+          onClose={() => setDenueOpen(false)} 
+          coords={coords} 
+        />
+      )}
+
       <Dialog open={nota !== null} onOpenChange={() => setNota(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nota</DialogTitle></DialogHeader>
-          <p className="whitespace-pre-wrap text-sm">{nota}</p>
-          <DialogFooter><Button onClick={() => setNota(null)} className="rounded-xl">Cerrar</Button></DialogFooter>
+        <DialogContent className="rounded-2xl">
+          <DialogHeader><DialogTitle className="text-xl font-bold">Nota de Seguimiento</DialogTitle></DialogHeader>
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <p className="whitespace-pre-wrap text-sm text-slate-700 leading-relaxed">{nota}</p>
+          </div>
+          <DialogFooter><Button onClick={() => setNota(null)} className="rounded-xl w-full sm:w-auto">Cerrar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
