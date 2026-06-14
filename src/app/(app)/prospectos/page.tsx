@@ -66,13 +66,10 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-/* ------------------ reglas de salud ------------------ */
-
 const NUEVO_OK = 7;
 const NUEVO_RIESGO = 21;
 const CONTACTO_OK = 14;
 const CONTACTO_RIESGO = 30;
-const DIAS_SEGUIMIENTO = 22;
 
 type FiltroProspectos =
   | 'todos'
@@ -130,37 +127,25 @@ function formatearFecha(fecha?: any) {
   }
 }
 
-function getEstadoProspectoLabel(estado?: ClienteFS['estadoProspecto']) {
+function getEstadoProspectoLabel(estado?: string) {
   switch (estado) {
-    case 'nuevo':
-      return 'Nuevo';
-    case 'visitado':
-      return 'Visitado';
-    case 'seguimiento':
-      return 'Seguimiento';
-    case 'interesado':
-      return 'Interesado';
-    case 'no_interesado':
-      return 'No interesado';
-    default:
-      return 'Nuevo';
+    case 'nuevo': return 'Nuevo';
+    case 'visitado': return 'Visitado';
+    case 'seguimiento': return 'Seguimiento';
+    case 'interesado': return 'Interesado';
+    case 'no_interesado': return 'No interesado';
+    default: return 'Nuevo';
   }
 }
 
-function getEstadoProspectoClass(estado?: ClienteFS['estadoProspecto']) {
+function getEstadoProspectoClass(estado?: string) {
   switch (estado) {
-    case 'nuevo':
-      return 'bg-blue-100 text-blue-700';
-    case 'visitado':
-      return 'bg-green-100 text-green-700';
-    case 'seguimiento':
-      return 'bg-orange-100 text-orange-700';
-    case 'interesado':
-      return 'bg-emerald-100 text-emerald-700';
-    case 'no_interesado':
-      return 'bg-gray-200 text-gray-700';
-    default:
-      return 'bg-blue-100 text-blue-700';
+    case 'nuevo': return 'bg-blue-100 text-blue-700';
+    case 'visitado': return 'bg-green-100 text-green-700';
+    case 'seguimiento': return 'bg-orange-100 text-orange-700';
+    case 'interesado': return 'bg-emerald-100 text-emerald-700';
+    case 'no_interesado': return 'bg-gray-200 text-gray-700';
+    default: return 'bg-blue-100 text-blue-700';
   }
 }
 
@@ -187,9 +172,6 @@ export default function ProspectosPage() {
 
   const [crearOpen, setCrearOpen] = useState(false);
   const [nota, setNota] = useState<string | null>(null);
-  const [convirtiendoId, setConvirtiendoId] = useState<string | null>(null);
-  const [marcandoId, setMarcandoId] = useState<string | null>(null);
-  const [seguimientoId, setSeguimientoId] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<FiltroProspectos>('todos');
   const [busqueda, setBusqueda] = useState('');
   const [denueOpen, setDenueOpen] = useState(false);
@@ -234,14 +216,13 @@ export default function ProspectosPage() {
 
         data.sort((a, b) => {
           const aTime =
-            typeof (a as any).createdAt?.toMillis === 'function'
-              ? (a as any).createdAt.toMillis()
+            typeof a.createdAt?.toMillis === "function"
+              ? a.createdAt.toMillis()
               : 0;
           const bTime =
-            typeof (b as any).createdAt?.toMillis === 'function'
-              ? (b as any).createdAt.toMillis()
+            typeof b.createdAt?.toMillis === "function"
+              ? b.createdAt.toMillis()
               : 0;
-
           return bTime - aTime;
         });
 
@@ -285,15 +266,12 @@ export default function ProspectosPage() {
 
   const ultimaVisitaMap = useMemo(() => {
     const map = new Map<string, Date>();
-
     visitas.forEach((v) => {
       const d = new Date(v.fecha);
       if (Number.isNaN(d.getTime())) return;
-
       const actual = map.get(v.clienteId);
       if (!actual || d > actual) map.set(v.clienteId, d);
     });
-
     return map;
   }, [visitas]);
 
@@ -324,7 +302,7 @@ export default function ProspectosPage() {
         salud,
         esParaHoy,
         esVencido,
-      } as any;
+      };
     });
   }, [prospectos, ultimaVisitaMap, hoy]);
 
@@ -333,57 +311,28 @@ export default function ProspectosPage() {
       total: prospectosEnriquecidos.length,
       paraHoy: prospectosEnriquecidos.filter((p) => p.esParaHoy).length,
       vencidos: prospectosEnriquecidos.filter((p) => p.esVencido).length,
-      nuevos: prospectosEnriquecidos.filter((p) => p.estadoProspecto === 'nuevo')
-        .length,
-      seguimiento: prospectosEnriquecidos.filter(
-        (p) => p.estadoProspecto === 'seguimiento'
-      ).length,
+      nuevos: prospectosEnriquecidos.filter((p) => p.estadoProspecto === 'nuevo').length,
+      seguimiento: prospectosEnriquecidos.filter((p) => p.estadoProspecto === 'seguimiento').length,
     };
   }, [prospectosEnriquecidos]);
 
   const prospectosFiltrados = useMemo(() => {
     let filtrados = [...prospectosEnriquecidos];
-
     switch (filtro) {
-      case 'para_hoy':
-        filtrados = filtrados.filter((p) => p.esParaHoy);
-        break;
-
-      case 'vencidos':
-        filtrados = filtrados.filter((p) => p.esVencido);
-        break;
-
-      case 'nuevo':
-        filtrados = filtrados.filter(
-          (p) => p.estadoProspecto === 'nuevo'
-        );
-        break;
-
-      case 'seguimiento':
-        filtrados = filtrados.filter(
-          (p) => p.estadoProspecto === 'seguimiento'
-        );
-        break;
-
-      case 'interesado':
-        filtrados = filtrados.filter(
-          (p) => p.estadoProspecto === 'interesado'
-        );
-        break;
+      case 'para_hoy': filtrados = filtrados.filter((p) => p.esParaHoy); break;
+      case 'vencidos': filtrados = filtrados.filter((p) => p.esVencido); break;
+      case 'nuevo': filtrados = filtrados.filter((p) => p.estadoProspecto === 'nuevo'); break;
+      case 'seguimiento': filtrados = filtrados.filter((p) => p.estadoProspecto === 'seguimiento'); break;
+      case 'interesado': filtrados = filtrados.filter((p) => p.estadoProspecto === 'interesado'); break;
     }
-
     if (busqueda.trim()) {
       const texto = busqueda.toLowerCase();
-
-      filtrados = filtrados.filter((p) => {
-        return (
-          p.nombre?.toLowerCase().includes(texto) ||
-          p.ciudad?.toLowerCase().includes(texto) ||
-          p.telefono?.toLowerCase().includes(texto)
-        );
-      });
+      filtrados = filtrados.filter((p) =>
+        p.nombre?.toLowerCase().includes(texto) ||
+        p.ciudad?.toLowerCase().includes(texto) ||
+        p.telefono?.toLowerCase().includes(texto)
+      );
     }
-
     return filtrados;
   }, [filtro, prospectosEnriquecidos, busqueda]);
 
@@ -392,29 +341,17 @@ export default function ProspectosPage() {
       alert('Tu navegador no soporta GPS');
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setCoords({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setDenueOpen(true);
       },
-      () => {
-        alert(
-          'No se pudo obtener tu ubicación. Da permisos de ubicación al navegador.'
-        );
-      }
+      () => alert('No se pudo obtener tu ubicación.')
     );
   };
 
   if (authLoading) {
-    return (
-      <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
-        <p className="italic text-slate-500">Cargando prospectos...</p>
-      </div>
-    );
+    return <div className="p-8 text-center">Cargando...</div>;
   }
 
   return (
@@ -423,14 +360,12 @@ export default function ProspectosPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Prospectos</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Da seguimiento comercial, detecta prioridades y convierte oportunidades en clientes.
+            Da seguimiento comercial, detecta prioridades y convierte oportunidades.
           </p>
         </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
+        <div className="flex flex-wrap gap-2 lg:justify-end">
           <Button variant="outline" onClick={buscarDenue} className="rounded-xl">
-            <MapPin className="mr-2 h-4 w-4" />
-            Buscar Cercanos
+            <MapPin className="mr-2 h-4 w-4" /> Buscar Cercanos
           </Button>
           <Button onClick={() => setCrearOpen(true)} className="rounded-xl">
             + Agregar Prospecto
@@ -438,308 +373,104 @@ export default function ProspectosPage() {
         </div>
       </div>
 
-      {!loading && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {[
+          { key: 'todos', label: 'Total', count: resumen.total, icon: Users, color: 'ring-slate-400' },
+          { key: 'para_hoy', label: 'Para hoy', count: resumen.paraHoy, icon: Calendar, color: 'ring-blue-500' },
+          { key: 'vencidos', label: 'Vencidos', count: resumen.vencidos, icon: AlertTriangle, color: 'ring-red-500' },
+          { key: 'nuevo', label: 'Nuevos', count: resumen.nuevos, icon: Sparkles, color: 'ring-blue-500' },
+          { key: 'seguimiento', label: 'Seguimiento', count: resumen.seguimiento, icon: Clock3, color: 'ring-orange-500' },
+        ].map((item) => (
           <button
+            key={item.key}
             type="button"
-            onClick={() => setFiltro('todos')}
+            onClick={() => setFiltro(item.key as FiltroProspectos)}
             className={cn(
               'rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50',
-              filtro === 'todos' && 'ring-2 ring-slate-400'
+              filtro === item.key && `ring-2 ${item.color}`
             )}
           >
             <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">Total</p>
-              <Users className="h-5 w-5 text-slate-400" />
+              <p className="text-sm text-slate-500">{item.label}</p>
+              <item.icon className={cn("h-5 w-5", item.color.replace('ring-', 'text-'))} />
             </div>
-            <p className="mt-2 text-2xl font-bold">{resumen.total}</p>
+            <p className="mt-2 text-2xl font-bold">{item.count}</p>
           </button>
+        ))}
+      </div>
 
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="relative flex-1 max-w-lg">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Buscar prospecto..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="w-full rounded-xl border bg-white py-3 pl-10 pr-4 outline-none focus:border-blue-500 shadow-sm"
+          />
+        </div>
+        <div className="flex items-center gap-2 rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-200">
           <button
-            type="button"
-            onClick={() => setFiltro('para_hoy')}
-            className={cn(
-              'rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50',
-              filtro === 'para_hoy' && 'ring-2 ring-blue-500'
-            )}
+            onClick={() => setVista('lista')}
+            className={cn('flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition', vista === 'lista' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100')}
           >
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">Para hoy</p>
-              <Calendar className="h-5 w-5 text-blue-500" />
-            </div>
-            <p className="mt-2 text-2xl font-bold">{resumen.paraHoy}</p>
+            <List className="h-4 w-4" /> Lista
           </button>
-
           <button
-            type="button"
-            onClick={() => setFiltro('vencidos')}
-            className={cn(
-              'rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50',
-              filtro === 'vencidos' && 'ring-2 ring-red-500'
-            )}
+            onClick={() => setVista('pipeline')}
+            className={cn('flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition', vista === 'pipeline' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100')}
           >
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">Vencidos</p>
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-            </div>
-            <p className="mt-2 text-2xl font-bold">{resumen.vencidos}</p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFiltro('nuevo')}
-            className={cn(
-              'rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50',
-              filtro === 'nuevo' && 'ring-2 ring-blue-500'
-            )}
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">Nuevos</p>
-              <Sparkles className="h-5 w-5 text-blue-500" />
-            </div>
-            <p className="mt-2 text-2xl font-bold">{resumen.nuevos}</p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFiltro('seguimiento')}
-            className={cn(
-              'rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50',
-              filtro === 'seguimiento' && 'ring-2 ring-orange-500'
-            )}
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">Seguimiento</p>
-              <Clock3 className="h-5 w-5 text-orange-500" />
-            </div>
-            <p className="mt-2 text-2xl font-bold">{resumen.seguimiento}</p>
+            <LayoutGrid className="h-4 w-4" /> Pipeline
           </button>
         </div>
-      )}
-
-      {!loading && (
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="relative flex-1 max-w-lg">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscar prospecto..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full rounded-xl border bg-white py-3 pl-10 pr-4 outline-none transition focus:border-blue-500 shadow-sm"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-200 w-fit">
-            <button
-              type="button"
-              onClick={() => setVista('lista')}
-              className={cn(
-                'flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition',
-                vista === 'lista' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'
-              )}
-            >
-              <List className="h-4 w-4" />
-              Lista
-            </button>
-            <button
-              type="button"
-              onClick={() => setVista('pipeline')}
-              className={cn(
-                'flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition',
-                vista === 'pipeline' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'
-              )}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Pipeline
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
 
       {loading ? (
-        <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
-          <p className="italic text-slate-500">Cargando prospectos...</p>
-        </div>
+        <div className="p-12 text-center text-slate-500 italic">Cargando prospectos...</div>
       ) : prospectosFiltrados.length === 0 ? (
         <div className="rounded-2xl border border-dashed bg-white p-10 text-center">
           <h3 className="text-lg font-semibold">No hay prospectos para este filtro</h3>
-          <p className="mt-1 text-sm text-slate-500">
-            Ajusta el filtro o agrega un nuevo prospecto para continuar.
-          </p>
         </div>
       ) : vista === 'pipeline' ? (
-        <PipelineKanban prospectos={prospectosFiltrados} />
+        <PipelineKanban prospectos={prospectosFiltrados as any} />
       ) : (
-        <div className="space-y-4">
-          <div className="md:hidden space-y-4">
-            {prospectosFiltrados.map((p) => (
-              <div
-                key={p.id}
-                className="rounded-2xl border bg-white p-4 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link
-                      href={`/prospectos/${p.id}`}
-                      className="text-lg font-bold text-slate-800 hover:text-blue-600"
-                    >
-                      {p.nombre}
-                    </Link>
-                    <p className="mt-1 text-sm text-slate-500">{p.salud.texto}</p>
-                  </div>
-
-                  <div className="flex flex-col items-end gap-2">
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-1 text-xs',
-                        p.salud.estado === 'activo' &&
-                          'bg-green-100 text-green-700',
-                        p.salud.estado === 'riesgo' &&
-                          'bg-orange-100 text-orange-700',
-                        p.salud.estado === 'perdido' &&
-                          'bg-red-100 text-red-700'
-                      )}
-                    >
-                      {p.salud.estado}
-                    </span>
-
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-1 text-xs',
-                        getEstadoProspectoClass(p.estadoProspecto)
-                      )}
-                    >
-                      {getEstadoProspectoLabel(p.estadoProspecto)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {p.esParaHoy && (
-                    <span className="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-700">
-                      Para hoy
-                    </span>
-                  )}
-
-                  {p.esVencido && (
-                    <span className="rounded-full bg-red-100 px-2 py-1 text-xs text-red-700">
-                      Vencido
-                    </span>
-                  )}
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <p className="text-slate-500">Ciudad</p>
-                    <p className="mt-1 font-medium">{p.ciudad || 'Sin ciudad'}</p>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <p className="text-slate-500">Última visita</p>
-                    <p className="mt-1 font-medium">
-                      {p.ultimaVisitaReal
-                        ? formatearFecha(p.ultimaVisitaReal)
-                        : 'Sin visitas'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-col gap-2 border-t pt-4">
-                  <Button
-                    size="sm"
-                    asChild
-                    className="rounded-xl bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Link href={`/cotizaciones/nueva?clienteId=${p.id}`}>
-                      Cotizar
-                    </Link>
-                  </Button>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setNota(p.nota || '')}
-                      className="rounded-xl"
-                    >
-                      <StickyNote className="mr-1 h-4 w-4" />
-                      Nota
-                    </Button>
-
-                    <Button size="sm" variant="outline" asChild className="rounded-xl">
-                      <Link href={`/agenda?clienteId=${p.id}`}>
-                        <Calendar className="mr-1 h-4 w-4" />
-                        Agenda
-                      </Link>
-                    </Button>
-                  </div>
+        <div className="grid gap-4">
+          {prospectosFiltrados.map((p) => (
+            <div key={p.id} className="rounded-2xl border bg-white p-5 shadow-sm ring-1 ring-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="min-w-0">
+                <Link href={`/prospectos/${p.id}`} className="text-lg font-semibold hover:text-blue-600 block truncate">
+                  {p.nombre}
+                </Link>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', p.salud.estado === 'activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}>
+                    {p.salud.texto}
+                  </span>
+                  <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', getEstadoProspectoClass(p.estadoProspecto))}>
+                    {getEstadoProspectoLabel(p.estadoProspecto)}
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div className="hidden md:grid gap-4">
-            {prospectosFiltrados.map((p) => (
-              <div
-                key={p.id}
-                className="rounded-2xl border bg-white p-5 shadow-sm ring-1 ring-slate-200"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <Link
-                      href={`/prospectos/${p.id}`}
-                      className="text-lg font-semibold hover:text-blue-600"
-                    >
-                      {p.nombre}
-                    </Link>
-                    <p className="mt-1 text-sm text-slate-500">{p.salud.texto}</p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-1 text-xs',
-                        getEstadoProspectoClass(p.estadoProspecto)
-                      )}
-                    >
-                      {getEstadoProspectoLabel(p.estadoProspecto)}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      asChild
-                      className="rounded-xl"
-                    >
-                      <Link href={`/prospectos/${p.id}`}>Ver Ficha</Link>
-                    </Button>
-                  </div>
-                </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button variant="outline" size="sm" asChild className="rounded-xl">
+                  <Link href={`/prospectos/${p.id}`}>Ver Ficha</Link>
+                </Button>
+                <Button size="sm" asChild className="rounded-xl bg-blue-600 hover:bg-blue-700">
+                  <Link href={`/cotizaciones/nueva?clienteId=${p.id}`}>Cotizar</Link>
+                </Button>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
 
       <CrearClienteModal open={crearOpen} onClose={() => setCrearOpen(false)} />
-
-      <DenueSearchModal
-        open={denueOpen}
-        onClose={() => setDenueOpen(false)}
-        coords={coords}
-      />
-
+      <DenueSearchModal open={denueOpen} onClose={() => setDenueOpen(false)} coords={coords} />
       <Dialog open={nota !== null} onOpenChange={() => setNota(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nota</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Nota</DialogTitle></DialogHeader>
           <p className="whitespace-pre-wrap text-sm">{nota}</p>
-          <DialogFooter>
-            <Button onClick={() => setNota(null)} className="rounded-xl">
-              Cerrar
-            </Button>
-          </DialogFooter>
+          <DialogFooter><Button onClick={() => setNota(null)} className="rounded-xl">Cerrar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

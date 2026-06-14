@@ -500,7 +500,7 @@ export default function AgenciasPage() {
       agenciaNombre: agenciaSeleccionada?.nombre?.trim() || "Agencia objetivo",
       comboNombre: nombrePropuestaActual,
       ventasMes: simulacion.paquetesTotalesMes,
-      piezasTotalesCombo: simulacion.paquetesTotalesMes,
+      piezasTotalesCombo: simulacion.piezasTotalesCombo ?? simulacion.paquetesTotalesMes,
       costoTotal: simulacion.costoMensual,
       precioTotal: simulacion.ventaMensual,
       utilidadTotal: simulacion.utilidadMensualBruta,

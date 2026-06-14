@@ -237,6 +237,7 @@ export default function NuevaCotizacionPage() {
             subtotalLinea,
             totalLinea,
             descuentoLinea,
+            descuentos: i.descuentos.map(d => d ?? 0) as [number, number, number, number]
           };
         }),
         subtotal,
@@ -387,32 +388,50 @@ export default function NuevaCotizacionPage() {
             <p className="text-gray-500">Agrega productos para comenzar.</p>
           ) : (
             <div className="space-y-5">
+
               {/* 📱 MOBILE CARDS */}
               <div className="md:hidden space-y-4">
                 {items.map((item) => {
                   const { subtotalLinea, totalLinea } = calcularTotalesLinea(item);
+
                   return (
                     <div key={item.id} className="rounded-2xl border bg-gray-50 p-4 space-y-3">
+                      
+                      {/* Header */}
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-semibold">{item.nombre}</p>
                           <p className="text-xs text-gray-500">{item.codigo}</p>
                         </div>
-                        <button onClick={() => eliminarItem(item.id)} className="text-red-500"><Trash2 size={18} /></button>
+
+                        <button
+                          onClick={() => eliminarItem(item.id)}
+                          className="text-red-500"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
+
+                      {/* Cantidad */}
                       <div>
                         <p className="text-xs text-gray-500 mb-1">Cantidad</p>
                         <input
                           type="number"
                           value={item.cantidad}
-                          onChange={(e) => handleCantidadChange(item.id, parseInt(e.target.value, 10))}
+                          onChange={(e) =>
+                            handleCantidadChange(item.id, parseInt(e.target.value, 10))
+                          }
                           className="w-full rounded-xl border p-2 text-center"
                         />
                       </div>
+
+                      {/* Precio */}
                       <div className="text-sm">
                         <p className="text-gray-500">Precio Unitario</p>
                         <p className="font-semibold">${item.precio.toFixed(2)}</p>
                       </div>
+
+                      {/* Descuentos */}
                       <div className="grid grid-cols-2 gap-2">
                         {[0, 1, 2, 3].map((i) => (
                           <input
@@ -420,19 +439,25 @@ export default function NuevaCotizacionPage() {
                             type="number"
                             placeholder={`Desc ${i + 1}`}
                             value={item.descuentos?.[i] ?? ""}
-                            onChange={(e) => handleItemDescuentoChange(item.id, i, e.target.value)}
+                            onChange={(e) =>
+                              handleItemDescuentoChange(item.id, i, e.target.value)
+                            }
                             className="rounded-lg border p-2 text-center"
                           />
                         ))}
                       </div>
+
+                      {/* Totales */}
                       <div className="flex justify-between text-sm">
                         <span>Subtotal</span>
                         <span>${subtotalLinea.toFixed(2)}</span>
                       </div>
+
                       <div className="flex justify-between font-bold">
                         <span>Total</span>
                         <span>${totalLinea.toFixed(2)}</span>
                       </div>
+
                     </div>
                   );
                 })}
@@ -454,37 +479,48 @@ export default function NuevaCotizacionPage() {
                       <th></th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {items.map((item) => {
                       const { totalLinea } = calcularTotalesLinea(item);
+
                       return (
                         <tr key={item.id} className="border-t">
                           <td className="p-3">
-                            <p className="font-semibold text-sm">{item.nombre}</p>
+                            <p className="font-semibold">{item.nombre}</p>
                             <p className="text-xs text-gray-500">{item.codigo}</p>
                           </td>
+
                           <td className="p-3">
                             <input
                               type="number"
                               value={item.cantidad}
-                              onChange={(e) => handleCantidadChange(item.id, parseInt(e.target.value, 10))}
-                              className="w-16 border rounded p-1 text-center"
+                              onChange={(e) =>
+                                handleCantidadChange(item.id, parseInt(e.target.value, 10))
+                              }
+                              className="w-16 border rounded text-center"
                             />
                           </td>
-                          <td className="p-3 text-sm">${item.precio.toFixed(2)}</td>
+
+                          <td className="p-3">${item.precio.toFixed(2)}</td>
+
                           {[0, 1, 2, 3].map((i) => (
                             <td key={i} className="p-3">
                               <input
                                 type="number"
                                 value={item.descuentos?.[i] ?? ""}
-                                onChange={(e) => handleItemDescuentoChange(item.id, i, e.target.value)}
-                                className="w-14 border rounded p-1 text-center text-sm"
+                                onChange={(e) =>
+                                  handleItemDescuentoChange(item.id, i, e.target.value)
+                                }
+                                className="w-16 border rounded text-center"
                               />
                             </td>
                           ))}
-                          <td className="p-3 font-bold text-sm">${totalLinea.toFixed(2)}</td>
+
+                          <td className="p-3 font-bold">${totalLinea.toFixed(2)}</td>
+
                           <td>
-                            <button onClick={() => eliminarItem(item.id)} className="text-red-500 hover:text-red-700">
+                            <button onClick={() => eliminarItem(item.id)}>
                               <Trash2 size={18} />
                             </button>
                           </td>

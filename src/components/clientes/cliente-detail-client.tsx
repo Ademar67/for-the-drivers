@@ -11,6 +11,7 @@ import {
   where,
   updateDoc,
   serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore';
 import {
   FileText,
@@ -56,7 +57,7 @@ function formatearFecha(ts: unknown): string {
   });
 }
 
-const TIPO_LABEL: Record<TimelineEvento['tipo'], string> = {
+const TIPO_LABEL: Record<string, string> = {
   nota: 'Nota',
   visita: 'Visita',
   seguimiento: 'Seguimiento',
@@ -65,7 +66,7 @@ const TIPO_LABEL: Record<TimelineEvento['tipo'], string> = {
   conversion: 'Conversión',
 };
 
-const TIPO_COLOR: Record<TimelineEvento['tipo'], string> = {
+const TIPO_COLOR: Record<string, string> = {
   nota: 'bg-slate-100 text-slate-700',
   visita: 'bg-green-100 text-green-700',
   seguimiento: 'bg-orange-100 text-orange-700',
