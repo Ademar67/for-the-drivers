@@ -181,41 +181,21 @@ export default function ProspectosPage() {
     const visitasRef = collection(db, 'visitas');
     const visitasQuery = query(visitasRef, where('ownerId', '==', user.uid));
 
-    let prospectosReady = false;
-    let visitasReady = false;
-
     const unsubProspectos = onSnapshot(
       prospectosQuery,
       (snapshot) => {
-        const data = snapshot.docs.map((doc) => {
-          const d = doc.data() as Omit<ClienteFS, 'id'>;
-          return {
-            id: doc.id,
-            ...d,
-          } as ClienteFS;
-        });
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as ClienteFS[];
 
         data.sort((a, b) => {
-          const aTime =
-            typeof a.createdAt?.toMillis === "function"
-              ? a.createdAt.toMillis()
-              : 0;
-          const bTime =
-            typeof b.createdAt?.toMillis === "function"
-              ? b.createdAt.toMillis()
-              : 0;
+          const aTime = typeof (a as any).createdAt?.toMillis === "function" ? (a as any).createdAt.toMillis() : 0;
+          const bTime = typeof (b as any).createdAt?.toMillis === "function" ? (b as any).createdAt.toMillis() : 0;
           return bTime - aTime;
         });
 
         setProspectos(data);
-        prospectosReady = true;
-        if (visitasReady) setLoading(false);
-      },
-      (error) => {
-        console.error('Error cargando prospectos:', error);
-        setProspectos([]);
-        prospectosReady = true;
-        if (visitasReady) setLoading(false);
       }
     );
 
@@ -224,18 +204,11 @@ export default function ProspectosPage() {
       (snapshot) => {
         const data = snapshot.docs.map((doc) => ({
           id: doc.id,
-          ...(doc.data() as Omit<Visita, 'id'>),
+          ...doc.data(),
         })) as Visita[];
 
         setVisitas(data);
-        visitasReady = true;
-        if (prospectosReady) setLoading(false);
-      },
-      (error) => {
-        console.error('Error cargando visitas:', error);
-        setVisitas([]);
-        visitasReady = true;
-        if (prospectosReady) setLoading(false);
+        setLoading(false);
       }
     );
 

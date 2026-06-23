@@ -500,7 +500,7 @@ export default function AgenciasPage() {
       agenciaNombre: agenciaSeleccionada?.nombre?.trim() || "Agencia objetivo",
       comboNombre: nombrePropuestaActual,
       ventasMes: simulacion.paquetesTotalesMes,
-      piezasTotalesCombo: simulacion.piezasTotalesCombo ?? simulacion.paquetesTotalesMes,
+      piezasTotalesCombo: simulacion.paquetesTotalesMes,
       costoTotal: simulacion.costoMensual,
       precioTotal: simulacion.ventaMensual,
       utilidadTotal: simulacion.utilidadMensualBruta,
@@ -819,7 +819,7 @@ export default function AgenciasPage() {
   };
 
   if (authLoading) {
-    return <div className="space-y-6">Cargando agencias...</div>;
+    return <div className="space-y-6 p-6">Cargando agencias...</div>;
   }
 
   return (
@@ -832,7 +832,7 @@ export default function AgenciasPage() {
               Módulo Comercial
             </div>
 
-            <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+            <button onClick={() => router.back()} className="mb-4 mt-4 flex items-center gap-2 text-sm text-slate-400 hover:text-white transition">
               <ArrowLeft className="h-4 w-4" />
               Volver
             </button>

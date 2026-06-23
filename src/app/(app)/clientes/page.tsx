@@ -198,13 +198,6 @@ export default function ClientesPage() {
     }
   };
 
-  const escapeCSV = (value: unknown) => {
-    const s = String(value ?? '');
-    const needsQuotes = /[",\n]/.test(s);
-    const escaped = s.replace(/"/g, '""');
-    return needsQuotes ? `"${escaped}"` : escaped;
-  };
-
   const exportarCSV = () => {
     if (!clientes.length) {
       alert('No hay clientes para exportar.');
@@ -231,6 +224,13 @@ export default function ClientesPage() {
       c.frecuencia ?? '—',
     ]);
 
+    const escapeCSV = (value: unknown) => {
+      const s = String(value ?? '');
+      const needsQuotes = /[",\n]/.test(s);
+      const escaped = s.replace(/"/g, '""');
+      return needsQuotes ? `"${escaped}"` : escaped;
+    };
+
     const csv = [headers, ...rows]
       .map((row) => row.map(escapeCSV).join(','))
       .join('\n');
@@ -245,83 +245,6 @@ export default function ClientesPage() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  };
-
-  const limpiarTexto = (valor: unknown) => String(valor ?? '').trim();
-
-  const parseCoordenadas = (valor: string) => {
-    if (!valor) return { lat: null, lng: null };
-
-    const limpio = valor.trim().replace(/\s+/g, '');
-    const partes = limpio.split(',');
-
-    if (partes.length !== 2) return { lat: null, lng: null };
-
-    const lat = Number(partes[0]);
-    const lng = Number(partes[1]);
-
-    if (Number.isNaN(lat) || Number.isNaN(lng)) {
-      return { lat: null, lng: null };
-    }
-
-    return { lat, lng };
-  };
-
-  const normalizarDiaVisita = (valor: string) => {
-    const dia = valor
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim();
-
-    const validos = [
-      'lunes',
-      'martes',
-      'miercoles',
-      'jueves',
-      'viernes',
-      'sabado',
-    ];
-
-    if (validos.includes(dia)) return dia;
-    return '';
-  };
-
-  const normalizarFrecuencia = (valor: string) => {
-    const frecuencia = valor.toLowerCase().trim();
-
-    if (frecuencia.includes('seman')) return 'semanal';
-    if (frecuencia.includes('quin')) return 'quincenal';
-    if (frecuencia.includes('mens')) return 'mensual';
-
-    return 'mensual';
-  };
-
-  const calcularSemanaVisita = (dia: string) => {
-    const texto = dia.toLowerCase();
-
-    const match = texto.match(/semana\s*(\d)/i);
-    if (match) {
-      const semana = Number(match[1]);
-      if (semana >= 1 && semana <= 4) return semana;
-    }
-
-    return 1;
-  };
-
-  const obtenerTipo = (row: ExcelClienteRow) => {
-    const dia = limpiarTexto(row['DÍA DE VISITA'] ?? row['DIA DE VISITA']);
-    const tipoCuenta = limpiarTexto(row['TIPO DE CUENTA']);
-
-    if (dia.toUpperCase() === 'INACTIVO' || tipoCuenta.toUpperCase().includes('INACT')) {
-      return 'inactivo';
-    }
-
-    return 'cliente';
-  };
-
-  const obtenerZona = (valor: string) => {
-    return valor.toUpperCase().includes('FORANEO') ? 'foraneo' : 'local';
   };
 
   const handleImportClientes = async (
@@ -354,6 +277,18 @@ export default function ClientesPage() {
       let creados = 0;
       let omitidos = 0;
 
+      const limpiarTexto = (valor: unknown) => String(valor ?? '').trim();
+      const parseCoordenadas = (valor: string) => {
+        if (!valor) return { lat: null, lng: null };
+        const limpio = valor.trim().replace(/\s+/g, '');
+        const partes = limpio.split(',');
+        if (partes.length !== 2) return { lat: null, lng: null };
+        const lat = Number(partes[0]);
+        const lng = Number(partes[1]);
+        if (Number.isNaN(lat) || Number.isNaN(lng)) return { lat: null, lng: null };
+        return { lat, lng };
+      };
+
       for (const row of rows) {
         const nombre = limpiarTexto(row['NOMBRE DE CUENTA']);
         const ciudad = limpiarTexto(row['CIUDAD DE FACTURACION']);
@@ -363,40 +298,10 @@ export default function ClientesPage() {
         const domicilio = [calle, numero, colonia].filter(Boolean).join(' ');
         const telefono = limpiarTexto(row['TELÉFONO'] ?? row['TELEFONO']);
         const email = limpiarTexto(row['Correo Electronico']);
-        const zona = obtenerZona(limpiarTexto(row['CLIENTE']));
+        const zona = (limpiarTexto(row['CLIENTE'])).toUpperCase().includes('FORANEO') ? 'foraneo' : 'local';
         const diaOriginal = limpiarTexto(row['DÍA DE VISITA'] ?? row['DIA DE VISITA']);
-        const diaVisita = normalizarDiaVisita(diaOriginal);
-        const frecuencia = normalizarFrecuencia(
-          limpiarTexto(row['FRECUENCIA DE VISITA'])
-        );
-        const semanaVisita = calcularSemanaVisita(diaOriginal);
-        const tipo = obtenerTipo(row);
-        const codigoCliente = limpiarTexto(row['No Cliente SAI']);
-        const codigoPostal = limpiarTexto(
-          row['CÓDIGO DE FACTURACIÓN'] ?? row['CODIGO DE FACTURACION']
-        );
-        const estado = limpiarTexto(row['ESTADO']);
-        const tipoCuenta = limpiarTexto(row['TIPO DE CUENTA']);
-        const { lat, lng } = parseCoordenadas(limpiarTexto(row['Coordenadas']));
-
+        
         if (!nombre || !ciudad) {
-          omitidos++;
-          continue;
-        }
-
-        const clienteExistenteQuery = query(
-          collection(db, 'clientes'),
-          where('ownerId', '==', user.uid),
-          where('nombre', '==', nombre)
-        );
-        const clienteExistenteSnap = await getDocs(clienteExistenteQuery);
-
-        const yaExiste = clienteExistenteSnap.docs.some((doc) => {
-          const data = doc.data() as ClienteFS;
-          return String(data.ciudad ?? '').trim().toLowerCase() === ciudad.toLowerCase();
-        });
-
-        if (yaExiste) {
           omitidos++;
           continue;
         }
@@ -410,19 +315,7 @@ export default function ClientesPage() {
           telefono,
           email,
           tipoZona: zona,
-          diaVisita: diaVisita || null,
-          frecuencia,
-          semanaVisita,
-          tipo,
-          codigoCliente,
-          codigoPostal,
-          estado,
-          tipoCuenta,
-          notaVisita: '',
-          notas: '',
-          activo: tipo !== 'inactivo',
-          lat,
-          lng,
+          tipo: 'cliente',
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         });
@@ -441,63 +334,6 @@ export default function ClientesPage() {
       }
     }
   };
-
-
-
-const autoPlanearClientes = async () => {
-  try {
-    setAutoPlanning(true);
-
-    if (!clientes.length) {
-      alert('No hay clientes');
-      return;
-    }
-
-    const clientesTransformados = clientes.map((c: any) => ({
-      id: c.id,
-      nombre: c.nombre,
-      ciudad: c.ciudad || 'GENERAL',
-      lat: c.lat || 0,
-      lng: c.lng || 0,
-    }));
-
-    const plan = generateMonthlyPlan(clientesTransformados);
-
-    const updates: Promise<any>[] = [];
-
-    Object.entries(plan).forEach(([semana, dias]: any) => {
-      Object.entries(dias).forEach(([dia, visitas]: any) => {
-        visitas.forEach((cliente: any) => {
-          const clienteRef = doc(db, 'clientes', cliente.id);
-
-          updates.push(
-            updateDoc(clienteRef, {
-              semanaVisita: semana,
-              diaVisita: dia,
-              frecuencia: 'mensual',
-              updatedAt: Timestamp.now(),
-            })
-          );
-        });
-      });
-    });
-
-    await Promise.all(updates);
-
-    alert('Planeación automática completada');
-
-    window.location.reload();
-
-  } catch (error) {
-    console.error(error);
-
-    alert('Error al generar planeación');
-  } finally {
-    setAutoPlanning(false);
-  }
-  
-  };
-
 
   if (authLoading) {
     return (
@@ -518,11 +354,11 @@ const autoPlanearClientes = async () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-                <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
-        <ArrowLeft className="h-4 w-4" />
-        Volver
-      </button>
-      <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
+          <button onClick={() => router.back()} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+            <ArrowLeft className="h-4 w-4" />
+            Volver
+          </button>
+          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
           <p className="mt-1 text-sm text-slate-500">
             Gestiona tu cartera, agenda de visitas e importación masiva.
           </p>
@@ -686,119 +522,39 @@ const autoPlanearClientes = async () => {
                         {c.frecuencia ?? '—'}
                       </p>
                     </div>
-
-                    <div className="rounded-xl bg-slate-50 p-3">
-                      <p className="text-slate-500">Día visita</p>
-                      <p className="mt-1 font-medium capitalize">
-                        {c.diaVisita ?? '—'}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-slate-50 p-3">
-                      <p className="text-slate-500">Semana</p>
-                      <p className="mt-1 font-medium">
-                        {c.semanaVisita ? `Semana ${c.semanaVisita}` : '—'}
-                      </p>
-                    </div>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge
-                      variant="outline"
-                      className={cn('capitalize', getZonaBadgeClasses(c?.tipoZona ?? ''))}
-                    >
-                      {c.tipoZona ?? '—'}
-                    </Badge>
-                  </div>
                   <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-4">
-  {c.telefono && (
-    <>
-      <Button asChild variant="outline" size="lg" className="rounded-xl">
-        <a href={`tel:${c.telefono}`}>
-          <Phone className="h-4 w-4" />
-          Llamar
-        </a>
-      </Button>
-
-      <Button asChild variant="outline" size="lg" className="rounded-xl">
-        <a
-          href={`https://wa.me/52${String(c.telefono).replace(/\D/g, '')}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <MessageCircle className="h-4 w-4" />
-          WhatsApp
-        </a>
-      </Button>
-    </>
-  )}
-
-  {typeof c.lat === 'number' && typeof c.lng === 'number' && (
-    <Button asChild variant="outline" size="lg" className="rounded-xl">
-      <a
-        href={`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}&travelmode=driving`}
-        target="_blank"
-        rel="noreferrer"
-      >
-        <Navigation className="h-4 w-4" />
-        Navegar
-      </a>
-    </Button>
-  )}
-
-  <Button asChild variant="outline" size="lg" className="rounded-xl">
-    <Link href={`/agenda?clienteId=${c.id}`}>
-      <Calendar className="h-4 w-4" />
-      Agenda
-    </Link>
-  </Button>
-
-  <Button asChild variant="outline" size="lg" className="rounded-xl">
-    <Link href={`/cotizaciones/nueva?clienteId=${c.id}`}>
-      <FileText className="h-4 w-4" />
-      Cotizar
-    </Link>
-  </Button>
-
-  <AlertDialog>
-    <AlertDialogTrigger asChild>
-      <Button
-        variant="destructive"
-        size="lg"
-        className="rounded-xl col-span-2"
->
-        <Trash2 className="h-4 w-4" />
-        Eliminar
-      </Button>
-    </AlertDialogTrigger>
-
-    <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>
-          ¿Estás seguro?
-        </AlertDialogTitle>
-
-        <AlertDialogDescription>
-          Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-
-      <AlertDialogFooter>
-        <AlertDialogCancel>
-          Cancelar
-        </AlertDialogCancel>
-
-        <AlertDialogAction
-          onClick={() => handleDelete(c.id!)}
-          className="bg-red-600 hover:bg-red-700"
-        >
-          Eliminar
-        </AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
-</div>
-</div>
+                  {c.telefono && (
+                    <>
+                      <Button asChild variant="outline" size="sm" className="rounded-xl">
+                        <a href={`tel:${c.telefono}`}>
+                          <Phone className="h-4 w-4" />
+                          Llamar
+                        </a>
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="rounded-xl">
+                        <a href={`https://wa.me/52${String(c.telefono).replace(/\D/g, '')}`} target="_blank" rel="noreferrer">
+                          <MessageCircle className="h-4 w-4" />
+                          WhatsApp
+                        </a>
+                      </Button>
+                    </>
+                  )}
+                  <Button asChild variant="outline" size="sm" className="rounded-xl">
+                    <Link href={`/agenda?clienteId=${c.id}`}>
+                      <Calendar className="h-4 w-4" />
+                      Agenda
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm" className="rounded-xl">
+                    <Link href={`/cotizaciones/nueva?clienteId=${c.id}`}>
+                      <FileText className="h-4 w-4" />
+                      Cotizar
+                    </Link>
+                  </Button>
+                </div>
+              </div>
               ))}
             </div>
 
@@ -810,9 +566,6 @@ const autoPlanearClientes = async () => {
                     <th className="p-4 text-left text-sm font-semibold">Tipo</th>
                     <th className="p-4 text-left text-sm font-semibold">Zona</th>
                     <th className="p-4 text-left text-sm font-semibold">Ciudad</th>
-                    <th className="p-4 text-left text-sm font-semibold">Día visita</th>
-                    <th className="p-4 text-left text-sm font-semibold">Semana</th>
-                    <th className="p-4 text-left text-sm font-semibold">Frecuencia</th>
                     <th className="p-4 text-left text-sm font-semibold">Acciones</th>
                   </tr>
                 </thead>
@@ -821,10 +574,10 @@ const autoPlanearClientes = async () => {
                   {clientesFiltrados.map((c) => (
                     <tr key={c.id} className="border-t hover:bg-slate-50/70">
                       <td className="p-4 font-medium">
-  <Link href={`/clientes/${c.id}`} className="hover:text-blue-600 hover:underline">
-    {c.nombre}
-  </Link>
-</td>
+                        <Link href={`/clientes/${c.id}`} className="hover:text-blue-600 hover:underline">
+                          {c.nombre}
+                        </Link>
+                      </td>
                       <td className="p-4">
                         <Badge
                           variant="outline"
@@ -842,11 +595,6 @@ const autoPlanearClientes = async () => {
                         </Badge>
                       </td>
                       <td className="p-4">{c.ciudad}</td>
-                      <td className="p-4 capitalize">{c.diaVisita ?? '—'}</td>
-                      <td className="p-4">
-                        {c.semanaVisita ? `Semana ${c.semanaVisita}` : '—'}
-                      </td>
-                      <td className="p-4 capitalize">{c.frecuencia ?? '—'}</td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
                           <Button asChild variant="outline" size="sm" className="rounded-xl">
@@ -855,7 +603,6 @@ const autoPlanearClientes = async () => {
                               Agenda
                             </Link>
                           </Button>
-
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
@@ -866,7 +613,6 @@ const autoPlanearClientes = async () => {
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
-
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
@@ -874,7 +620,6 @@ const autoPlanearClientes = async () => {
                                   Esta acción no se puede deshacer. Se eliminará permanentemente al cliente "{c.nombre}".
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
-
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                 <AlertDialogAction
@@ -898,7 +643,6 @@ const autoPlanearClientes = async () => {
       </section>
 
       <CrearClienteModal open={open} onClose={() => setOpen(false)} />
-      </div>
-);
+    </div>
+  );
 }
-         
