@@ -8,12 +8,13 @@ import {
   collection,
   getDocs,
   addDoc,
+  updateDoc,
   Timestamp,
   doc,
   deleteDoc,
   query,
   where,
-} from 'firebase/firestore'
+} from "firebase/firestore";
 import { db } from '@/lib/firebase'
 import { Button } from '@/components/ui/button'
 import { Trash2, Upload } from 'lucide-react'
@@ -40,9 +41,15 @@ type Producto = {
 }
 
 type ExcelRow = {
-  CODIGO?: string | number
-  PRODUCTO?: string
-  ENVASE?: string
+  Categoría?: string
+  Categoria?: string
+  Codigo?: string | number
+  Código?: string | number
+  Nombre?: string
+  "Nombre del producto"?: string
+  Capacidad?: string
+  Precio?: string | number
+  "Precio (IVA incluido)"?: string | number
   [key: string]: string | number | undefined
 }
 
@@ -158,53 +165,108 @@ export default function ProductosPage() {
     return 0
   }
 
-  const handleImportExcel = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+const handleImportExcel = async (
+  event: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = event.target.files?.[0]
+  if (!file) return
 
-    try {
-      setImportando(true)
+  try {
+    setImportando(true)
 
-      const data = await file.arrayBuffer()
-      const workbook = XLSX.read(data)
-      const sheet = workbook.Sheets[workbook.SheetNames[0]]
-      const rows = XLSX.utils.sheet_to_json<ExcelRow>(sheet)
+    const data = await file.arrayBuffer()
+    const workbook = XLSX.read(data)
+    const sheet = workbook.Sheets[workbook.SheetNames[0]]
 
-      if (!rows.length) {
-        alert('El archivo no tiene filas válidas.')
-        return
+    const rawRows = XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
+      defval: "",
+    }) as any[][];
+
+    // Buscar automáticamente la fila que contiene los encabezados
+    const headerIndex = rawRows.findIndex((row) =>
+      row.some(
+        (cell: any) =>
+          String(cell).toLowerCase().includes("codigo") ||
+          String(cell).toLowerCase().includes("código")
+      )
+    );
+
+    if (headerIndex === -1) {
+      alert("No se encontraron los encabezados del Excel.");
+      return;
+    }
+
+    const headers = rawRows[headerIndex].map((h: any) => String(h).trim());
+
+    const rows = rawRows.slice(headerIndex + 1).map((r) => {
+      const obj: any = {};
+      headers.forEach((h: string, i: number) => {
+        obj[h] = r[i];
+      });
+      return obj;
+    });
+
+    console.log("Encabezados:", headers);
+    console.log("Primera fila:", rows[0]);
+    console.log("Total filas:", rows.length);
+
+    if (!rows.length) {
+      alert("El archivo no tiene datos.")
+      return
+    }
+
+    let creados = 0
+    let actualizados = 0
+    let omitidos = 0
+
+    for (const row of rows) {
+      const categoria = String(
+        row["Categoría"] ?? row["Categoria"] ?? ""
+      ).trim()
+
+      const codigo = String(
+        row["Codigo"] ?? row["Código"] ?? ""
+      ).trim()
+
+      const nombre = String(
+        row["Nombre"] ?? row["Nombre del producto"] ?? ""
+      ).trim()
+
+      const capacidad = String(
+        row["Capacidad"] ?? ""
+      ).trim()
+
+      const precio = Number(
+        row["Precio"] ?? row["Precio (IVA incluido)"] ?? 0
+      )
+
+      if (!codigo || !nombre || !capacidad || !precio) {
+        omitidos++
+        continue
       }
 
-      let creados = 0
-      let omitidos = 0
+      const q = query(
+        collection(db, "productos"),
+        where("codigo", "==", codigo)
+      )
 
-      for (const row of rows) {
-        const codigo = String(row.CODIGO ?? '').trim()
-        const nombre = String(row.PRODUCTO ?? '').trim()
-        const capacidad = String(row.ENVASE ?? '').trim()
-        const precio = obtenerPrecioDesdeFila(row)
+      const snap = await getDocs(q)
 
-        if (!codigo || !nombre || !capacidad || !precio) {
-          omitidos++
-          continue
-        }
+      if (!snap.empty) {
+        const ref = snap.docs[0].ref
 
-        const categoria = normalizarCategoria(nombre)
+        await updateDoc(ref, {
+          categoria,
+          nombre,
+          capacidad,
+          precio,
+          updatedAt: Timestamp.now(),
+        })
 
-        const existenteQuery = query(
-          collection(db, 'productos'),
-          where('codigo', '==', codigo)
-        )
-        const existenteSnap = await getDocs(existenteQuery)
-
-        if (!existenteSnap.empty) {
-          omitidos++
-          continue
-        }
-
-        await addDoc(collection(db, 'productos'), {
+        actualizados++
+      } else {
+        await addDoc(collection(db, "productos"), {
           categoria,
           codigo,
           nombre,
@@ -212,26 +274,35 @@ export default function ProductosPage() {
           precio,
           activo: true,
           createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
         })
 
         creados++
       }
+    }
 
-      await cargarProductos()
+    await cargarProductos()
 
-      alert(
-        `Importación terminada.\nCreados: ${creados}\nOmitidos: ${omitidos}`
-      )
-    } catch (error) {
-      console.error('Error importando Excel:', error)
-      alert('No se pudo importar el Excel.')
-    } finally {
-      setImportando(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+    alert(
+      `Importación terminada
+
+Productos nuevos: ${creados}
+
+Productos actualizados: ${actualizados}
+
+Productos omitidos: ${omitidos}`
+    )
+  } catch (error) {
+    console.error(error)
+    alert("No se pudo importar el Excel.")
+  } finally {
+    setImportando(false)
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
     }
   }
+}
 
   return (
     <div className="p-6">
